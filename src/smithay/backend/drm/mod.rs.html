@@ -378,7 +378,7 @@
     <span class="doccomment">/// [`pending_connectors`](Surface::pending_connectors)</span>
     <span class="kw">type</span> <span class="ident">Connectors</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">connector</span>::<span class="ident">Handle</span><span class="op">&gt;</span>;
     <span class="doccomment">/// Error type returned by methods of this trait</span>
-    <span class="kw">type</span> <span class="ident">Error</span>: <span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span>;
+    <span class="kw">type</span> <span class="ident">Error</span>: <span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
 
     <span class="doccomment">/// Returns the underlying [`crtc`](drm::control::crtc) of this surface</span>
     <span class="kw">fn</span> <span class="ident">crtc</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">crtc</span>::<span class="ident">Handle</span>;

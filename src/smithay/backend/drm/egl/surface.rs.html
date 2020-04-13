@@ -124,16 +124,12 @@
 <span id="124">124</span>
 <span id="125">125</span>
 <span id="126">126</span>
-<span id="127">127</span>
-<span id="128">128</span>
-<span id="129">129</span>
-<span id="130">130</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{<span class="ident">connector</span>, <span class="ident">crtc</span>, <span class="ident">Mode</span>};
 <span class="kw">use</span> <span class="ident">nix</span>::<span class="ident">libc</span>::<span class="ident">c_void</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::<span class="ident">Rc</span>;
 
-<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">error</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">Error</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::{<span class="ident">Device</span>, <span class="ident">Surface</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">native</span>::{<span class="ident">Backend</span>, <span class="ident">NativeDisplay</span>, <span class="ident">NativeSurface</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::{<span class="ident">EGLContext</span>, <span class="ident">EGLSurface</span>};
@@ -160,7 +156,7 @@
     <span class="ident">D</span>: <span class="ident">Device</span> <span class="op">+</span> <span class="ident">NativeDisplay</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     <span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span>: <span class="ident">NativeSurface</span>,
 {
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Connectors</span> <span class="op">=</span> <span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Connectors</span>;
 
     <span class="kw">fn</span> <span class="ident">crtc</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">crtc</span>::<span class="ident">Handle</span> {
@@ -175,16 +171,14 @@
         <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">pending_connectors</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">add_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">surface</span>
-            .<span class="ident">add_connector</span>(<span class="ident">connector</span>)
-            .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">UnderlyingBackendError</span>)
+    <span class="kw">fn</span> <span class="ident">add_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">add_connector</span>(<span class="ident">connector</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">remove_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">remove_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">surface</span>
             .<span class="ident">remove_connector</span>(<span class="ident">connector</span>)
-            .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">UnderlyingBackendError</span>)
+            .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">current_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span> {
@@ -195,10 +189,8 @@
         <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">pending_mode</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">surface</span>
-            .<span class="ident">use_mode</span>(<span class="ident">mode</span>)
-            .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">UnderlyingBackendError</span>)
+    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">use_mode</span>(<span class="ident">mode</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
     }
 }
 

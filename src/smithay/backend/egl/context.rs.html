@@ -567,10 +567,12 @@
 <span id="567">567</span>
 <span id="568">568</span>
 <span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! EGL context related structs</span>
 
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">error</span>::<span class="kw-2">*</span>, <span class="ident">ffi</span>, <span class="ident">native</span>, <span class="ident">EGLSurface</span>};
+<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">ffi</span>, <span class="ident">native</span>, <span class="ident">EGLSurface</span>, <span class="ident">Error</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">PixelFormat</span>;
 <span class="kw">use</span> <span class="ident">nix</span>::<span class="ident">libc</span>::{<span class="ident">c_int</span>, <span class="ident">c_void</span>};
 <span class="kw">use</span> <span class="ident">slog</span>;
@@ -603,7 +605,7 @@
         <span class="ident">attributes</span>: <span class="ident">GlAttributes</span>,
         <span class="ident">reqs</span>: <span class="ident">PixelFormatRequirements</span>,
         <span class="ident">logger</span>: <span class="ident">L</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">EGLContext</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">EGLContext</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">L</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>::<span class="ident">slog</span>::<span class="ident">Logger</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     {
@@ -630,14 +632,17 @@
         <span class="kw-2">mut</span> <span class="ident">attributes</span>: <span class="ident">GlAttributes</span>,
         <span class="ident">reqs</span>: <span class="ident">PixelFormatRequirements</span>,
         <span class="ident">log</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(
-        <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLContext</span><span class="op">&gt;</span>,
-        <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLDisplay</span><span class="op">&gt;</span>,
-        <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLConfig</span>,
-        <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">c_int</span><span class="op">&gt;</span>,
-        <span class="ident">PixelFormat</span>,
-        <span class="ident">bool</span>,
-    )<span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>
+        (
+            <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLContext</span><span class="op">&gt;</span>,
+            <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLDisplay</span><span class="op">&gt;</span>,
+            <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLConfig</span>,
+            <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">c_int</span><span class="op">&gt;</span>,
+            <span class="ident">PixelFormat</span>,
+            <span class="ident">bool</span>,
+        ),
+        <span class="ident">Error</span>,
+    <span class="op">&gt;</span> {
         <span class="comment">// If no version is given, try OpenGLES 3.0, if available,</span>
         <span class="comment">// fallback to 2.0 otherwise</span>
         <span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">attributes</span>.<span class="ident">version</span> {
@@ -658,14 +663,14 @@
             }
             <span class="prelude-val">Some</span>((<span class="number">1</span>, <span class="ident">x</span>)) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="macro">error</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;OpenGLES 1.* is not supported by the EGL renderer backend&quot;</span>);
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">OpenGlVersionNotSupported</span>((<span class="number">1</span>, <span class="ident">x</span>)));
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">OpenGlVersionNotSupported</span>((<span class="number">1</span>, <span class="ident">x</span>)));
             }
             <span class="prelude-val">Some</span>(<span class="ident">version</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="macro">error</span><span class="macro">!</span>(
                     <span class="ident">log</span>,
                     <span class="string">&quot;OpenGLES {:?} is unknown and not supported by the EGL renderer backend&quot;</span>, <span class="ident">version</span>
                 );
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">OpenGlVersionNotSupported</span>(<span class="ident">version</span>));
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">OpenGlVersionNotSupported</span>(<span class="ident">version</span>));
             }
         };
 
@@ -716,7 +721,7 @@
         <span class="kw">let</span> <span class="ident">display</span> <span class="op">=</span> <span class="ident">B</span>::<span class="ident">get_display</span>(<span class="ident">ptr</span>, <span class="op">|</span><span class="ident">e</span>: <span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">|</span> <span class="ident">dp_extensions</span>.<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="ident">e</span>), <span class="ident">log</span>.<span class="ident">clone</span>());
         <span class="kw">if</span> <span class="ident">display</span> <span class="op">=</span><span class="op">=</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NO_DISPLAY</span> {
             <span class="macro">error</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;EGL Display is not valid&quot;</span>);
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">DisplayNotSupported</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DisplayNotSupported</span>);
         }
 
         <span class="kw">let</span> <span class="ident">egl_version</span> <span class="op">=</span> {
@@ -724,7 +729,7 @@
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">minor</span>: <span class="ident">MaybeUninit</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLint</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MaybeUninit</span>::<span class="ident">uninit</span>();
 
             <span class="kw">if</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">Initialize</span>(<span class="ident">display</span>, <span class="ident">major</span>.<span class="ident">as_mut_ptr</span>(), <span class="ident">minor</span>.<span class="ident">as_mut_ptr</span>()) <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">InitFailed</span>);
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">InitFailed</span>);
             }
             <span class="kw">let</span> <span class="ident">major</span> <span class="op">=</span> <span class="ident">major</span>.<span class="ident">assume_init</span>();
             <span class="kw">let</span> <span class="ident">minor</span> <span class="op">=</span> <span class="ident">minor</span>.<span class="ident">assume_init</span>();
@@ -749,7 +754,7 @@
 
         <span class="kw">if</span> <span class="ident">egl_version</span> <span class="op">&gt;</span><span class="op">=</span> (<span class="number">1</span>, <span class="number">2</span>) <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">BindAPI</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">OPENGL_ES_API</span>) <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="macro">error</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;OpenGLES not supported by the underlying EGL implementation&quot;</span>);
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">OpenGlesNotSupported</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">OpenGlesNotSupported</span>);
         }
 
         <span class="kw">let</span> <span class="ident">descriptor</span> <span class="op">=</span> {
@@ -775,7 +780,7 @@
                             <span class="ident">log</span>,
                             <span class="string">&quot;OpenglES 3.* is not supported on EGL Versions lower then 1.3&quot;</span>
                         );
-                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NoAvailablePixelFormat</span>);
+                        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">NoAvailablePixelFormat</span>);
                     }
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Setting RENDERABLE_TYPE to OPENGL_ES3&quot;</span>);
                     <span class="ident">out</span>.<span class="ident">push</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">RENDERABLE_TYPE</span> <span class="kw">as</span> <span class="ident">c_int</span>);
@@ -790,7 +795,7 @@
                             <span class="ident">log</span>,
                             <span class="string">&quot;OpenglES 2.* is not supported on EGL Versions lower then 1.3&quot;</span>
                         );
-                        <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NoAvailablePixelFormat</span>);
+                        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">NoAvailablePixelFormat</span>);
                     }
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Setting RENDERABLE_TYPE to OPENGL_ES2&quot;</span>);
                     <span class="ident">out</span>.<span class="ident">push</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">RENDERABLE_TYPE</span> <span class="kw">as</span> <span class="ident">c_int</span>);
@@ -859,7 +864,7 @@
 
             <span class="kw">if</span> <span class="ident">reqs</span>.<span class="ident">stereoscopy</span> {
                 <span class="macro">error</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Stereoscopy is currently unsupported (sorry!)&quot;</span>);
-                <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NoAvailablePixelFormat</span>);
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">NoAvailablePixelFormat</span>);
             }
 
             <span class="ident">out</span>.<span class="ident">push</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NONE</span> <span class="kw">as</span> <span class="ident">c_int</span>);
@@ -877,7 +882,7 @@
             <span class="ident">num_configs</span>.<span class="ident">as_mut_ptr</span>(),
         ) <span class="op">=</span><span class="op">=</span> <span class="number">0</span>
         {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">ConfigFailed</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">ConfigFailed</span>);
         }
 
         <span class="kw">let</span> <span class="ident">config_id</span> <span class="op">=</span> <span class="ident">config_id</span>.<span class="ident">assume_init</span>();
@@ -885,7 +890,7 @@
 
         <span class="kw">if</span> <span class="ident">num_configs</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="macro">error</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;No matching color format found&quot;</span>);
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NoAvailablePixelFormat</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">NoAvailablePixelFormat</span>);
         }
 
         <span class="comment">// analyzing each config</span>
@@ -899,7 +904,7 @@
                     <span class="ident">value</span>.<span class="ident">as_mut_ptr</span>(),
                 );
                 <span class="kw">if</span> <span class="ident">res</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-                    <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">ConfigFailed</span>);
+                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">ConfigFailed</span>);
                 }
                 <span class="ident">value</span>.<span class="ident">assume_init</span>()
             }};
@@ -956,8 +961,8 @@
 
         <span class="kw">if</span> <span class="ident">context</span>.<span class="ident">is_null</span>() {
             <span class="kw">match</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetError</span>() <span class="kw">as</span> <span class="ident">u32</span> {
-                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">BAD_ATTRIBUTE</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">CreationFailed</span>),
-                <span class="ident">err_no</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">Unknown</span>(<span class="ident">err_no</span>)),
+                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">BAD_ATTRIBUTE</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">CreationFailed</span>),
+                <span class="ident">err_no</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">Unknown</span>(<span class="ident">err_no</span>)),
             }
         }
         <span class="macro">debug</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;EGL context successfully created&quot;</span>);
@@ -999,13 +1004,12 @@
     }
 
     <span class="doccomment">/// Creates a surface for rendering</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_surface</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">args</span>: <span class="ident">N</span>::<span class="ident">Arguments</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">EGLSurface</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Surface</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_surface</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">args</span>: <span class="ident">N</span>::<span class="ident">Arguments</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">EGLSurface</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Surface</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="macro">trace</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Creating EGL window surface.&quot;</span>);
-        <span class="kw">let</span> <span class="ident">surface</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">native</span>
-            .<span class="ident">borrow_mut</span>()
-            .<span class="ident">create_surface</span>(<span class="ident">args</span>)
-            .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">SurfaceCreationFailed</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">surface</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">native</span>.<span class="ident">borrow_mut</span>().<span class="ident">create_surface</span>(<span class="ident">args</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+            <span class="macro">error</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;EGL surface creation failed: {}&quot;</span>, <span class="ident">e</span>);
+            <span class="ident">Error</span>::<span class="ident">SurfaceCreationFailed</span>
+        })<span class="question-mark">?</span>;
         <span class="ident">EGLSurface</span>::<span class="ident">new</span>(<span class="self">self</span>, <span class="ident">surface</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> {
             <span class="macro">debug</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;EGL surface successfully created&quot;</span>);
             <span class="ident">x</span>

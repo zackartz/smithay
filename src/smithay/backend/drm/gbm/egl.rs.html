@@ -92,7 +92,6 @@
 <span id="92">92</span>
 <span id="93">93</span>
 <span id="94">94</span>
-<span id="95">95</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Egl [`NativeDisplay`](::backend::egl::native::NativeDisplay) and</span>
@@ -100,14 +99,13 @@
 <span class="doccomment">//! [`GbmDevice`](GbmDevice) and [`GbmSurface`](GbmSurface).</span>
 <span class="doccomment">//!</span>
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::{<span class="ident">Device</span>, <span class="ident">RawDevice</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">error</span>::<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">EglResult</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::{<span class="ident">Device</span>, <span class="ident">RawDevice</span>, <span class="ident">Surface</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">ffi</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">native</span>::{<span class="ident">Backend</span>, <span class="ident">NativeDisplay</span>, <span class="ident">NativeSurface</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">EglError</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">SwapBuffersError</span>;
 
-<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">error</span>::{<span class="ident">Error</span>, <span class="prelude-ty">Result</span>};
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">GbmDevice</span>, <span class="ident">GbmSurface</span>};
+<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">Error</span>, <span class="ident">GbmDevice</span>, <span class="ident">GbmSurface</span>};
 
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{<span class="ident">crtc</span>, <span class="ident">Device</span> <span class="kw">as</span> <span class="ident">ControlDevice</span>};
 <span class="kw">use</span> <span class="ident">gbm</span>::<span class="ident">AsRaw</span>;
@@ -150,17 +148,17 @@
 
 <span class="kw">unsafe</span> <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="ident">ControlDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">NativeDisplay</span><span class="op">&lt;</span><span class="ident">Gbm</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GbmDevice</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Arguments</span> <span class="op">=</span> <span class="ident">crtc</span>::<span class="ident">Handle</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">is_backend</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="bool-val">true</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">ptr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">EglResult</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">NativeDisplayType</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">ptr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">NativeDisplayType</span>, <span class="ident">EglError</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow</span>().<span class="ident">as_raw</span>() <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">create_surface</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">GbmSurface</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">create_surface</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">GbmSurface</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="ident">Device</span>::<span class="ident">create_surface</span>(<span class="self">self</span>, <span class="ident">crtc</span>)
     }
 }
@@ -176,7 +174,7 @@
 
     <span class="kw">fn</span> <span class="ident">recreate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">GbmSurface</span>::<span class="ident">recreate</span>(<span class="self">self</span>) {
-            <span class="macro">error</span><span class="macro">!</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">logger</span>, <span class="string">&quot;Failure recreating internal resources: {:?}&quot;</span>, <span class="ident">err</span>);
+            <span class="macro">error</span><span class="macro">!</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">logger</span>, <span class="string">&quot;Failure recreating internal resources: {}&quot;</span>, <span class="ident">err</span>);
             <span class="bool-val">false</span>
         } <span class="kw">else</span> {
             <span class="bool-val">true</span>

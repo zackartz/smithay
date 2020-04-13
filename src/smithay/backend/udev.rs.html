@@ -213,13 +213,6 @@
 <span id="213">213</span>
 <span id="214">214</span>
 <span id="215">215</span>
-<span id="216">216</span>
-<span id="217">217</span>
-<span id="218">218</span>
-<span id="219">219</span>
-<span id="220">220</span>
-<span id="221">221</span>
-<span id="222">222</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Provides `udev` related functionality for automated device scanning.</span>
@@ -236,10 +229,11 @@
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">collections</span>::<span class="ident">HashSet</span>,
     <span class="ident">ffi</span>::<span class="ident">OsString</span>,
+    <span class="ident">io</span>::<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">IoResult</span>,
     <span class="ident">os</span>::<span class="ident">unix</span>::<span class="ident">io</span>::{<span class="ident">AsRawFd</span>, <span class="ident">RawFd</span>},
     <span class="ident">path</span>::{<span class="ident">Path</span>, <span class="ident">PathBuf</span>},
 };
-<span class="kw">use</span> <span class="ident">udev</span>::{<span class="ident">Context</span>, <span class="ident">Enumerator</span>, <span class="ident">EventType</span>, <span class="ident">MonitorBuilder</span>, <span class="ident">MonitorSocket</span>, <span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">UdevResult</span>};
+<span class="kw">use</span> <span class="ident">udev</span>::{<span class="ident">Enumerator</span>, <span class="ident">EventType</span>, <span class="ident">MonitorBuilder</span>, <span class="ident">MonitorSocket</span>};
 
 <span class="kw">use</span> <span class="ident">calloop</span>::{
     <span class="ident">generic</span>::{<span class="ident">Generic</span>, <span class="ident">SourceFd</span>},
@@ -269,22 +263,16 @@
     <span class="doccomment">/// Creates a new [`UdevBackend`]</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ## Arguments</span>
-    <span class="doccomment">/// `context` - An initialized udev context</span>
     <span class="doccomment">/// `handler` - User-provided handler to respond to any detected changes</span>
     <span class="doccomment">/// `seat`    -</span>
     <span class="doccomment">/// `logger`  - slog Logger to be used by the backend and its `DrmDevices`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">S</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>(
-        <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>,
-        <span class="kw-2">mut</span> <span class="ident">handler</span>: <span class="ident">T</span>,
-        <span class="ident">seat</span>: <span class="ident">S</span>,
-        <span class="ident">logger</span>: <span class="ident">L</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">UdevResult</span><span class="op">&lt;</span><span class="ident">UdevBackend</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">S</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="ident">handler</span>: <span class="ident">T</span>, <span class="ident">seat</span>: <span class="ident">S</span>, <span class="ident">logger</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">IoResult</span><span class="op">&lt;</span><span class="ident">UdevBackend</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">L</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>::<span class="ident">slog</span>::<span class="ident">Logger</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     {
         <span class="kw">let</span> <span class="ident">log</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">slog_or_stdlog</span>(<span class="ident">logger</span>).<span class="ident">new</span>(<span class="macro">o</span><span class="macro">!</span>(<span class="string">&quot;smithay_module&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="string">&quot;backend_udev&quot;</span>));
 
-        <span class="kw">let</span> <span class="ident">devices</span> <span class="op">=</span> <span class="ident">all_gpus</span>(<span class="ident">context</span>, <span class="ident">seat</span>)<span class="question-mark">?</span>
+        <span class="kw">let</span> <span class="ident">devices</span> <span class="op">=</span> <span class="ident">all_gpus</span>(<span class="ident">seat</span>)<span class="question-mark">?</span>
             .<span class="ident">into_iter</span>()
             <span class="comment">// Create devices</span>
             .<span class="ident">flat_map</span>(<span class="op">|</span><span class="ident">path</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">stat</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>) {
@@ -299,9 +287,7 @@
             })
             .<span class="ident">collect</span>();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">MonitorBuilder</span>::<span class="ident">new</span>(<span class="ident">context</span>)<span class="question-mark">?</span>;
-        <span class="ident">builder</span>.<span class="ident">match_subsystem</span>(<span class="string">&quot;drm&quot;</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">monitor</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">listen</span>()<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">monitor</span> <span class="op">=</span> <span class="ident">MonitorBuilder</span>::<span class="ident">new</span>()<span class="question-mark">?</span>.<span class="ident">match_subsystem</span>(<span class="string">&quot;drm&quot;</span>)<span class="question-mark">?</span>.<span class="ident">listen</span>()<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">UdevBackend</span> {
             <span class="ident">devices</span>,
@@ -396,8 +382,8 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// Might be used for filtering in [`UdevHandler::device_added`] or for manual</span>
 <span class="doccomment">/// [`LegacyDrmDevice`](::backend::drm::legacy::LegacyDrmDevice) initialization.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">primary_gpu</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>, <span class="ident">seat</span>: <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">UdevResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">enumerator</span> <span class="op">=</span> <span class="ident">Enumerator</span>::<span class="ident">new</span>(<span class="ident">context</span>)<span class="question-mark">?</span>;
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">primary_gpu</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">seat</span>: <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">IoResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">enumerator</span> <span class="op">=</span> <span class="ident">Enumerator</span>::<span class="ident">new</span>()<span class="question-mark">?</span>;
     <span class="ident">enumerator</span>.<span class="ident">match_subsystem</span>(<span class="string">&quot;drm&quot;</span>)<span class="question-mark">?</span>;
     <span class="ident">enumerator</span>.<span class="ident">match_sysname</span>(<span class="string">&quot;card[0-9]*&quot;</span>)<span class="question-mark">?</span>;
 
@@ -427,8 +413,8 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// Might be used for manual  [`LegacyDrmDevice`](::backend::drm::legacy::LegacyDrmDevice)</span>
 <span class="doccomment">/// initialization.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">all_gpus</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>, <span class="ident">seat</span>: <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">UdevResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">enumerator</span> <span class="op">=</span> <span class="ident">Enumerator</span>::<span class="ident">new</span>(<span class="ident">context</span>)<span class="question-mark">?</span>;
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">all_gpus</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">seat</span>: <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">IoResult</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">enumerator</span> <span class="op">=</span> <span class="ident">Enumerator</span>::<span class="ident">new</span>()<span class="question-mark">?</span>;
     <span class="ident">enumerator</span>.<span class="ident">match_subsystem</span>(<span class="string">&quot;drm&quot;</span>)<span class="question-mark">?</span>;
     <span class="ident">enumerator</span>.<span class="ident">match_sysname</span>(<span class="string">&quot;card[0-9]*&quot;</span>)<span class="question-mark">?</span>;
     <span class="prelude-val">Ok</span>(<span class="ident">enumerator</span>

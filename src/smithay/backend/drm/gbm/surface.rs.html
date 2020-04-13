@@ -364,17 +364,9 @@
 <span id="364">364</span>
 <span id="365">365</span>
 <span id="366">366</span>
-<span id="367">367</span>
-<span id="368">368</span>
-<span id="369">369</span>
-<span id="370">370</span>
-<span id="371">371</span>
-<span id="372">372</span>
-<span id="373">373</span>
-<span id="374">374</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">super</span>::<span class="kw">super</span>::{<span class="ident">Device</span>, <span class="ident">RawDevice</span>, <span class="ident">RawSurface</span>, <span class="ident">Surface</span>};
-<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">error</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">Error</span>;
 
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{<span class="ident">connector</span>, <span class="ident">crtc</span>, <span class="ident">framebuffer</span>, <span class="ident">Device</span> <span class="kw">as</span> <span class="ident">ControlDevice</span>, <span class="ident">Mode</span>};
 <span class="kw">use</span> <span class="ident">gbm</span>::{<span class="self">self</span>, <span class="ident">BufferObject</span>, <span class="ident">BufferObjectFlags</span>, <span class="ident">Format</span> <span class="kw">as</span> <span class="ident">GbmFormat</span>, <span class="ident">SurfaceBufferHandle</span>};
@@ -465,8 +457,8 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">recreate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> (<span class="ident">w</span>, <span class="ident">h</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending_mode</span>().<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">NoModeSet</span>)<span class="question-mark">?</span>.<span class="ident">size</span>();
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">recreate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> (<span class="ident">w</span>, <span class="ident">h</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending_mode</span>().<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="ident">NoModeSet</span>)<span class="question-mark">?</span>.<span class="ident">size</span>();
 
         <span class="comment">// Recreate the surface and the related resources to match the new</span>
         <span class="comment">// resolution.</span>
@@ -480,7 +472,7 @@
                 <span class="ident">GbmFormat</span>::<span class="ident">XRGB8888</span>,
                 <span class="ident">BufferObjectFlags</span>::<span class="ident">SCANOUT</span> <span class="op">|</span> <span class="ident">BufferObjectFlags</span>::<span class="ident">RENDERING</span>,
             )
-            .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">SurfaceCreationFailed</span>)<span class="question-mark">?</span>;
+            .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">SurfaceCreationFailed</span>)<span class="question-mark">?</span>;
 
         <span class="comment">// Clean up buffers</span>
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">fb</span>))) <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_buffer</span>.<span class="ident">take</span>().<span class="ident">map</span>(<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">bo</span><span class="op">|</span> <span class="ident">bo</span>.<span class="ident">take_userdata</span>()) {
@@ -512,7 +504,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Surface</span> <span class="kw">for</span> <span class="ident">GbmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Connectors</span> <span class="op">=</span> <span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Connectors</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">crtc</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">crtc</span>::<span class="ident">Handle</span> {
         <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">crtc</span>()
@@ -526,16 +518,12 @@
         <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">pending_connectors</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">add_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">crtc</span>
-            .<span class="ident">add_connector</span>(<span class="ident">connector</span>)
-            .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">UnderlyingBackendError</span>)
+    <span class="kw">fn</span> <span class="ident">add_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">add_connector</span>(<span class="ident">connector</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">remove_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">crtc</span>
-            .<span class="ident">remove_connector</span>(<span class="ident">connector</span>)
-            .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">UnderlyingBackendError</span>)
+    <span class="kw">fn</span> <span class="ident">remove_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">remove_connector</span>(<span class="ident">connector</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">current_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span> {
@@ -546,10 +534,8 @@
         <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">pending_mode</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">crtc</span>
-            .<span class="ident">use_mode</span>(<span class="ident">mode</span>)
-            .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">UnderlyingBackendError</span>)
+    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">use_mode</span>(<span class="ident">mode</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
     }
 }
 
@@ -580,19 +566,17 @@ where
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm_legacy&quot;</span>)]</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">CursorBackend</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GbmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">LegacyDrmDevice</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">CursorFormat</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ImageBuffer</span><span class="op">&lt;</span><span class="ident">Rgba</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">LegacyDrmDevice</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 
-    <span class="kw">fn</span> <span class="ident">set_cursor_position</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">u32</span>, <span class="ident">y</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="ident">ResultExt</span>::<span class="ident">chain_err</span>(<span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">set_cursor_position</span>(<span class="ident">x</span>, <span class="ident">y</span>), <span class="op">|</span><span class="op">|</span> {
-            <span class="ident">ErrorKind</span>::<span class="ident">UnderlyingBackendError</span>
-        })
+    <span class="kw">fn</span> <span class="ident">set_cursor_position</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">u32</span>, <span class="ident">y</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">set_cursor_position</span>(<span class="ident">x</span>, <span class="ident">y</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">set_cursor_representation</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="self">self</span>,
         <span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="ident">ImageBuffer</span><span class="op">&lt;</span><span class="ident">Rgba</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">hotspot</span>: (<span class="ident">u32</span>, <span class="ident">u32</span>),
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="lifetime">&#39;a</span>: <span class="lifetime">&#39;b</span>,
     {
@@ -609,18 +593,18 @@ where
                 <span class="ident">GbmFormat</span>::<span class="ident">ARGB8888</span>,
                 <span class="ident">BufferObjectFlags</span>::<span class="ident">CURSOR</span> <span class="op">|</span> <span class="ident">BufferObjectFlags</span>::<span class="ident">WRITE</span>,
             )
-            .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">BufferCreationFailed</span>)<span class="question-mark">?</span>;
+            .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">BufferCreationFailed</span>)<span class="question-mark">?</span>;
 
         <span class="ident">cursor</span>
             .<span class="ident">write</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">buffer</span>)
-            .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">BufferWriteFailed</span>)<span class="question-mark">?</span>
-            .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">BufferWriteFailed</span>)<span class="question-mark">?</span>;
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">DeviceDestroyed</span>)<span class="question-mark">?</span>
+            .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">BufferWriteFailed</span>)<span class="question-mark">?</span>;
 
         <span class="macro">trace</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Setting the new imported cursor&quot;</span>);
 
-        <span class="ident">ResultExt</span>::<span class="ident">chain_err</span>(<span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">set_cursor_representation</span>(<span class="kw-2">&amp;</span><span class="ident">cursor</span>, <span class="ident">hotspot</span>), <span class="op">|</span><span class="op">|</span> {
-            <span class="ident">ErrorKind</span>::<span class="ident">UnderlyingBackendError</span>
-        })<span class="question-mark">?</span>;
+        <span class="self">self</span>.<span class="ident">crtc</span>
+            .<span class="ident">set_cursor_representation</span>(<span class="kw-2">&amp;</span><span class="ident">cursor</span>, <span class="ident">hotspot</span>)
+            .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)<span class="question-mark">?</span>;
 
         <span class="comment">// and store it</span>
         <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">set</span>((<span class="ident">cursor</span>, <span class="ident">hotspot</span>));
@@ -680,7 +664,7 @@ where
     <span class="doccomment">/// calling [`Surface::use_mode`](Surface::use_mode).</span>
     <span class="doccomment">/// You may check if your [`GbmSurface`] needs recreation through</span>
     <span class="doccomment">/// [`needs_recreation`](GbmSurface::needs_recreation).</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">recreate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">recreate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">recreate</span>()
     }
 
@@ -692,7 +676,7 @@ where
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Surface</span> <span class="kw">for</span> <span class="ident">GbmSurface</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Connectors</span> <span class="op">=</span> <span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Connectors</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">crtc</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">crtc</span>::<span class="ident">Handle</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">crtc</span>()
@@ -706,11 +690,11 @@ where
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">pending_connectors</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">add_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">add_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">add_connector</span>(<span class="ident">connector</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">remove_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">remove_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">remove_connector</span>(<span class="ident">connector</span>)
     }
 
@@ -722,7 +706,7 @@ where
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">pending_mode</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">use_mode</span>(<span class="ident">mode</span>)
     }
 }
@@ -730,9 +714,9 @@ where
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm_legacy&quot;</span>)]</span>
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">CursorBackend</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GbmSurface</span><span class="op">&lt;</span><span class="ident">LegacyDrmDevice</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">CursorFormat</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ImageBuffer</span><span class="op">&lt;</span><span class="ident">Rgba</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span>;
 
-    <span class="kw">fn</span> <span class="ident">set_cursor_position</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">u32</span>, <span class="ident">y</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">set_cursor_position</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">u32</span>, <span class="ident">y</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">set_cursor_position</span>(<span class="ident">x</span>, <span class="ident">y</span>)
     }
 
@@ -740,7 +724,7 @@ where
         <span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="self">self</span>,
         <span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="ident">ImageBuffer</span><span class="op">&lt;</span><span class="ident">Rgba</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">hotspot</span>: (<span class="ident">u32</span>, <span class="ident">u32</span>),
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="lifetime">&#39;a</span>: <span class="lifetime">&#39;b</span>,
     {

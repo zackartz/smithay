@@ -8,8 +8,8 @@
 typically known as a pointer grab. A typical example would be, during a drag'n'drop operation,
 the underlying surfaces will no longer receive classic pointer event, but rather special events.</p>
 <p>This trait is the interface to intercept regular pointer events and change them as needed, its
-interface mimics the <a href="../../../smithay/wayland/seat/struct.PointerHandle.html" title="`PointerHandle`"><code>PointerHandle</code></a> interface.</p>
-<p>If your logic decides that the grab should end, both <a href="../../../smithay/wayland/seat/struct.PointerInnerHandle.html" title="`PointerInnerHandle`"><code>PointerInnerHandle</code></a> and <a href="../../../smithay/wayland/seat/struct.PointerHandle.html" title="`PointerHandle`"><code>PointerHandle</code></a> have
+interface mimics the [<code>PointerHandle</code>] interface.</p>
+<p>If your logic decides that the grab should end, both [<code>PointerInnerHandle</code>] and [<code>PointerHandle</code>] have
 a method to change it.</p>
 <p>When your grab ends (either as you requested it or if it was forcefully cancelled by the server),
 the struct implementing this trait will be dropped. As such you should put clean-up logic in the destructor,

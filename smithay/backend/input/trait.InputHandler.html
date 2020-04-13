@@ -13,71 +13,71 @@
 <div class='item-spacer'></div>    fn <a href='#tymethod.on_touch_cancel' class='fnname'>on_touch_cancel</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.TouchCancelEvent" title="type smithay::backend::input::InputBackend::TouchCancelEvent">TouchCancelEvent</a>);
 <div class='item-spacer'></div>    fn <a href='#tymethod.on_touch_frame' class='fnname'>on_touch_frame</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.TouchFrameEvent" title="type smithay::backend::input::InputBackend::TouchFrameEvent">TouchFrameEvent</a>);
 <div class='item-spacer'></div>    fn <a href='#tymethod.on_input_config_changed' class='fnname'>on_input_config_changed</a>(&amp;mut self, config: &amp;mut B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.InputConfig" title="type smithay::backend::input::InputBackend::InputConfig">InputConfig</a>);
-}</pre></div><div class='docblock'><p>Implement to receive input events from any <a href="../../../smithay/backend/input/trait.InputBackend.html" title="`InputBackend`"><code>InputBackend</code></a>.</p>
+}</pre></div><div class='docblock'><p>Implement to receive input events from any [<code>InputBackend</code>].</p>
 </div>
-            <h2 id='required-methods' class='small-section-header'>Required methods<a href='#required-methods' class='anchor'></a></h2><div class='methods'><h3 id='tymethod.on_seat_created' class='method'><code id='on_seat_created.v'>fn <a href='#tymethod.on_seat_created' class='fnname'>on_seat_created</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>)</code></h3><div class='docblock'><p>Called when a new <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> has been created</p>
-</div><h3 id='tymethod.on_seat_destroyed' class='method'><code id='on_seat_destroyed.v'>fn <a href='#tymethod.on_seat_destroyed' class='fnname'>on_seat_destroyed</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>)</code></h3><div class='docblock'><p>Called when an existing <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> has been destroyed.</p>
-</div><h3 id='tymethod.on_seat_changed' class='method'><code id='on_seat_changed.v'>fn <a href='#tymethod.on_seat_changed' class='fnname'>on_seat_changed</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>)</code></h3><div class='docblock'><p>Called when a <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a>'s properties have changed.</p>
+            <h2 id='required-methods' class='small-section-header'>Required methods<a href='#required-methods' class='anchor'></a></h2><div class='methods'><h3 id='tymethod.on_seat_created' class='method'><code id='on_seat_created.v'>fn <a href='#tymethod.on_seat_created' class='fnname'>on_seat_created</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>)</code></h3><div class='docblock'><p>Called when a new [<code>Seat</code>] has been created</p>
+</div><h3 id='tymethod.on_seat_destroyed' class='method'><code id='on_seat_destroyed.v'>fn <a href='#tymethod.on_seat_destroyed' class='fnname'>on_seat_destroyed</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>)</code></h3><div class='docblock'><p>Called when an existing [<code>Seat</code>] has been destroyed.</p>
+</div><h3 id='tymethod.on_seat_changed' class='method'><code id='on_seat_changed.v'>fn <a href='#tymethod.on_seat_changed' class='fnname'>on_seat_changed</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>)</code></h3><div class='docblock'><p>Called when a [<code>Seat</code>]'s properties have changed.</p>
 <h2 id="note" class="section-header"><a href="#note">Note:</a></h2>
 <p>It is not guaranteed that any change has actually happened.</p>
 </div><h3 id='tymethod.on_keyboard_key' class='method'><code id='on_keyboard_key.v'>fn <a href='#tymethod.on_keyboard_key' class='fnname'>on_keyboard_key</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.KeyboardKeyEvent" title="type smithay::backend::input::InputBackend::KeyboardKeyEvent">KeyboardKeyEvent</a>)</code></h3><div class='docblock'><p>Called when a new keyboard event was received.</p>
 <h1 id="arguments" class="section-header"><a href="#arguments">Arguments</a></h1>
 <ul>
-<li><code>seat</code> - The <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> the event belongs to</li>
+<li><code>seat</code> - The [<code>Seat</code>] the event belongs to</li>
 <li><code>event</code> - The keyboard event</li>
 </ul>
 </div><h3 id='tymethod.on_pointer_move' class='method'><code id='on_pointer_move.v'>fn <a href='#tymethod.on_pointer_move' class='fnname'>on_pointer_move</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.PointerMotionEvent" title="type smithay::backend::input::InputBackend::PointerMotionEvent">PointerMotionEvent</a>)</code></h3><div class='docblock'><p>Called when a new pointer movement event was received.</p>
 <h1 id="arguments-1" class="section-header"><a href="#arguments-1">Arguments</a></h1>
 <ul>
-<li><code>seat</code> - The <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> the event belongs to</li>
+<li><code>seat</code> - The [<code>Seat</code>] the event belongs to</li>
 <li><code>event</code> - The pointer movement event</li>
 </ul>
 </div><h3 id='tymethod.on_pointer_move_absolute' class='method'><code id='on_pointer_move_absolute.v'>fn <a href='#tymethod.on_pointer_move_absolute' class='fnname'>on_pointer_move_absolute</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;mut self, <br>&nbsp;&nbsp;&nbsp;&nbsp;seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.PointerMotionAbsoluteEvent" title="type smithay::backend::input::InputBackend::PointerMotionAbsoluteEvent">PointerMotionAbsoluteEvent</a><br>)</code></h3><div class='docblock'><p>Called when a new pointer absolute movement event was received.</p>
 <h1 id="arguments-2" class="section-header"><a href="#arguments-2">Arguments</a></h1>
 <ul>
-<li><code>seat</code> - The <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> the event belongs to</li>
+<li><code>seat</code> - The [<code>Seat</code>] the event belongs to</li>
 <li><code>event</code> - The pointer absolute movement event</li>
 </ul>
 </div><h3 id='tymethod.on_pointer_button' class='method'><code id='on_pointer_button.v'>fn <a href='#tymethod.on_pointer_button' class='fnname'>on_pointer_button</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.PointerButtonEvent" title="type smithay::backend::input::InputBackend::PointerButtonEvent">PointerButtonEvent</a>)</code></h3><div class='docblock'><p>Called when a new pointer button event was received.</p>
 <h1 id="arguments-3" class="section-header"><a href="#arguments-3">Arguments</a></h1>
 <ul>
-<li><code>seat</code> - The <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> the event belongs to</li>
+<li><code>seat</code> - The [<code>Seat</code>] the event belongs to</li>
 <li><code>event</code> - The pointer button event</li>
 </ul>
 </div><h3 id='tymethod.on_pointer_axis' class='method'><code id='on_pointer_axis.v'>fn <a href='#tymethod.on_pointer_axis' class='fnname'>on_pointer_axis</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.PointerAxisEvent" title="type smithay::backend::input::InputBackend::PointerAxisEvent">PointerAxisEvent</a>)</code></h3><div class='docblock'><p>Called when a new pointer scroll event was received.</p>
 <h1 id="arguments-4" class="section-header"><a href="#arguments-4">Arguments</a></h1>
 <ul>
-<li><code>seat</code> - The <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> the event belongs to</li>
+<li><code>seat</code> - The [<code>Seat</code>] the event belongs to</li>
 <li><code>event</code> - A upward counting variable useful for event ordering. Makes no guarantees about actual time passed between events.</li>
 </ul>
 </div><h3 id='tymethod.on_touch_down' class='method'><code id='on_touch_down.v'>fn <a href='#tymethod.on_touch_down' class='fnname'>on_touch_down</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.TouchDownEvent" title="type smithay::backend::input::InputBackend::TouchDownEvent">TouchDownEvent</a>)</code></h3><div class='docblock'><p>Called when a new touch down event was received.</p>
 <h1 id="arguments-5" class="section-header"><a href="#arguments-5">Arguments</a></h1>
 <ul>
-<li><code>seat</code> - The <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> the event belongs to</li>
+<li><code>seat</code> - The [<code>Seat</code>] the event belongs to</li>
 <li><code>event</code> - The touch down event</li>
 </ul>
 </div><h3 id='tymethod.on_touch_motion' class='method'><code id='on_touch_motion.v'>fn <a href='#tymethod.on_touch_motion' class='fnname'>on_touch_motion</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.TouchMotionEvent" title="type smithay::backend::input::InputBackend::TouchMotionEvent">TouchMotionEvent</a>)</code></h3><div class='docblock'><p>Called when a new touch motion event was received.</p>
 <h1 id="arguments-6" class="section-header"><a href="#arguments-6">Arguments</a></h1>
 <ul>
-<li><code>seat</code> - The <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> the event belongs to</li>
+<li><code>seat</code> - The [<code>Seat</code>] the event belongs to</li>
 <li><code>event</code> - The touch motion event.</li>
 </ul>
 </div><h3 id='tymethod.on_touch_up' class='method'><code id='on_touch_up.v'>fn <a href='#tymethod.on_touch_up' class='fnname'>on_touch_up</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.TouchUpEvent" title="type smithay::backend::input::InputBackend::TouchUpEvent">TouchUpEvent</a>)</code></h3><div class='docblock'><p>Called when a new touch up event was received.</p>
 <h1 id="arguments-7" class="section-header"><a href="#arguments-7">Arguments</a></h1>
 <ul>
-<li><code>seat</code> - The <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> the event belongs to</li>
+<li><code>seat</code> - The [<code>Seat</code>] the event belongs to</li>
 <li><code>event</code> - The touch up event.</li>
 </ul>
 </div><h3 id='tymethod.on_touch_cancel' class='method'><code id='on_touch_cancel.v'>fn <a href='#tymethod.on_touch_cancel' class='fnname'>on_touch_cancel</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.TouchCancelEvent" title="type smithay::backend::input::InputBackend::TouchCancelEvent">TouchCancelEvent</a>)</code></h3><div class='docblock'><p>Called when a new touch cancel event was received.</p>
 <h1 id="arguments-8" class="section-header"><a href="#arguments-8">Arguments</a></h1>
 <ul>
-<li><code>seat</code> - The <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> the event belongs to</li>
+<li><code>seat</code> - The [<code>Seat</code>] the event belongs to</li>
 <li><code>event</code> - The touch cancel event.</li>
 </ul>
 </div><h3 id='tymethod.on_touch_frame' class='method'><code id='on_touch_frame.v'>fn <a href='#tymethod.on_touch_frame' class='fnname'>on_touch_frame</a>(&amp;mut self, seat: &amp;<a class="struct" href="../../../smithay/backend/input/struct.Seat.html" title="struct smithay::backend::input::Seat">Seat</a>, event: B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.TouchFrameEvent" title="type smithay::backend::input::InputBackend::TouchFrameEvent">TouchFrameEvent</a>)</code></h3><div class='docblock'><p>Called when a new touch frame event was received.</p>
 <h1 id="arguments-9" class="section-header"><a href="#arguments-9">Arguments</a></h1>
 <ul>
-<li><code>seat</code> - The <a href="../../../smithay/backend/input/struct.Seat.html" title="`Seat`"><code>Seat</code></a> the event belongs to</li>
+<li><code>seat</code> - The [<code>Seat</code>] the event belongs to</li>
 <li><code>event</code> - The touch frame event.</li>
 </ul>
 </div><h3 id='tymethod.on_input_config_changed' class='method'><code id='on_input_config_changed.v'>fn <a href='#tymethod.on_input_config_changed' class='fnname'>on_input_config_changed</a>(&amp;mut self, config: &amp;mut B::<a class="type" href="../../../smithay/backend/input/trait.InputBackend.html#associatedtype.InputConfig" title="type smithay::backend::input::InputBackend::InputConfig">InputConfig</a>)</code></h3><div class='docblock'><p>Called when the <code>InputConfig</code> was changed through an external event.</p>

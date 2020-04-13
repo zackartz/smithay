@@ -472,33 +472,6 @@
 <span id="472">472</span>
 <span id="473">473</span>
 <span id="474">474</span>
-<span id="475">475</span>
-<span id="476">476</span>
-<span id="477">477</span>
-<span id="478">478</span>
-<span id="479">479</span>
-<span id="480">480</span>
-<span id="481">481</span>
-<span id="482">482</span>
-<span id="483">483</span>
-<span id="484">484</span>
-<span id="485">485</span>
-<span id="486">486</span>
-<span id="487">487</span>
-<span id="488">488</span>
-<span id="489">489</span>
-<span id="490">490</span>
-<span id="491">491</span>
-<span id="492">492</span>
-<span id="493">493</span>
-<span id="494">494</span>
-<span id="495">495</span>
-<span id="496">496</span>
-<span id="497">497</span>
-<span id="498">498</span>
-<span id="499">499</span>
-<span id="500">500</span>
-<span id="501">501</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Implementation of the [`Session`](Session) trait through the legacy vt kernel interface.</span>
@@ -568,7 +541,7 @@
     },
 };
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_udev&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">udev</span>::<span class="ident">Context</span>;
+<span class="kw">use</span> <span class="ident">udev</span>::<span class="ident">Device</span> <span class="kw">as</span> <span class="ident">UdevDevice</span>;
 
 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">dead_code</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tty</span> {
@@ -628,12 +601,7 @@
 <span class="kw">fn</span> <span class="ident">is_tty_device</span>(<span class="ident">dev</span>: <span class="ident">dev_t</span>, <span class="ident">path</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Path</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
     <span class="kw">match</span> <span class="ident">path</span> {
         <span class="prelude-val">Some</span>(<span class="ident">path</span>) <span class="op">=</span><span class="op">&gt;</span> {
-            <span class="kw">let</span> <span class="ident">udev</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">Context</span>::<span class="ident">new</span>() {
-                <span class="prelude-val">Ok</span>(<span class="ident">context</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">context</span>,
-                <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">major</span>(<span class="ident">dev</span>) <span class="op">=</span><span class="op">=</span> <span class="ident">TTY_MAJOR</span> <span class="op">|</span><span class="op">|</span> <span class="ident">minor</span>(<span class="ident">dev</span>) <span class="op">!</span><span class="op">=</span> <span class="number">0</span>,
-            };
-
-            <span class="kw">let</span> <span class="ident">device</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">udev</span>.<span class="ident">device_from_syspath</span>(<span class="ident">path</span>) {
+            <span class="kw">let</span> <span class="ident">device</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">UdevDevice</span>::<span class="ident">from_syspath</span>(<span class="ident">path</span>) {
                 <span class="prelude-val">Ok</span>(<span class="ident">device</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">device</span>,
                 <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">major</span>(<span class="ident">dev</span>) <span class="op">=</span><span class="op">=</span> <span class="ident">TTY_MAJOR</span> <span class="op">|</span><span class="op">|</span> <span class="ident">minor</span>(<span class="ident">dev</span>) <span class="op">!</span><span class="op">=</span> <span class="number">0</span>,
             };
@@ -671,7 +639,7 @@
     <span class="doccomment">/// Tries to create a new session via the legacy virtual terminal interface.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// If you do not provide a tty device path, it will try to open the currently active tty if any.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>(<span class="ident">tty</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Path</span><span class="op">&gt;</span>, <span class="ident">logger</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">DirectSession</span>, <span class="ident">DirectSessionNotifier</span>)<span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>(<span class="ident">tty</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Path</span><span class="op">&gt;</span>, <span class="ident">logger</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">DirectSession</span>, <span class="ident">DirectSessionNotifier</span>), <span class="ident">Error</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">L</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>::<span class="ident">slog</span>::<span class="ident">Logger</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     {
@@ -685,10 +653,10 @@
                     <span class="ident">fcntl</span>::<span class="ident">OFlag</span>::<span class="ident">O_RDWR</span> <span class="op">|</span> <span class="ident">fcntl</span>::<span class="ident">OFlag</span>::<span class="ident">O_CLOEXEC</span>,
                     <span class="ident">Mode</span>::<span class="ident">empty</span>(),
                 )
-                .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">FailedToOpenTTY</span>(<span class="ident">String</span>::<span class="ident">from</span>(<span class="ident">path</span>.<span class="ident">to_string_lossy</span>())))
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">FailedToOpenTTY</span>(<span class="ident">String</span>::<span class="ident">from</span>(<span class="ident">path</span>.<span class="ident">to_string_lossy</span>()), <span class="ident">source</span>))
             })
             .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> {
-                <span class="ident">dup</span>(<span class="number">0</span> <span class="comment">/*stdin*/</span>).<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">FailedToOpenTTY</span>(<span class="ident">String</span>::<span class="ident">from</span>(<span class="string">&quot;&lt;stdin&gt;&quot;</span>)))
+                <span class="ident">dup</span>(<span class="number">0</span> <span class="comment">/*stdin*/</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">FailedToOpenTTY</span>(<span class="ident">String</span>::<span class="ident">from</span>(<span class="string">&quot;&lt;stdin&gt;&quot;</span>), <span class="ident">source</span>))
             })<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">active</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">AtomicBool</span>::<span class="ident">new</span>(<span class="bool-val">true</span>));
@@ -717,10 +685,14 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">setup_tty</span>(<span class="ident">path</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Path</span><span class="op">&gt;</span>, <span class="ident">tty</span>: <span class="ident">RawFd</span>, <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">i32</span>, <span class="ident">Signal</span>)<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">stat</span> <span class="op">=</span> <span class="ident">fstat</span>(<span class="ident">tty</span>).<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">NotRunningFromTTY</span>)<span class="question-mark">?</span>;
+    <span class="kw">fn</span> <span class="ident">setup_tty</span>(
+        <span class="ident">path</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Path</span><span class="op">&gt;</span>,
+        <span class="ident">tty</span>: <span class="ident">RawFd</span>,
+        <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">i32</span>, <span class="ident">i32</span>, <span class="ident">Signal</span>), <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">stat</span> <span class="op">=</span> <span class="ident">fstat</span>(<span class="ident">tty</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">NotRunningFromTTY</span>)<span class="question-mark">?</span>;
         <span class="kw">if</span> <span class="op">!</span><span class="ident">is_tty_device</span>(<span class="ident">stat</span>.<span class="ident">st_dev</span>, <span class="ident">path</span>) {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">NotRunningFromTTY</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">NotRunningFromTTY</span>);
         }
 
         <span class="kw">let</span> <span class="ident">vt_num</span> <span class="op">=</span> <span class="ident">minor</span>(<span class="ident">stat</span>.<span class="ident">st_rdev</span>) <span class="kw">as</span> <span class="ident">i32</span>;
@@ -728,24 +700,27 @@
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mode</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">unsafe</span> {
-            <span class="ident">tty</span>::<span class="ident">kd_get_mode</span>(<span class="ident">tty</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mode</span>).<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">NotRunningFromTTY</span>)<span class="question-mark">?</span>;
+            <span class="ident">tty</span>::<span class="ident">kd_get_mode</span>(<span class="ident">tty</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mode</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">NotRunningFromTTY</span>)<span class="question-mark">?</span>;
         }
         <span class="kw">if</span> <span class="ident">mode</span> <span class="op">!</span><span class="op">=</span> <span class="ident">tty</span>::<span class="ident">KD_TEXT</span> {
-            <span class="macro">bail</span><span class="macro">!</span>(<span class="ident">ErrorKind</span>::<span class="ident">TTYAlreadyInGraphicsMode</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">TTYAlreadyInGraphicsMode</span>);
         }
 
         <span class="kw">unsafe</span> {
-            <span class="ident">tty</span>::<span class="ident">vt_activate</span>(<span class="ident">tty</span>, <span class="ident">vt_num</span> <span class="kw">as</span> <span class="ident">c_int</span>).<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">FailedToActivateTTY</span>(<span class="ident">vt_num</span>))<span class="question-mark">?</span>;
-            <span class="ident">tty</span>::<span class="ident">vt_wait_active</span>(<span class="ident">tty</span>, <span class="ident">vt_num</span> <span class="kw">as</span> <span class="ident">c_int</span>).<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">FailedToWaitForTTY</span>(<span class="ident">vt_num</span>))<span class="question-mark">?</span>;
+            <span class="ident">tty</span>::<span class="ident">vt_activate</span>(<span class="ident">tty</span>, <span class="ident">vt_num</span> <span class="kw">as</span> <span class="ident">c_int</span>)
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">FailedToActivateTTY</span>(<span class="ident">vt_num</span>, <span class="ident">source</span>))<span class="question-mark">?</span>;
+            <span class="ident">tty</span>::<span class="ident">vt_wait_active</span>(<span class="ident">tty</span>, <span class="ident">vt_num</span> <span class="kw">as</span> <span class="ident">c_int</span>)
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">FailedToWaitForTTY</span>(<span class="ident">vt_num</span>, <span class="ident">source</span>))<span class="question-mark">?</span>;
         }
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">old_keyboard_mode</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">unsafe</span> {
             <span class="ident">tty</span>::<span class="ident">kd_get_kb_mode</span>(<span class="ident">tty</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">old_keyboard_mode</span>)
-                .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">FailedToSaveTTYState</span>(<span class="ident">vt_num</span>))<span class="question-mark">?</span>;
-            <span class="ident">tty</span>::<span class="ident">kd_set_kb_mode</span>(<span class="ident">tty</span>, <span class="ident">tty</span>::<span class="ident">K_OFF</span>).<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">FailedToSetTTYKbMode</span>(<span class="ident">vt_num</span>))<span class="question-mark">?</span>;
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">FailedToSaveTTYState</span>(<span class="ident">vt_num</span>, <span class="ident">source</span>))<span class="question-mark">?</span>;
+            <span class="ident">tty</span>::<span class="ident">kd_set_kb_mode</span>(<span class="ident">tty</span>, <span class="ident">tty</span>::<span class="ident">K_OFF</span>)
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">FailedToSetTTYKbMode</span>(<span class="ident">vt_num</span>, <span class="ident">source</span>))<span class="question-mark">?</span>;
             <span class="ident">tty</span>::<span class="ident">kd_set_mode</span>(<span class="ident">tty</span>, <span class="ident">tty</span>::<span class="ident">KD_GRAPHICS</span> <span class="kw">as</span> <span class="ident">i32</span>)
-                .<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">FailedToSetTTYMode</span>(<span class="ident">vt_num</span>))<span class="question-mark">?</span>;
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">FailedToSetTTYMode</span>(<span class="ident">vt_num</span>, <span class="ident">source</span>))<span class="question-mark">?</span>;
         }
 
         <span class="comment">// TODO: Support realtime signals</span>
@@ -767,7 +742,7 @@
         };
 
         <span class="kw">unsafe</span> {
-            <span class="ident">tty</span>::<span class="ident">vt_set_mode</span>(<span class="ident">tty</span>, <span class="kw-2">&amp;</span><span class="ident">mode</span>).<span class="ident">chain_err</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ErrorKind</span>::<span class="ident">FailedToTakeControlOfTTY</span>(<span class="ident">vt_num</span>))<span class="question-mark">?</span>;
+            <span class="ident">tty</span>::<span class="ident">vt_set_mode</span>(<span class="ident">tty</span>, <span class="kw-2">&amp;</span><span class="ident">mode</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">FailedToTakeControlOfTTY</span>(<span class="ident">vt_num</span>, <span class="ident">source</span>))<span class="question-mark">?</span>;
         }
 
         <span class="prelude-val">Ok</span>((<span class="ident">vt_num</span>, <span class="ident">old_keyboard_mode</span>, <span class="ident">Signal</span>::<span class="ident">SIGUSR2</span>))
@@ -942,64 +917,35 @@
 }
 
 <span class="doccomment">/// Errors related to direct/tty sessions</span>
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">errors</span> {
-    <span class="macro">error_chain</span><span class="macro">!</span> {
-        <span class="ident">errors</span> {
-            <span class="attribute">#[<span class="ident">doc</span> <span class="op">=</span> <span class="string">&quot;Failed to open tty&quot;</span>]</span>
-            <span class="ident">FailedToOpenTTY</span>(<span class="ident">path</span>: <span class="ident">String</span>) {
-                <span class="ident">description</span>(<span class="string">&quot;Failed to open tty&quot;</span>),
-                <span class="ident">display</span>(<span class="string">&quot;Failed to open tty ({:?})&quot;</span>, <span class="ident">path</span>),
-            }
-
-            <span class="attribute">#[<span class="ident">doc</span> <span class="op">=</span> <span class="string">&quot;Not running from a tty&quot;</span>]</span>
-            <span class="ident">NotRunningFromTTY</span> {
-                <span class="ident">description</span>(<span class="string">&quot;Not running from a tty&quot;</span>),
-            }
-
-            <span class="attribute">#[<span class="ident">doc</span> <span class="op">=</span> <span class="string">&quot;tty is already in KB_GRAPHICS mode&quot;</span>]</span>
-            <span class="ident">TTYAlreadyInGraphicsMode</span> {
-                <span class="ident">description</span>(<span class="string">&quot;The tty is already in KB_GRAPHICS mode&quot;</span>),
-                <span class="ident">display</span>(<span class="string">&quot;The tty is already in graphics mode, is already a compositor running?&quot;</span>),
-            }
-
-            <span class="attribute">#[<span class="ident">doc</span> <span class="op">=</span> <span class="string">&quot;Failed to activate open tty&quot;</span>]</span>
-            <span class="ident">FailedToActivateTTY</span>(<span class="ident">num</span>: <span class="ident">i32</span>) {
-                <span class="ident">description</span>(<span class="string">&quot;Failed to activate open tty&quot;</span>),
-                <span class="ident">display</span>(<span class="string">&quot;Failed to activate open tty ({:?})&quot;</span>, <span class="ident">num</span>),
-            }
-
-            <span class="attribute">#[<span class="ident">doc</span> <span class="op">=</span> <span class="string">&quot;Failed to wait for tty to become active&quot;</span>]</span>
-            <span class="ident">FailedToWaitForTTY</span>(<span class="ident">num</span>: <span class="ident">i32</span>) {
-                <span class="ident">description</span>(<span class="string">&quot;Failed to wait for tty to become active&quot;</span>),
-                <span class="ident">display</span>(<span class="string">&quot;Failed to wait for tty ({:?}) to become active&quot;</span>, <span class="ident">num</span>),
-            }
-
-            <span class="attribute">#[<span class="ident">doc</span> <span class="op">=</span> <span class="string">&quot;Failed to save old tty state&quot;</span>]</span>
-            <span class="ident">FailedToSaveTTYState</span>(<span class="ident">num</span>: <span class="ident">i32</span>) {
-                <span class="ident">description</span>(<span class="string">&quot;Failed to save old tty state&quot;</span>),
-                <span class="ident">display</span>(<span class="string">&quot;Failed to save old tty ({:?}) state&quot;</span>, <span class="ident">num</span>),
-            }
-
-            <span class="attribute">#[<span class="ident">doc</span> <span class="op">=</span> <span class="string">&quot;Failed to set tty kb mode&quot;</span>]</span>
-            <span class="ident">FailedToSetTTYKbMode</span>(<span class="ident">num</span>: <span class="ident">i32</span>) {
-                <span class="ident">description</span>(<span class="string">&quot;Failed to set tty kb mode to K_OFF&quot;</span>),
-                <span class="ident">display</span>(<span class="string">&quot;Failed to set tty ({:?}) kb mode to K_OFF&quot;</span>, <span class="ident">num</span>),
-            }
-
-            <span class="attribute">#[<span class="ident">doc</span> <span class="op">=</span> <span class="string">&quot;Failed to set tty mode&quot;</span>]</span>
-            <span class="ident">FailedToSetTTYMode</span>(<span class="ident">num</span>: <span class="ident">i32</span>) {
-                <span class="ident">description</span>(<span class="string">&quot;Failed to set tty mode to KD_GRAPHICS&quot;</span>),
-                <span class="ident">display</span>(<span class="string">&quot;Failed to set tty ({:?}) mode into graphics mode&quot;</span>, <span class="ident">num</span>),
-            }
-
-            <span class="attribute">#[<span class="ident">doc</span> <span class="op">=</span> <span class="string">&quot;Failed to set tty in process mode&quot;</span>]</span>
-            <span class="ident">FailedToTakeControlOfTTY</span>(<span class="ident">num</span>: <span class="ident">i32</span>) {
-                <span class="ident">description</span>(<span class="string">&quot;Failed to set tty mode to VT_PROCESS&quot;</span>),
-                <span class="ident">display</span>(<span class="string">&quot;Failed to take control of tty ({:?})&quot;</span>, <span class="ident">num</span>),
-            }
-        }
-    }
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">thiserror</span>::<span class="ident">Error</span>, <span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Error</span> {
+    <span class="doccomment">/// Failed to open TTY</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Failed to open TTY `{0}`&quot;</span>)]</span>
+    <span class="ident">FailedToOpenTTY</span>(<span class="ident">String</span>, <span class="attribute">#[<span class="ident">source</span>]</span> <span class="ident">nix</span>::<span class="ident">Error</span>),
+    <span class="doccomment">/// Not running from a TTY</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Not running from a TTY&quot;</span>)]</span>
+    <span class="ident">NotRunningFromTTY</span>,
+    <span class="doccomment">/// TTY is already in KB_GRAPHICS mode</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;The tty is already in graphics mode, is already a compositor running?&quot;</span>)]</span>
+    <span class="ident">TTYAlreadyInGraphicsMode</span>,
+    <span class="doccomment">/// Failed to activate open tty</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Failed to activate open tty ({0})&quot;</span>)]</span>
+    <span class="ident">FailedToActivateTTY</span>(<span class="ident">i32</span>, <span class="attribute">#[<span class="ident">source</span>]</span> <span class="ident">nix</span>::<span class="ident">Error</span>),
+    <span class="doccomment">/// Failed to wait for tty to become active</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Failed to wait for tty {0} to become active&quot;</span>)]</span>
+    <span class="ident">FailedToWaitForTTY</span>(<span class="ident">i32</span>, <span class="attribute">#[<span class="ident">source</span>]</span> <span class="ident">nix</span>::<span class="ident">Error</span>),
+    <span class="doccomment">/// Failed to save old tty state</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Failed to save old tty ({0}) state&quot;</span>)]</span>
+    <span class="ident">FailedToSaveTTYState</span>(<span class="ident">i32</span>, <span class="attribute">#[<span class="ident">source</span>]</span> <span class="ident">nix</span>::<span class="ident">Error</span>),
+    <span class="doccomment">/// Failed to set tty kb mode</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Failed to set tty {0} kb mode to K_OFF&quot;</span>)]</span>
+    <span class="ident">FailedToSetTTYKbMode</span>(<span class="ident">i32</span>, <span class="attribute">#[<span class="ident">source</span>]</span> <span class="ident">nix</span>::<span class="ident">Error</span>),
+    <span class="doccomment">/// Failed to set tty mode</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Failed to set tty {0} mode into graphics mode&quot;</span>)]</span>
+    <span class="ident">FailedToSetTTYMode</span>(<span class="ident">i32</span>, <span class="attribute">#[<span class="ident">source</span>]</span> <span class="ident">nix</span>::<span class="ident">Error</span>),
+    <span class="doccomment">/// Failed to set tty in process mode</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Failed to take control of tty {0}&quot;</span>)]</span>
+    <span class="ident">FailedToTakeControlOfTTY</span>(<span class="ident">i32</span>, <span class="attribute">#[<span class="ident">source</span>]</span> <span class="ident">nix</span>::<span class="ident">Error</span>),
 }
-<span class="kw">use</span> <span class="self">self</span>::<span class="ident">errors</span>::<span class="kw-2">*</span>;
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../../";window.currentCrate = "smithay";</script><script src="../../../../aliases.js"></script><script src="../../../../main.js"></script><script src="../../../../source-script.js"></script><script src="../../../../source-files.js"></script><script defer src="../../../../search-index.js"></script></body></html>
