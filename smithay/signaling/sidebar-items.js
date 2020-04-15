@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["SignalToken","A token associated with a callback registered to a Signaler"],["Signaler","A signaler, main type for signaling"]]});
