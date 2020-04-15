@@ -52,6 +52,7 @@
 <span id="52">52</span>
 <span id="53">53</span>
 <span id="54">54</span>
+<span id="55">55</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! OpenGL rendering types</span>
 
@@ -74,7 +75,9 @@
 
     <span class="doccomment">/// Returns the address of an OpenGL function.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// Supposes that the context has been made current before this function is called.</span>
+    <span class="doccomment">/// # Safety</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The context must have been made current before this function is called.</span>
     <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">get_proc_address</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">symbol</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">c_void</span>;
 
     <span class="doccomment">/// Returns the dimensions of the window, or screen, etc in points.</span>
@@ -89,10 +92,9 @@
 
     <span class="doccomment">/// Makes the OpenGL context the current context in the current thread.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// # Unsafety</span>
+    <span class="doccomment">/// # Safety</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// This function is marked unsafe, because the context cannot be made current</span>
-    <span class="doccomment">/// on multiple threads.</span>
+    <span class="doccomment">/// The context cannot be made current on multiple threads.</span>
     <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">make_current</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// Returns the pixel format of the main framebuffer of the context.</span>

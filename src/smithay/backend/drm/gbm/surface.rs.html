@@ -364,6 +364,11 @@
 <span id="364">364</span>
 <span id="365">365</span>
 <span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">super</span>::<span class="kw">super</span>::{<span class="ident">Device</span>, <span class="ident">RawDevice</span>, <span class="ident">RawSurface</span>, <span class="ident">Surface</span>};
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">Error</span>;
@@ -654,6 +659,11 @@ where
     <span class="doccomment">/// *Note*: This might trigger a full modeset on the underlying device,</span>
     <span class="doccomment">/// potentially causing some flickering. In that case this operation is</span>
     <span class="doccomment">/// blocking until the crtc is in the desired state.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Safety</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// When used in conjunction with an EGL context, this must be called exactly once</span>
+    <span class="doccomment">/// after page-flipping the associated context.</span>
     <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">page_flip</span>()
     }

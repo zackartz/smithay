@@ -496,6 +496,11 @@
 <span id="496">496</span>
 <span id="497">497</span>
 <span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Linux DMABUF protocol</span>
 <span class="doccomment">//!</span>
@@ -602,6 +607,7 @@
 }
 
 <span class="macro">bitflags</span><span class="macro">!</span> {
+    <span class="doccomment">/// Possible flags for a DMA buffer</span>
     <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">BufferFlags</span>: <span class="ident">u32</span> {
         <span class="doccomment">/// The buffer content is Y-inverted</span>
         <span class="kw">const</span> <span class="ident">Y_INVERT</span> <span class="op">=</span> <span class="number">1</span>;
@@ -718,9 +724,14 @@
                                 <span class="ident">stride</span>,
                                 <span class="ident">modifier_hi</span>,
                                 <span class="ident">modifier_lo</span>,
-                            } <span class="op">=</span><span class="op">&gt;</span> {
-                                <span class="ident">handler</span>.<span class="ident">add</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">params</span>, <span class="ident">fd</span>, <span class="ident">plane_idx</span>, <span class="ident">offset</span>, <span class="ident">stride</span>, <span class="ident">modifier_hi</span>, <span class="ident">modifier_lo</span>)
-                            }
+                            } <span class="op">=</span><span class="op">&gt;</span> <span class="ident">handler</span>.<span class="ident">add</span>(
+                                <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">params</span>,
+                                <span class="ident">fd</span>,
+                                <span class="ident">plane_idx</span>,
+                                <span class="ident">offset</span>,
+                                <span class="ident">stride</span>,
+                                ((<span class="ident">modifier_hi</span> <span class="kw">as</span> <span class="ident">u64</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">32</span>) <span class="op">+</span> (<span class="ident">modifier_lo</span> <span class="kw">as</span> <span class="ident">u64</span>),
+                            ),
                             <span class="ident">ParamsRequest</span>::<span class="ident">Create</span> {
                                 <span class="ident">width</span>,
                                 <span class="ident">height</span>,
@@ -768,8 +779,7 @@
         <span class="ident">plane_idx</span>: <span class="ident">u32</span>,
         <span class="ident">offset</span>: <span class="ident">u32</span>,
         <span class="ident">stride</span>: <span class="ident">u32</span>,
-        <span class="ident">modifier_hi</span>: <span class="ident">u32</span>,
-        <span class="ident">modifier_lo</span>: <span class="ident">u32</span>,
+        <span class="ident">modifier</span>: <span class="ident">u64</span>,
     ) {
         <span class="comment">// protocol checks:</span>
         <span class="comment">// Cannot reuse a params:</span>
@@ -803,7 +813,7 @@
             <span class="ident">plane_idx</span>,
             <span class="ident">offset</span>,
             <span class="ident">stride</span>,
-            <span class="ident">modifier</span>: ((<span class="ident">modifier_hi</span> <span class="kw">as</span> <span class="ident">u64</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">32</span>) <span class="op">+</span> (<span class="ident">modifier_lo</span> <span class="kw">as</span> <span class="ident">u64</span>),
+            <span class="ident">modifier</span>,
         });
     }
 

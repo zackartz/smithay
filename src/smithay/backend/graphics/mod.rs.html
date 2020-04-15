@@ -17,13 +17,30 @@
 <span id="17">17</span>
 <span id="18">18</span>
 <span id="19">19</span>
+<span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Common traits for various ways to renderer on a given graphics backend.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Note: Not every API may be supported by every backend</span>
-
-<span class="kw">mod</span> <span class="ident">errors</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="self">self</span>::<span class="ident">errors</span>::<span class="kw-2">*</span>;
 
 <span class="kw">mod</span> <span class="ident">cursor</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="self">self</span>::<span class="ident">cursor</span>::<span class="kw-2">*</span>;
@@ -37,5 +54,28 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">glium</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;renderer_software&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">software</span>;
+
+<span class="doccomment">/// Error that can happen when swapping buffers.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">thiserror</span>::<span class="ident">Error</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SwapBuffersError</span> {
+    <span class="doccomment">/// The corresponding context has been lost and needs to be recreated.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// All the objects associated to it (textures, buffers, programs, etc.)</span>
+    <span class="doccomment">/// need to be recreated from scratch.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Operations will have no effect. Functions that read textures, buffers, etc.</span>
+    <span class="doccomment">/// will return uninitialized data instead.</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;The context has been lost, it needs to be recreated&quot;</span>)]</span>
+    <span class="ident">ContextLost</span>,
+    <span class="doccomment">/// The buffers have already been swapped.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This error can be returned when `swap_buffers` has been called multiple times</span>
+    <span class="doccomment">/// without any modification in between.</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Buffers are already swapped, swap_buffers was called too many times&quot;</span>)]</span>
+    <span class="ident">AlreadySwapped</span>,
+    <span class="doccomment">/// Unknown error</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Unknown error: {0:x}&quot;</span>)]</span>
+    <span class="ident">Unknown</span>(<span class="ident">u32</span>),
+}
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../../";window.currentCrate = "smithay";</script><script src="../../../../aliases.js"></script><script src="../../../../main.js"></script><script src="../../../../source-script.js"></script><script src="../../../../source-files.js"></script><script defer src="../../../../search-index.js"></script></body></html>

@@ -432,8 +432,8 @@
     <span class="doccomment">/// No encoder was found for a given connector on the set crtc</span>
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;No encoder found for the given connector &#39;{connector:?}&#39; on crtc `{crtc:?}`&quot;</span>)]</span>
     <span class="ident">NoSuitableEncoder</span> {
-        <span class="doccomment">/// Connector info</span>
-        <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Info</span>,
+        <span class="doccomment">/// Connector</span>
+        <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>,
         <span class="doccomment">/// CRTC</span>
         <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>,
     },
