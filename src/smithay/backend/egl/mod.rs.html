@@ -258,6 +258,23 @@
 <span id="258">258</span>
 <span id="259">259</span>
 <span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Common traits and types for egl rendering</span>
 <span class="doccomment">//!</span>
@@ -280,7 +297,7 @@
 <span class="doccomment">//! of an EGL-based [`WlBuffer`](wayland_server::protocol::wl_buffer::WlBuffer) for rendering.</span>
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;renderer_gl&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">gl</span>::<span class="ident">ffi</span> <span class="kw">as</span> <span class="ident">gl_ffi</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">gl</span>::{<span class="ident">ffi</span> <span class="kw">as</span> <span class="ident">gl_ffi</span>, <span class="ident">GLGraphicsBackend</span>};
 <span class="kw">use</span> <span class="ident">nix</span>::<span class="ident">libc</span>::<span class="ident">c_uint</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;wayland_frontend&quot;</span>)]</span>
@@ -304,6 +321,8 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;use_system_lib&quot;</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">display</span>::<span class="ident">EGLBufferReader</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">display</span>::<span class="ident">EGLDisplayHandle</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;renderer_gl&quot;</span>)]</span>
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ffi</span>::<span class="ident">CStr</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ffi</span>::<span class="ident">CString</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
@@ -442,8 +461,6 @@
     <span class="ident">buffer</span>: <span class="ident">WlBuffer</span>,
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;renderer_gl&quot;</span>)]</span>
     <span class="ident">gl</span>: <span class="ident">gl_ffi</span>::<span class="ident">Gles2</span>,
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;renderer_gl&quot;</span>)]</span>
-    <span class="ident">egl_to_texture_support</span>: <span class="ident">bool</span>,
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;wayland_frontend&quot;</span>)]</span>
@@ -456,17 +473,34 @@
     <span class="doccomment">/// Bind plane to an OpenGL texture id</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This does only temporarily modify the OpenGL state any changes are reverted before returning.</span>
+    <span class="doccomment">/// The given `GLGraphicsBackend` must be the one belonging to the `tex_id` and will be the current</span>
+    <span class="doccomment">/// context (and surface if applicable) after this function returns.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Safety</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// The given `tex_id` needs to be a valid GL texture otherwise undefined behavior might occur.</span>
+    <span class="doccomment">/// The given `tex_id` needs to be a valid GL texture in the given context otherwise undefined behavior might occur.</span>
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;renderer_gl&quot;</span>)]</span>
     <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">bind_to_texture</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">plane</span>: <span class="ident">usize</span>,
         <span class="ident">tex_id</span>: <span class="ident">c_uint</span>,
+        <span class="ident">backend</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">GLGraphicsBackend</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">TextureCreationError</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">egl_to_texture_support</span> {
+        <span class="comment">// receive the list of extensions for *this* context</span>
+        <span class="ident">backend</span>
+            .<span class="ident">make_current</span>()
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">TextureCreationError</span>::<span class="ident">ContextLost</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">egl_to_texture_support</span> <span class="op">=</span> {
+            <span class="comment">// the list of gl extensions supported by the context</span>
+            <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">CStr</span>::<span class="ident">from_ptr</span>(<span class="self">self</span>.<span class="ident">gl</span>.<span class="ident">GetString</span>(<span class="ident">gl_ffi</span>::<span class="ident">EXTENSIONS</span>) <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>)
+                .<span class="ident">to_bytes</span>()
+                .<span class="ident">to_vec</span>();
+            <span class="kw">let</span> <span class="ident">list</span> <span class="op">=</span> <span class="ident">String</span>::<span class="ident">from_utf8</span>(<span class="ident">data</span>).<span class="ident">unwrap</span>();
+            <span class="ident">list</span>.<span class="ident">split</span>(<span class="string">&#39; &#39;</span>)
+                .<span class="ident">any</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;GL_OES_EGL_image&quot;</span> <span class="op">|</span><span class="op">|</span> <span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;GL_OES_EGL_image_base&quot;</span>)
+        };
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">egl_to_texture_support</span> {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">TextureCreationError</span>::<span class="ident">GLExtensionNotSupported</span>(<span class="string">&quot;GL_OES_EGL_image&quot;</span>));
         }
 
