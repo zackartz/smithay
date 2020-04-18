@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["EGLBufferReader","Type to receive [`EGLImages`] for EGL-based [`WlBuffer`]s."],["EGLDisplay","[`EGLDisplay`] represents an initialised EGL environment"]]});
