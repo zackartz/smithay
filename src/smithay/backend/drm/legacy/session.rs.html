@@ -119,7 +119,7 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">LegacyDrmDeviceObserver</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
     <span class="ident">dev</span>: <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">dev_id</span>: <span class="ident">dev_t</span>,
-    <span class="ident">priviledged</span>: <span class="ident">bool</span>,
+    <span class="ident">privileged</span>: <span class="ident">bool</span>,
     <span class="ident">active</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicBool</span><span class="op">&gt;</span>,
     <span class="ident">backends</span>: <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">LegacyDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
@@ -131,7 +131,7 @@
             <span class="ident">dev</span>: <span class="ident">Rc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dev</span>),
             <span class="ident">dev_id</span>: <span class="self">self</span>.<span class="ident">dev_id</span>,
             <span class="ident">active</span>: <span class="self">self</span>.<span class="ident">active</span>.<span class="ident">clone</span>(),
-            <span class="ident">priviledged</span>: <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">priviledged</span>,
+            <span class="ident">privileged</span>: <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">privileged</span>,
             <span class="ident">backends</span>: <span class="ident">Rc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">backends</span>),
             <span class="ident">logger</span>: <span class="self">self</span>.<span class="ident">logger</span>.<span class="ident">clone</span>(),
         }
@@ -158,7 +158,7 @@
             }
         }
         <span class="self">self</span>.<span class="ident">active</span>.<span class="ident">store</span>(<span class="bool-val">false</span>, <span class="ident">Ordering</span>::<span class="ident">SeqCst</span>);
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">priviledged</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">privileged</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">device</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">upgrade</span>() {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">device</span>.<span class="ident">release_master_lock</span>() {
                     <span class="macro">error</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Failed to drop drm master state. Error: {}&quot;</span>, <span class="ident">err</span>);
@@ -180,7 +180,7 @@
             }
         }
         <span class="self">self</span>.<span class="ident">active</span>.<span class="ident">store</span>(<span class="bool-val">true</span>, <span class="ident">Ordering</span>::<span class="ident">SeqCst</span>);
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">priviledged</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">privileged</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">device</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">upgrade</span>() {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">device</span>.<span class="ident">acquire_master_lock</span>() {
                     <span class="macro">crit</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Failed to acquire drm master again. Error: {}&quot;</span>, <span class="ident">err</span>);

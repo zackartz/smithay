@@ -35,8 +35,6 @@
 <span id="35">35</span>
 <span id="36">36</span>
 <span id="37">37</span>
-<span id="38">38</span>
-<span id="39">39</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">/// Functions to render cursors on graphics backend independently from it&#39;s rendering techique.</span>
 <span class="doccomment">///</span>
@@ -44,18 +42,18 @@
 <span class="doccomment">/// where possible. This may however be quite restrictive in terms of supported formats.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// For those reasons you may always choose to render your cursor(s) (partially) in software instead.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">CursorBackend</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">CursorBackend</span> {
     <span class="doccomment">/// Format representing the image drawn for the cursor.</span>
-    <span class="kw">type</span> <span class="ident">CursorFormat</span>: <span class="lifetime">&#39;a</span>;
+    <span class="kw">type</span> <span class="ident">CursorFormat</span>: <span class="question-mark">?</span><span class="ident">Sized</span>;
 
     <span class="doccomment">/// Error the underlying backend throws if operations fail</span>
-    <span class="kw">type</span> <span class="ident">Error</span>;
+    <span class="kw">type</span> <span class="ident">Error</span>: <span class="lifetime">&#39;static</span>;
 
     <span class="doccomment">/// Sets the cursor position and therefore updates the drawn cursors position.</span>
     <span class="doccomment">/// Useful as well for e.g. pointer wrapping.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Not guaranteed to be supported on every backend. The result usually</span>
-    <span class="doccomment">/// depends on the backend, the cursor might be &quot;owned&quot; by another more priviledged</span>
+    <span class="doccomment">/// depends on the backend, the cursor might be &quot;owned&quot; by another more privileged</span>
     <span class="doccomment">/// compositor (running nested).</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// In these cases setting the position is actually not required, as movement is done</span>
@@ -69,13 +67,11 @@
     <span class="doccomment">/// The format is entirely dictated by the concrete implementation and might range</span>
     <span class="doccomment">/// from raw image buffers over a fixed list of possible cursor types to simply the</span>
     <span class="doccomment">/// void type () to represent no possible customization of the cursor itself.</span>
-    <span class="kw">fn</span> <span class="ident">set_cursor_representation</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="self">self</span>,
-        <span class="ident">cursor</span>: <span class="self">Self</span>::<span class="ident">CursorFormat</span>,
+    <span class="kw">fn</span> <span class="ident">set_cursor_representation</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">CursorFormat</span>,
         <span class="ident">hotspot</span>: (<span class="ident">u32</span>, <span class="ident">u32</span>),
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="lifetime">&#39;a</span>: <span class="lifetime">&#39;b</span>;
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../../";window.currentCrate = "smithay";</script><script src="../../../../aliases.js"></script><script src="../../../../main.js"></script><script src="../../../../source-script.js"></script><script src="../../../../source-files.js"></script><script defer src="../../../../search-index.js"></script></body></html>

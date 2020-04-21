@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["AtomicDrmDeviceObserver","`SessionObserver` linked to the `AtomicDrmDevice` it was created from."]]});

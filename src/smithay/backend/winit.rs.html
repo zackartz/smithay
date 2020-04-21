@@ -920,9 +920,6 @@
 <span id="920">920</span>
 <span id="921">921</span>
 <span id="922">922</span>
-<span id="923">923</span>
-<span id="924">924</span>
-<span id="925">925</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Implementation of backend traits for types provided by `winit`</span>
 
@@ -1173,8 +1170,8 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">CursorBackend</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WinitGraphicsBackend</span> {
-    <span class="kw">type</span> <span class="ident">CursorFormat</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">CursorIcon</span>;
+<span class="kw">impl</span> <span class="ident">CursorBackend</span> <span class="kw">for</span> <span class="ident">WinitGraphicsBackend</span> {
+    <span class="kw">type</span> <span class="ident">CursorFormat</span> <span class="op">=</span> <span class="ident">CursorIcon</span>;
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> ();
 
     <span class="kw">fn</span> <span class="ident">set_cursor_position</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">u32</span>, <span class="ident">y</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
@@ -1187,14 +1184,11 @@
             })
     }
 
-    <span class="kw">fn</span> <span class="ident">set_cursor_representation</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="lifetime">&#39;b</span> <span class="self">self</span>,
-        <span class="ident">cursor</span>: <span class="self">Self</span>::<span class="ident">CursorFormat</span>,
+    <span class="kw">fn</span> <span class="ident">set_cursor_representation</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">cursor</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">CursorFormat</span>,
         <span class="ident">_hotspot</span>: (<span class="ident">u32</span>, <span class="ident">u32</span>),
-    ) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="lifetime">&#39;a</span>: <span class="lifetime">&#39;b</span>,
-    {
+    ) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
         <span class="comment">// Cannot log this one, as `CursorFormat` is not `Debug` and should not be</span>
         <span class="macro">debug</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Changing cursor representation&quot;</span>);
         <span class="self">self</span>.<span class="ident">window</span>.<span class="ident">window</span>().<span class="ident">set_cursor_icon</span>(<span class="kw-2">*</span><span class="ident">cursor</span>);

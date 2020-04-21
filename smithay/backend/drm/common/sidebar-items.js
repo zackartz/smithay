@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Error","Errors thrown by the `LegacyDrmDevice`, `AtomicDrmDevice` and their surfaces: `LegacyDrmSurface` and `AtomicDrmSurface`."]],"mod":[["fallback","Types to make fallback device initialization easier"]]});
