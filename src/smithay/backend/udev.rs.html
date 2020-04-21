@@ -219,9 +219,6 @@
 <span id="219">219</span>
 <span id="220">220</span>
 <span id="221">221</span>
-<span id="222">222</span>
-<span id="223">223</span>
-<span id="224">224</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Provides `udev` related functionality for automated device scanning.</span>
@@ -401,22 +398,19 @@
 
     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">path</span>) <span class="op">=</span> <span class="ident">enumerator</span>
         .<span class="ident">scan_devices</span>()<span class="question-mark">?</span>
-        .<span class="ident">filter_map</span>(<span class="op">|</span><span class="ident">device</span><span class="op">|</span> {
-            <span class="kw">if</span> <span class="ident">device</span>
+        .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">device</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">seat_name</span> <span class="op">=</span> <span class="ident">device</span>
                 .<span class="ident">property_value</span>(<span class="string">&quot;ID_SEAT&quot;</span>)
                 .<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">to_os_string</span>())
-                .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">OsString</span>::<span class="ident">from</span>(<span class="string">&quot;seat0&quot;</span>))
-                <span class="op">=</span><span class="op">=</span> <span class="kw-2">*</span><span class="ident">seat</span>.<span class="ident">as_ref</span>()
-            {
+                .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">OsString</span>::<span class="ident">from</span>(<span class="string">&quot;seat0&quot;</span>));
+            <span class="kw">if</span> <span class="ident">seat_name</span> <span class="op">=</span><span class="op">=</span> <span class="kw-2">*</span><span class="ident">seat</span>.<span class="ident">as_ref</span>() {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">pci</span>)) <span class="op">=</span> <span class="ident">device</span>.<span class="ident">parent_with_subsystem</span>(<span class="ident">Path</span>::<span class="ident">new</span>(<span class="string">&quot;pci&quot;</span>)) {
                     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">id</span>) <span class="op">=</span> <span class="ident">pci</span>.<span class="ident">attribute_value</span>(<span class="string">&quot;boot_vga&quot;</span>) {
-                        <span class="kw">if</span> <span class="ident">id</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;1&quot;</span> {
-                            <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="ident">device</span>);
-                        }
+                        <span class="kw">return</span> <span class="ident">id</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;1&quot;</span>;
                     }
                 }
-            };
-            <span class="prelude-val">None</span>
+            }
+            <span class="bool-val">false</span>
         })
         .<span class="ident">flat_map</span>(<span class="op">|</span><span class="ident">device</span><span class="op">|</span> <span class="ident">device</span>.<span class="ident">devnode</span>().<span class="ident">map</span>(<span class="ident">PathBuf</span>::<span class="ident">from</span>))
         .<span class="ident">next</span>()
