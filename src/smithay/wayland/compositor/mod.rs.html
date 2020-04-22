@@ -619,11 +619,6 @@
 <span id="619">619</span>
 <span id="620">620</span>
 <span id="621">621</span>
-<span id="622">622</span>
-<span id="623">623</span>
-<span id="624">624</span>
-<span id="625">625</span>
-<span id="626">626</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Utilities for handling surfaces, subsurfaces and regions</span>
 <span class="doccomment">//!</span>
@@ -711,7 +706,7 @@
     <span class="ident">protocol</span>::{
         <span class="ident">wl_buffer</span>, <span class="ident">wl_callback</span>, <span class="ident">wl_compositor</span>, <span class="ident">wl_output</span>, <span class="ident">wl_region</span>, <span class="ident">wl_subcompositor</span>, <span class="ident">wl_surface</span>::<span class="ident">WlSurface</span>,
     },
-    <span class="ident">Display</span>, <span class="ident">Filter</span>, <span class="ident">Global</span>, <span class="ident">Main</span>, <span class="ident">UserDataMap</span>,
+    <span class="ident">Display</span>, <span class="ident">Filter</span>, <span class="ident">Global</span>, <span class="ident">UserDataMap</span>,
 };
 
 <span class="doccomment">/// Description of which part of a surface</span>
@@ -783,6 +778,14 @@
     <span class="doccomment">/// Hint provided by the client to suggest that only this part</span>
     <span class="doccomment">/// of the surface was changed and needs to be redrawn</span>
     <span class="kw">pub</span> <span class="ident">damage</span>: <span class="ident">Damage</span>,
+    <span class="doccomment">/// The frame callback associated with this surface for the commit</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The be triggered to notify the client about when it would be a</span>
+    <span class="doccomment">/// good time to start drawing its next frame.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// An example possibility would be to trigger it once the frame</span>
+    <span class="doccomment">/// associated with this commit has been displayed on the screen.</span>
+    <span class="kw">pub</span> <span class="ident">frame_callback</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">wl_callback</span>::<span class="ident">WlCallback</span><span class="op">&gt;</span>,
     <span class="doccomment">/// User-controlled data</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This is your field to host whatever you need.</span>
@@ -798,6 +801,7 @@
             <span class="ident">opaque_region</span>: <span class="prelude-val">None</span>,
             <span class="ident">input_region</span>: <span class="prelude-val">None</span>,
             <span class="ident">damage</span>: <span class="ident">Damage</span>::<span class="ident">Full</span>,
+            <span class="ident">frame_callback</span>: <span class="prelude-val">None</span>,
             <span class="ident">user_data</span>: <span class="ident">UserDataMap</span>::<span class="ident">new</span>(),
         }
     }
@@ -1138,22 +1142,8 @@
     <span class="doccomment">/// The double-buffered state has been validated by the client</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// At this point, the pending state that has been accumulated in the [`SurfaceAttributes`] associated</span>
-    <span class="doccomment">/// to this surface should be integrated into the current state of the surface.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// See [`wayland_server::protocol::wl_surface::Implementation::commit`](https://docs.rs/wayland-server/0.10.1/wayland_server/protocol/wl_surface/struct.Implementation.html#structfield.commit)</span>
-    <span class="doccomment">/// for more details</span>
+    <span class="doccomment">/// to this surface should be atomically integrated into the current state of the surface.</span>
     <span class="ident">Commit</span>,
-    <span class="doccomment">/// The client asks to be notified when would be a good time to update the contents of this surface</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// You must keep the provided [`WlCallback`](wayland_server::protocol::wl_callback::WlCallback)</span>
-    <span class="doccomment">/// and trigger it at the appropriate time by calling its `done()` method.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// See [`wayland_server::protocol::wl_surface::Implementation::frame`](https://docs.rs/wayland-server/0.10.1/wayland_server/protocol/wl_surface/struct.Implementation.html#structfield.frame)</span>
-    <span class="doccomment">/// for more details</span>
-    <span class="ident">Frame</span> {
-        <span class="doccomment">/// The created `WlCallback`</span>
-        <span class="ident">callback</span>: <span class="ident">Main</span><span class="op">&lt;</span><span class="ident">wl_callback</span>::<span class="ident">WlCallback</span><span class="op">&gt;</span>,
-    },
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
