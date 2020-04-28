@@ -219,12 +219,79 @@
 <span id="219">219</span>
 <span id="220">220</span>
 <span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Provides `udev` related functionality for automated device scanning.</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! This module mainly provides the [`UdevBackend`](::backend::udev::UdevBackend), which constantly monitors available DRM devices</span>
-<span class="doccomment">//! and notifies a user supplied [`UdevHandler`](::backend::udev::UdevHandler) of any changes.</span>
+<span class="doccomment">//! This module mainly provides the [`UdevBackend`](::backend::udev::UdevBackend), which</span>
+<span class="doccomment">//! monitors available DRM devices and acts as an event source, generating events whenever these</span>
+<span class="doccomment">//! devices change.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! *Note:* Once inserted into the event loop, the [`UdevBackend`](::backend::udev::UdevBackend) will</span>
+<span class="doccomment">//! only notify you about *changes* in the device list. To get an initial snapshot of the state during</span>
+<span class="doccomment">//! your initialization, you need to call its `device_list` method.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ```no_run</span>
+<span class="doccomment">//! use smithay::backend::udev::{UdevBackend, UdevEvent};</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! let udev = UdevBackend::new(&quot;seat0&quot;, None).expect(&quot;Failed to monitor udev.&quot;);</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! for (dev_id, node_path) in udev.device_list() {</span>
+<span class="doccomment">//!     // process the initial list of devices</span>
+<span class="doccomment">//! }</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # let event_loop = smithay::reexports::calloop::EventLoop::&lt;()&gt;::new().unwrap();</span>
+<span class="doccomment">//! # let loop_handle = event_loop.handle();</span>
+<span class="doccomment">//! // setup the event source for long-term monitoring</span>
+<span class="doccomment">//! loop_handle.insert_source(udev, |event, _, _dispatch_data| match event {</span>
+<span class="doccomment">//!     UdevEvent::Added { device_id, path } =&gt; {</span>
+<span class="doccomment">//!         // a new device has been added</span>
+<span class="doccomment">//!     },</span>
+<span class="doccomment">//!     UdevEvent::Changed { device_id } =&gt; {</span>
+<span class="doccomment">//!         // a device has been changed</span>
+<span class="doccomment">//!     },</span>
+<span class="doccomment">//!     UdevEvent::Removed { device_id } =&gt; {</span>
+<span class="doccomment">//!         // a device has been removed</span>
+<span class="doccomment">//!     }</span>
+<span class="doccomment">//! }).expect(&quot;Failed to insert the udev source into the event loop&quot;);</span>
+<span class="doccomment">//! ```</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Additionally this contains some utility functions related to scanning.</span>
 <span class="doccomment">//!</span>
@@ -233,7 +300,7 @@
 
 <span class="kw">use</span> <span class="ident">nix</span>::<span class="ident">sys</span>::<span class="ident">stat</span>::{<span class="ident">dev_t</span>, <span class="ident">stat</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">collections</span>::<span class="ident">HashSet</span>,
+    <span class="ident">collections</span>::<span class="ident">HashMap</span>,
     <span class="ident">ffi</span>::<span class="ident">OsString</span>,
     <span class="ident">io</span>::<span class="prelude-ty">Result</span> <span class="kw">as</span> <span class="ident">IoResult</span>,
     <span class="ident">os</span>::<span class="ident">unix</span>::<span class="ident">io</span>::{<span class="ident">AsRawFd</span>, <span class="ident">RawFd</span>},
@@ -241,38 +308,32 @@
 };
 <span class="kw">use</span> <span class="ident">udev</span>::{<span class="ident">Enumerator</span>, <span class="ident">EventType</span>, <span class="ident">MonitorBuilder</span>, <span class="ident">MonitorSocket</span>};
 
-<span class="kw">use</span> <span class="ident">calloop</span>::{
-    <span class="ident">generic</span>::{<span class="ident">Generic</span>, <span class="ident">SourceFd</span>},
-    <span class="ident">mio</span>::<span class="ident">Interest</span>,
-    <span class="ident">InsertError</span>, <span class="ident">LoopHandle</span>, <span class="ident">Source</span>,
-};
+<span class="kw">use</span> <span class="ident">calloop</span>::{<span class="ident">EventSource</span>, <span class="ident">Interest</span>, <span class="ident">Mode</span>, <span class="ident">Poll</span>, <span class="ident">Readiness</span>, <span class="ident">Token</span>};
 
 <span class="doccomment">/// Backend to monitor available drm devices.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Provides a way to automatically scan for available gpus and notifies the</span>
 <span class="doccomment">/// given handler of any changes. Can be used to provide hot-plug functionality for gpus and</span>
 <span class="doccomment">/// attached monitors.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">UdevBackend</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">UdevHandler</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-    <span class="ident">devices</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">dev_t</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">UdevBackend</span> {
+    <span class="ident">devices</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">dev_t</span>, <span class="ident">PathBuf</span><span class="op">&gt;</span>,
     <span class="ident">monitor</span>: <span class="ident">MonitorSocket</span>,
-    <span class="ident">handler</span>: <span class="ident">T</span>,
     <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">UdevHandler</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">AsRawFd</span> <span class="kw">for</span> <span class="ident">UdevBackend</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">AsRawFd</span> <span class="kw">for</span> <span class="ident">UdevBackend</span> {
     <span class="kw">fn</span> <span class="ident">as_raw_fd</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RawFd</span> {
         <span class="self">self</span>.<span class="ident">monitor</span>.<span class="ident">as_raw_fd</span>()
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">UdevHandler</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">UdevBackend</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span> <span class="ident">UdevBackend</span> {
     <span class="doccomment">/// Creates a new [`UdevBackend`]</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ## Arguments</span>
-    <span class="doccomment">/// `handler` - User-provided handler to respond to any detected changes</span>
-    <span class="doccomment">/// `seat`    -</span>
+    <span class="doccomment">/// `seat`    - system seat which should be bound</span>
     <span class="doccomment">/// `logger`  - slog Logger to be used by the backend and its `DrmDevices`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">S</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="ident">handler</span>: <span class="ident">T</span>, <span class="ident">seat</span>: <span class="ident">S</span>, <span class="ident">logger</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">IoResult</span><span class="op">&lt;</span><span class="ident">UdevBackend</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">L</span>, <span class="ident">S</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="ident">seat</span>: <span class="ident">S</span>, <span class="ident">logger</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">IoResult</span><span class="op">&lt;</span><span class="ident">UdevBackend</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">L</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>::<span class="ident">slog</span>::<span class="ident">Logger</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     {
@@ -282,10 +343,7 @@
             .<span class="ident">into_iter</span>()
             <span class="comment">// Create devices</span>
             .<span class="ident">flat_map</span>(<span class="op">|</span><span class="ident">path</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">stat</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>) {
-                <span class="prelude-val">Ok</span>(<span class="ident">stat</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="ident">handler</span>.<span class="ident">device_added</span>(<span class="ident">stat</span>.<span class="ident">st_rdev</span>, <span class="ident">path</span>);
-                    <span class="prelude-val">Some</span>(<span class="ident">stat</span>.<span class="ident">st_rdev</span>)
-                }
+                <span class="prelude-val">Ok</span>(<span class="ident">stat</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>((<span class="ident">stat</span>.<span class="ident">st_rdev</span>, <span class="ident">path</span>)),
                 <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Unable to get id of {:?}, Error: {:?}. Skipping&quot;</span>, <span class="ident">path</span>, <span class="ident">err</span>);
                     <span class="prelude-val">None</span>
@@ -298,93 +356,109 @@
         <span class="prelude-val">Ok</span>(<span class="ident">UdevBackend</span> {
             <span class="ident">devices</span>,
             <span class="ident">monitor</span>,
-            <span class="ident">handler</span>,
             <span class="ident">logger</span>: <span class="ident">log</span>,
         })
     }
-}
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">UdevHandler</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">UdevBackend</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="kw">for</span> <span class="ident">device</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">devices</span> {
-            <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">device_removed</span>(<span class="kw-2">*</span><span class="ident">device</span>);
-        }
+    <span class="doccomment">/// Get a list of DRM devices currently known to the backend</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// You should call this once before inserting the event source into your</span>
+    <span class="doccomment">/// event loop, to get an initial snapshot of the device state.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">device_list</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> (<span class="ident">dev_t</span>, <span class="kw-2">&amp;</span><span class="ident">Path</span>)<span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">devices</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>, <span class="ident">path</span>)<span class="op">|</span> (<span class="ident">id</span>, <span class="ident">path</span>.<span class="ident">as_ref</span>()))
     }
 }
 
-<span class="doccomment">/// calloop event source associated with the Udev backend</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">UdevSource</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Generic</span><span class="op">&lt;</span><span class="ident">SourceFd</span><span class="op">&lt;</span><span class="ident">UdevBackend</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+<span class="kw">impl</span> <span class="ident">EventSource</span> <span class="kw">for</span> <span class="ident">UdevBackend</span> {
+    <span class="kw">type</span> <span class="ident">Event</span> <span class="op">=</span> <span class="ident">UdevEvent</span>;
+    <span class="kw">type</span> <span class="ident">Metadata</span> <span class="op">=</span> ();
+    <span class="kw">type</span> <span class="ident">Ret</span> <span class="op">=</span> ();
 
-<span class="doccomment">/// Binds a [`UdevBackend`] to a given [`EventLoop`](calloop::EventLoop).</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Allows the backend to receive kernel events and thus to drive the [`UdevHandler`].</span>
-<span class="doccomment">/// No runtime functionality can be provided without using this function.</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">udev_backend_bind</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">UdevHandler</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>, <span class="ident">Data</span>: <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
-    <span class="ident">udev</span>: <span class="ident">UdevBackend</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
-    <span class="ident">handle</span>: <span class="kw-2">&amp;</span><span class="ident">LoopHandle</span><span class="op">&lt;</span><span class="ident">Data</span><span class="op">&gt;</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Source</span><span class="op">&lt;</span><span class="ident">UdevSource</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="ident">InsertError</span><span class="op">&lt;</span><span class="ident">UdevSource</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">source</span> <span class="op">=</span> <span class="ident">Generic</span>::<span class="ident">from_fd_source</span>(<span class="ident">udev</span>);
-    <span class="ident">source</span>.<span class="ident">set_interest</span>(<span class="ident">Interest</span>::<span class="ident">READABLE</span>);
-
-    <span class="ident">handle</span>.<span class="ident">insert_source</span>(<span class="ident">source</span>, <span class="op">|</span><span class="ident">evt</span>, <span class="kw">_</span><span class="op">|</span> {
-        <span class="ident">evt</span>.<span class="ident">source</span>.<span class="ident">borrow_mut</span>().<span class="number">0</span>.<span class="ident">process_events</span>();
-    })
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">UdevHandler</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">UdevBackend</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">process_events</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+    <span class="kw">fn</span> <span class="ident">process_events</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw">_</span>: <span class="ident">Readiness</span>, <span class="kw">_</span>: <span class="ident">Token</span>, <span class="kw-2">mut</span> <span class="ident">callback</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">UdevEvent</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> ()),
+    {
         <span class="kw">let</span> <span class="ident">monitor</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">monitor</span>.<span class="ident">clone</span>();
         <span class="kw">for</span> <span class="ident">event</span> <span class="kw">in</span> <span class="ident">monitor</span> {
+            <span class="macro">debug</span><span class="macro">!</span>(
+                <span class="self">self</span>.<span class="ident">logger</span>,
+                <span class="string">&quot;Udev event: type={}, devnum={:?} devnode={:?}&quot;</span>,
+                <span class="ident">event</span>.<span class="ident">event_type</span>(),
+                <span class="ident">event</span>.<span class="ident">devnum</span>(),
+                <span class="ident">event</span>.<span class="ident">devnode</span>()
+            );
             <span class="kw">match</span> <span class="ident">event</span>.<span class="ident">event_type</span>() {
                 <span class="comment">// New device</span>
                 <span class="ident">EventType</span>::<span class="ident">Add</span> <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Device Added&quot;</span>);
                     <span class="kw">if</span> <span class="kw">let</span> (<span class="prelude-val">Some</span>(<span class="ident">path</span>), <span class="prelude-val">Some</span>(<span class="ident">devnum</span>)) <span class="op">=</span> (<span class="ident">event</span>.<span class="ident">devnode</span>(), <span class="ident">event</span>.<span class="ident">devnum</span>()) {
-                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">devices</span>.<span class="ident">insert</span>(<span class="ident">devnum</span>) {
-                            <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">device_added</span>(<span class="ident">devnum</span>, <span class="ident">path</span>.<span class="ident">to_path_buf</span>());
+                        <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;New device: #{} at {}&quot;</span>, <span class="ident">devnum</span>, <span class="ident">path</span>.<span class="ident">display</span>());
+                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">devices</span>.<span class="ident">insert</span>(<span class="ident">devnum</span>, <span class="ident">path</span>.<span class="ident">to_path_buf</span>()).<span class="ident">is_none</span>() {
+                            <span class="ident">callback</span>(
+                                <span class="ident">UdevEvent</span>::<span class="ident">Added</span> {
+                                    <span class="ident">device_id</span>: <span class="ident">devnum</span>,
+                                    <span class="ident">path</span>: <span class="ident">path</span>.<span class="ident">to_path_buf</span>(),
+                                },
+                                <span class="kw-2">&amp;</span><span class="kw-2">mut</span> (),
+                            );
                         }
                     }
                 }
                 <span class="comment">// Device removed</span>
                 <span class="ident">EventType</span>::<span class="ident">Remove</span> <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Device Remove&quot;</span>);
                     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">devnum</span>) <span class="op">=</span> <span class="ident">event</span>.<span class="ident">devnum</span>() {
-                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">devices</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">devnum</span>) {
-                            <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">device_removed</span>(<span class="ident">devnum</span>);
+                        <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Device removed: #{}&quot;</span>, <span class="ident">devnum</span>);
+                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">devices</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">devnum</span>).<span class="ident">is_some</span>() {
+                            <span class="ident">callback</span>(<span class="ident">UdevEvent</span>::<span class="ident">Removed</span> { <span class="ident">device_id</span>: <span class="ident">devnum</span> }, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> ());
                         }
                     }
                 }
                 <span class="comment">// New connector</span>
                 <span class="ident">EventType</span>::<span class="ident">Change</span> <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Device Changed&quot;</span>);
                     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">devnum</span>) <span class="op">=</span> <span class="ident">event</span>.<span class="ident">devnum</span>() {
-                        <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Devnum: {:b}&quot;</span>, <span class="ident">devnum</span>);
-                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">devices</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">devnum</span>) {
-                            <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">device_changed</span>(<span class="ident">devnum</span>);
-                        } <span class="kw">else</span> {
-                            <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;changed, but device not tracked by backend&quot;</span>);
-                        };
-                    } <span class="kw">else</span> {
-                        <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;changed, but no devnum&quot;</span>);
+                        <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Device changed: #{}&quot;</span>, <span class="ident">devnum</span>);
+                        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">devices</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">devnum</span>) {
+                            <span class="ident">callback</span>(<span class="ident">UdevEvent</span>::<span class="ident">Changed</span> { <span class="ident">device_id</span>: <span class="ident">devnum</span> }, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> ());
+                        }
                     }
                 }
                 <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {}
             }
         }
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">fn</span> <span class="ident">register</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">poll</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Poll</span>, <span class="ident">token</span>: <span class="ident">Token</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="ident">poll</span>.<span class="ident">register</span>(<span class="self">self</span>.<span class="ident">as_raw_fd</span>(), <span class="ident">Interest</span>::<span class="ident">Readable</span>, <span class="ident">Mode</span>::<span class="ident">Level</span>, <span class="ident">token</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">reregister</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">poll</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Poll</span>, <span class="ident">token</span>: <span class="ident">Token</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="ident">poll</span>.<span class="ident">reregister</span>(<span class="self">self</span>.<span class="ident">as_raw_fd</span>(), <span class="ident">Interest</span>::<span class="ident">Readable</span>, <span class="ident">Mode</span>::<span class="ident">Level</span>, <span class="ident">token</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">unregister</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">poll</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Poll</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="ident">poll</span>.<span class="ident">unregister</span>(<span class="self">self</span>.<span class="ident">as_raw_fd</span>())
     }
 }
 
-<span class="doccomment">/// Handler for the [`UdevBackend`], allows to open, close and update drm devices as they change during runtime.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">UdevHandler</span> {
-    <span class="doccomment">/// Called when a new device is detected.</span>
-    <span class="kw">fn</span> <span class="ident">device_added</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">device</span>: <span class="ident">dev_t</span>, <span class="ident">path</span>: <span class="ident">PathBuf</span>);
-    <span class="doccomment">/// Called when an open device is changed.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This usually indicates that some connectors did become available or were unplugged. The handler</span>
-    <span class="doccomment">/// should scan again for connected monitors and mode switch accordingly.</span>
-    <span class="kw">fn</span> <span class="ident">device_changed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">device</span>: <span class="ident">dev_t</span>);
-    <span class="doccomment">/// Called when a device was removed.</span>
-    <span class="kw">fn</span> <span class="ident">device_removed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">device</span>: <span class="ident">dev_t</span>);
+<span class="doccomment">/// Events generated by the [`UdevBackend`], notifying you of changes in system devices</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">UdevEvent</span> {
+    <span class="doccomment">/// A new device has been detected</span>
+    <span class="ident">Added</span> {
+        <span class="doccomment">/// ID of the new device</span>
+        <span class="ident">device_id</span>: <span class="ident">dev_t</span>,
+        <span class="doccomment">/// Path of the new device</span>
+        <span class="ident">path</span>: <span class="ident">PathBuf</span>,
+    },
+    <span class="doccomment">/// A device has changed</span>
+    <span class="ident">Changed</span> {
+        <span class="doccomment">/// ID of the changed device</span>
+        <span class="ident">device_id</span>: <span class="ident">dev_t</span>,
+    },
+    <span class="doccomment">/// A device has been removed</span>
+    <span class="ident">Removed</span> {
+        <span class="doccomment">/// ID of the removed device</span>
+        <span class="ident">device_id</span>: <span class="ident">dev_t</span>,
+    },
 }
 
 <span class="doccomment">/// Returns the path of the primary GPU device if any</span>

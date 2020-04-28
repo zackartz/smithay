@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["smithay"] = [{"text":"impl EventSource for <a class=\"struct\" href=\"smithay/backend/udev/struct.UdevBackend.html\" title=\"struct smithay::backend::udev::UdevBackend\">UdevBackend</a>","synthetic":false,"types":["smithay::backend::udev::UdevBackend"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
