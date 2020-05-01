@@ -41,17 +41,23 @@
 <span id="41">41</span>
 <span id="42">42</span>
 <span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Support to register an [`EglDevice`](EglDevice)</span>
 <span class="doccomment">//! to an open [`Session`](::backend::session::Session).</span>
 <span class="doccomment">//!</span>
 
-<span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::<span class="ident">crtc</span>;
+<span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{<span class="ident">connector</span>, <span class="ident">crtc</span>, <span class="ident">Mode</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">os</span>::<span class="ident">unix</span>::<span class="ident">io</span>::<span class="ident">RawFd</span>;
 
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">EglDevice</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::<span class="ident">Device</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::{<span class="ident">Device</span>, <span class="ident">Surface</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">native</span>::{<span class="ident">Backend</span>, <span class="ident">NativeDisplay</span>, <span class="ident">NativeSurface</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">session</span>::{<span class="ident">AsSessionObserver</span>, <span class="ident">SessionObserver</span>};
 
@@ -66,7 +72,13 @@
 <span class="kw">where</span>
     <span class="ident">S</span>: <span class="ident">SessionObserver</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     <span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&lt;</span><span class="ident">Surface</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">D</span>: <span class="ident">Device</span> <span class="op">+</span> <span class="ident">NativeDisplay</span><span class="op">&lt;</span><span class="ident">B</span>, <span class="ident">Arguments</span> <span class="op">=</span> <span class="ident">crtc</span>::<span class="ident">Handle</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AsSessionObserver</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="ident">D</span>: <span class="ident">Device</span>
+        <span class="op">+</span> <span class="ident">NativeDisplay</span><span class="op">&lt;</span>
+            <span class="ident">B</span>,
+            <span class="ident">Arguments</span> <span class="op">=</span> (<span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">Mode</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">connector</span>::<span class="ident">Handle</span><span class="op">&gt;</span>),
+            <span class="ident">Error</span> <span class="op">=</span> <span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span>,
+        <span class="op">&gt;</span> <span class="op">+</span> <span class="ident">AsSessionObserver</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>
+        <span class="op">+</span> <span class="lifetime">&#39;static</span>,
     <span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span>: <span class="ident">NativeSurface</span>,
 {
     <span class="kw">fn</span> <span class="ident">observer</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">EglDeviceObserver</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {

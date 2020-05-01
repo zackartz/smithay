@@ -263,6 +263,15 @@
 <span id="263">263</span>
 <span id="264">264</span>
 <span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//!</span>
@@ -314,8 +323,6 @@
 
 <span class="kw">use</span> <span class="ident">calloop</span>::{<span class="ident">generic</span>::<span class="ident">Generic</span>, <span class="ident">InsertError</span>, <span class="ident">LoopHandle</span>, <span class="ident">Source</span>};
 
-<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">graphics</span>::<span class="ident">SwapBuffersError</span>;
-
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm_atomic&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">atomic</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm&quot;</span>)]</span>
@@ -357,16 +364,23 @@
 
     <span class="doccomment">/// Creates a new rendering surface.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// # Arguments</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// Initialization of surfaces happens through the types provided by</span>
     <span class="doccomment">/// [`drm-rs`](drm).</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// [`crtc`](drm::control::crtc)s represent scanout engines</span>
-    <span class="doccomment">/// of the device pointer to one framebuffer.</span>
-    <span class="doccomment">/// Their responsibility is to read the data of the framebuffer and export it into an &quot;Encoder&quot;.</span>
-    <span class="doccomment">/// The number of crtc&#39;s represent the number of independant output devices the hardware may handle.</span>
+    <span class="doccomment">/// - [`crtc`](drm::control::crtc)s represent scanout engines of the device pointing to one framebuffer. \</span>
+    <span class="doccomment">///     Their responsibility is to read the data of the framebuffer and export it into an &quot;Encoder&quot;. \</span>
+    <span class="doccomment">///     The number of crtc&#39;s represent the number of independant output devices the hardware may handle.</span>
+    <span class="doccomment">/// - [`mode`](drm::control::Mode) describes the resolution and rate of images produced by the crtc and \</span>
+    <span class="doccomment">///     has to be compatible with the provided `connectors`.</span>
+    <span class="doccomment">/// - [`connectors`] - List of connectors driven by the crtc. At least one(!) connector needs to be \</span>
+    <span class="doccomment">///     attached to a crtc in smithay.</span>
     <span class="kw">fn</span> <span class="ident">create_surface</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>,
+        <span class="ident">mode</span>: <span class="ident">Mode</span>,
+        <span class="ident">connectors</span>: <span class="kw-2">&amp;</span>[<span class="ident">connector</span>::<span class="ident">Handle</span>],
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Surface</span>, <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// Processes any open events of the underlying file descriptor.</span>
@@ -427,6 +441,11 @@
     <span class="doccomment">/// Tries to add a new [`connector`](drm::control::connector)</span>
     <span class="doccomment">/// to be used after the next commit.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// **Warning**: You need to make sure, that the connector is not used with another surface</span>
+    <span class="doccomment">/// or was properly removed via `remove_connector` + `commit` before adding it to another surface.</span>
+    <span class="doccomment">/// Behavior if failing to do so is undefined, but might result in rendering errors or the connector</span>
+    <span class="doccomment">/// getting removed from the other surface without updating it&#39;s internal state.</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// Fails if the `connector` is not compatible with the underlying [`crtc`](drm::control::crtc)</span>
     <span class="doccomment">/// (e.g. no suitable [`encoder`](drm::control::encoder) may be found)</span>
     <span class="doccomment">/// or is not compatible with the currently pending</span>
@@ -444,11 +463,10 @@
     <span class="kw">fn</span> <span class="ident">set_connectors</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connectors</span>: <span class="kw-2">&amp;</span>[<span class="ident">connector</span>::<span class="ident">Handle</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
     <span class="doccomment">/// Returns the currently active [`Mode`](drm::control::Mode)</span>
     <span class="doccomment">/// of the underlying [`crtc`](drm::control::crtc)</span>
-    <span class="doccomment">/// if any.</span>
-    <span class="kw">fn</span> <span class="ident">current_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">current_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Mode</span>;
     <span class="doccomment">/// Returns the currently pending [`Mode`](drm::control::Mode)</span>
-    <span class="doccomment">/// to be used after the next commit, if any.</span>
-    <span class="kw">fn</span> <span class="ident">pending_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>;
+    <span class="doccomment">/// to be used after the next commit.</span>
+    <span class="kw">fn</span> <span class="ident">pending_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Mode</span>;
     <span class="doccomment">/// Tries to set a new [`Mode`](drm::control::Mode)</span>
     <span class="doccomment">/// to be used after the next commit.</span>
     <span class="doccomment">///</span>
@@ -459,7 +477,7 @@
     <span class="doccomment">/// *Note*: Only on a [`RawSurface`] you may directly trigger</span>
     <span class="doccomment">/// a [`commit`](RawSurface::commit). Other [`Surface`]s provide their</span>
     <span class="doccomment">/// own methods that *may* trigger a commit, you will need to read their docs.</span>
-    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="ident">Mode</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// An open bare crtc without any rendering abstractions</span>
@@ -490,7 +508,7 @@
     <span class="doccomment">/// This operation is not blocking and will produce a `vblank` event once swapping is done.</span>
     <span class="doccomment">/// Make sure to [set a `DeviceHandler`](Device::set_handler) and</span>
     <span class="doccomment">/// [register the belonging `Device`](device_bind) before to receive the event in time.</span>
-    <span class="kw">fn</span> <span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">framebuffer</span>: <span class="ident">framebuffer</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">framebuffer</span>: <span class="ident">framebuffer</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 }
 
 <span class="doccomment">/// Trait representing open devices that *may* return a `Path`</span>

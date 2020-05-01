@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["GliumGraphicsBackend","Wrapper to expose `Glium` compatibility"]]});
+initSidebarItems({"struct":[["Frame","Omplementation of `glium::Surface`, targeting the default framebuffer."],["GliumGraphicsBackend","Wrapper to expose `Glium` compatibility"]]});

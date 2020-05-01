@@ -333,15 +333,14 @@
 <span id="333">333</span>
 <span id="334">334</span>
 <span id="335">335</span>
-<span id="336">336</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! EGL context related structs</span>
 
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">ffi</span>, <span class="ident">Error</span>};
+<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">ffi</span>, <span class="ident">wrap_egl_call</span>, <span class="ident">Error</span>, <span class="ident">MakeCurrentError</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">display</span>::{<span class="ident">EGLDisplay</span>, <span class="ident">EGLDisplayHandle</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">native</span>::<span class="ident">NativeSurface</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::{<span class="ident">native</span>, <span class="ident">EGLSurface</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::{<span class="ident">PixelFormat</span>, <span class="ident">SwapBuffersError</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">PixelFormat</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">os</span>::<span class="ident">raw</span>::<span class="ident">c_int</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ptr</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
@@ -430,21 +429,15 @@
 
         <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Creating EGL context...&quot;</span>);
         <span class="comment">// TODO: Support shared contexts</span>
-        <span class="kw">let</span> <span class="ident">context</span> <span class="op">=</span> <span class="kw">unsafe</span> {
+        <span class="kw">let</span> <span class="ident">context</span> <span class="op">=</span> <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> {
             <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CreateContext</span>(
                 <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">display</span>.<span class="ident">display</span>,
                 <span class="ident">config_id</span>,
                 <span class="ident">ptr</span>::<span class="ident">null</span>(),
                 <span class="ident">context_attributes</span>.<span class="ident">as_ptr</span>(),
             )
-        };
-
-        <span class="kw">if</span> <span class="ident">context</span>.<span class="ident">is_null</span>() {
-            <span class="kw">match</span> <span class="kw">unsafe</span> { <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetError</span>() } <span class="kw">as</span> <span class="ident">u32</span> {
-                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">BAD_ATTRIBUTE</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">CreationFailed</span>),
-                <span class="ident">err_no</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">Unknown</span>(<span class="ident">err_no</span>)),
-            }
-        }
+        })
+        .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">CreationFailed</span>)<span class="question-mark">?</span>;
 
         <span class="macro">info</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;EGL context created&quot;</span>);
 
@@ -463,25 +456,15 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// This function is marked unsafe, because the context cannot be made current</span>
     <span class="doccomment">/// on multiple threads.</span>
-    <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">make_current_with_surface</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">surface</span>: <span class="kw-2">&amp;</span><span class="ident">EGLSurface</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">make_current_with_surface</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">surface</span>: <span class="kw-2">&amp;</span><span class="ident">EGLSurface</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">MakeCurrentError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">N</span>: <span class="ident">NativeSurface</span>,
     {
         <span class="kw">let</span> <span class="ident">surface_ptr</span> <span class="op">=</span> <span class="ident">surface</span>.<span class="ident">surface</span>.<span class="ident">get</span>();
 
-        <span class="kw">let</span> <span class="ident">ret</span> <span class="op">=</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">MakeCurrent</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>, <span class="ident">surface_ptr</span>, <span class="ident">surface_ptr</span>, <span class="self">self</span>.<span class="ident">context</span>);
-
-        <span class="kw">if</span> <span class="ident">ret</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-            <span class="kw">match</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetError</span>() <span class="kw">as</span> <span class="ident">u32</span> {
-                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CONTEXT_LOST</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SwapBuffersError</span>::<span class="ident">ContextLost</span>),
-                <span class="ident">err</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;eglMakeCurrent failed (eglGetError returned 0x{:x})&quot;</span>, <span class="ident">err</span>),
-            }
-        } <span class="kw">else</span> {
-            <span class="prelude-val">Ok</span>(())
-        }
+        <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">MakeCurrent</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>, <span class="ident">surface_ptr</span>, <span class="ident">surface_ptr</span>, <span class="self">self</span>.<span class="ident">context</span>))
+            .<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+            .<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
     }
 
     <span class="doccomment">/// Makes the OpenGL context the current context in the current thread with no surface bound.</span>
@@ -489,18 +472,18 @@
     <span class="doccomment">/// # Safety</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This function is marked unsafe, because the context cannot be made current</span>
-    <span class="doccomment">/// on multiple threads.</span>
-    <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">make_current</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">ret</span> <span class="op">=</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">MakeCurrent</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>, <span class="ident">ptr</span>::<span class="ident">null</span>(), <span class="ident">ptr</span>::<span class="ident">null</span>(), <span class="self">self</span>.<span class="ident">context</span>);
-
-        <span class="kw">if</span> <span class="ident">ret</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-            <span class="kw">match</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetError</span>() <span class="kw">as</span> <span class="ident">u32</span> {
-                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CONTEXT_LOST</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SwapBuffersError</span>::<span class="ident">ContextLost</span>),
-                <span class="ident">err</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;eglMakeCurrent failed (eglGetError returned 0x{:x})&quot;</span>, <span class="ident">err</span>),
-            }
-        } <span class="kw">else</span> {
-            <span class="prelude-val">Ok</span>(())
-        }
+    <span class="doccomment">/// on multiple threads without being unbound again (see `unbind`)</span>
+    <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">make_current</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">MakeCurrentError</span><span class="op">&gt;</span> {
+        <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> {
+            <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">MakeCurrent</span>(
+                <span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>,
+                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NO_SURFACE</span>,
+                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NO_SURFACE</span>,
+                <span class="self">self</span>.<span class="ident">context</span>,
+            )
+        })
+        .<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
+        .<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)
     }
 
     <span class="doccomment">/// Returns true if the OpenGL context is the current one in the thread.</span>
@@ -517,16 +500,31 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_pixel_format</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PixelFormat</span> {
         <span class="self">self</span>.<span class="ident">pixel_format</span>
     }
+
+    <span class="doccomment">/// Unbinds this context from the current thread, if set.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This does nothing if this context is not the current context</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">unbind</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">MakeCurrentError</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">is_current</span>() {
+            <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> {
+                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">MakeCurrent</span>(
+                    <span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>,
+                    <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NO_SURFACE</span>,
+                    <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NO_SURFACE</span>,
+                    <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NO_CONTEXT</span>,
+                )
+            })<span class="question-mark">?</span>;
+        }
+        <span class="prelude-val">Ok</span>(())
+    }
 }
 
 <span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">EGLContext</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="kw">unsafe</span> {
             <span class="comment">// We need to ensure the context is unbound, otherwise it egl stalls the destroy call</span>
-            <span class="kw">if</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetCurrentContext</span>() <span class="op">=</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">context</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span> {
-                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">MakeCurrent</span>(<span class="ident">ptr</span>::<span class="ident">null</span>(), <span class="ident">ptr</span>::<span class="ident">null</span>(), <span class="ident">ptr</span>::<span class="ident">null</span>(), <span class="ident">ptr</span>::<span class="ident">null</span>());
-            }
-
+            <span class="comment">// ignore failures at this point</span>
+            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">unbind</span>();
             <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">DestroyContext</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>, <span class="self">self</span>.<span class="ident">context</span>);
         }
     }
@@ -607,7 +605,7 @@
 
 <span class="kw">impl</span> <span class="ident">PixelFormatRequirements</span> {
     <span class="doccomment">/// Append the  requirements to the given attribute list</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_attributes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">out</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">c_int</span><span class="op">&gt;</span>, <span class="ident">logger</span>: <span class="kw-2">&amp;</span><span class="ident">slog</span>::<span class="ident">Logger</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_attributes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">out</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">c_int</span><span class="op">&gt;</span>, <span class="ident">logger</span>: <span class="kw-2">&amp;</span><span class="ident">slog</span>::<span class="ident">Logger</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">hardware_accelerated</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">hardware_accelerated</span> {
             <span class="ident">out</span>.<span class="ident">push</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CONFIG_CAVEAT</span> <span class="kw">as</span> <span class="ident">c_int</span>);
             <span class="ident">out</span>.<span class="ident">push</span>(<span class="kw">if</span> <span class="ident">hardware_accelerated</span> {
@@ -665,7 +663,7 @@
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">stereoscopy</span> {
             <span class="macro">error</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Stereoscopy is currently unsupported (sorry!)&quot;</span>);
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">NoAvailablePixelFormat</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(());
         }
 
         <span class="prelude-val">Ok</span>(())

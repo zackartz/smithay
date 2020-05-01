@@ -144,12 +144,16 @@
 <span id="144">144</span>
 <span id="145">145</span>
 <span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! EGL surface related structs</span>
 
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">ffi</span>, <span class="ident">native</span>, <span class="ident">Error</span>};
+<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">ffi</span>, <span class="ident">native</span>, <span class="ident">wrap_egl_call</span>, <span class="ident">EGLError</span>, <span class="ident">SwapBuffersError</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">display</span>::<span class="ident">EGLDisplayHandle</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::{<span class="ident">PixelFormat</span>, <span class="ident">SwapBuffersError</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">PixelFormat</span>;
 <span class="kw">use</span> <span class="ident">nix</span>::<span class="ident">libc</span>::<span class="ident">c_int</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -188,7 +192,7 @@
         <span class="ident">config</span>: <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLConfig</span>,
         <span class="ident">native</span>: <span class="ident">N</span>,
         <span class="ident">log</span>: <span class="ident">L</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">EGLSurface</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">EGLSurface</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>, <span class="ident">EGLError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">L</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>::<span class="ident">slog</span>::<span class="ident">Logger</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     {
@@ -215,13 +219,9 @@
             <span class="ident">out</span>
         };
 
-        <span class="kw">let</span> <span class="ident">surface</span> <span class="op">=</span> <span class="kw">unsafe</span> {
+        <span class="kw">let</span> <span class="ident">surface</span> <span class="op">=</span> <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> {
             <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CreateWindowSurface</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">display</span>, <span class="ident">config</span>, <span class="ident">native</span>.<span class="ident">ptr</span>(), <span class="ident">surface_attributes</span>.<span class="ident">as_ptr</span>())
-        };
-
-        <span class="kw">if</span> <span class="ident">surface</span>.<span class="ident">is_null</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">SurfaceCreationFailed</span>);
-        }
+        })<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">EGLSurface</span> {
             <span class="ident">display</span>,
@@ -234,35 +234,43 @@
     }
 
     <span class="doccomment">/// Swaps buffers at the end of a frame.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">swap_buffers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">swap_buffers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&lt;</span><span class="ident">N</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">surface</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">get</span>();
 
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">surface</span>.<span class="ident">is_null</span>() {
-            <span class="kw">let</span> <span class="ident">ret</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">SwapBuffers</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>, <span class="ident">surface</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>) };
-
-            <span class="kw">if</span> <span class="ident">ret</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
-                <span class="kw">match</span> <span class="kw">unsafe</span> { <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetError</span>() } <span class="kw">as</span> <span class="ident">u32</span> {
-                    <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CONTEXT_LOST</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SwapBuffersError</span>::<span class="ident">ContextLost</span>),
-                    <span class="ident">err</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SwapBuffersError</span>::<span class="ident">Unknown</span>(<span class="ident">err</span>)),
-                };
-            } <span class="kw">else</span> {
-                <span class="self">self</span>.<span class="ident">native</span>.<span class="ident">swap_buffers</span>()<span class="question-mark">?</span>;
-            }
+        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">surface</span>.<span class="ident">is_null</span>() {
+            <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> { <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">SwapBuffers</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>, <span class="ident">surface</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>) })
+                .<span class="ident">map_err</span>(<span class="ident">SwapBuffersError</span>::<span class="ident">EGLSwapBuffers</span>)
+                .<span class="ident">and_then</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">native</span>.<span class="ident">swap_buffers</span>().<span class="ident">map_err</span>(<span class="ident">SwapBuffersError</span>::<span class="ident">Underlying</span>))
+        } <span class="kw">else</span> {
+            <span class="prelude-val">Ok</span>(())
         };
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">native</span>.<span class="ident">needs_recreation</span>() <span class="op">|</span><span class="op">|</span> <span class="ident">surface</span>.<span class="ident">is_null</span>() {
-            <span class="self">self</span>.<span class="ident">native</span>.<span class="ident">recreate</span>();
+        <span class="comment">// workaround for missing `PartialEq` impl</span>
+        <span class="kw">let</span> <span class="ident">is_bad_surface</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">SwapBuffersError</span>::<span class="ident">EGLSwapBuffers</span>(<span class="ident">EGLError</span>::<span class="ident">BadSurface</span>)) <span class="op">=</span> <span class="ident">result</span> {
+            <span class="bool-val">true</span>
+        } <span class="kw">else</span> {
+            <span class="bool-val">false</span>
+        };
+
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">native</span>.<span class="ident">needs_recreation</span>() <span class="op">|</span><span class="op">|</span> <span class="ident">surface</span>.<span class="ident">is_null</span>() <span class="op">|</span><span class="op">|</span> <span class="ident">is_bad_surface</span> {
+            <span class="self">self</span>.<span class="ident">native</span>.<span class="ident">recreate</span>().<span class="ident">map_err</span>(<span class="ident">SwapBuffersError</span>::<span class="ident">Underlying</span>)<span class="question-mark">?</span>;
+            <span class="kw">if</span> <span class="op">!</span><span class="ident">surface</span>.<span class="ident">is_null</span>() {
+                <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">DestroySurface</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>, <span class="ident">surface</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>) };
+            }
             <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">set</span>(<span class="kw">unsafe</span> {
-                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CreateWindowSurface</span>(
-                    <span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>,
-                    <span class="self">self</span>.<span class="ident">config_id</span>,
-                    <span class="self">self</span>.<span class="ident">native</span>.<span class="ident">ptr</span>(),
-                    <span class="self">self</span>.<span class="ident">surface_attributes</span>.<span class="ident">as_ptr</span>(),
-                )
+                <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> {
+                    <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CreateWindowSurface</span>(
+                        <span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>,
+                        <span class="self">self</span>.<span class="ident">config_id</span>,
+                        <span class="self">self</span>.<span class="ident">native</span>.<span class="ident">ptr</span>(),
+                        <span class="self">self</span>.<span class="ident">surface_attributes</span>.<span class="ident">as_ptr</span>(),
+                    )
+                })
+                .<span class="ident">map_err</span>(<span class="ident">SwapBuffersError</span>::<span class="ident">EGLCreateWindowSurface</span>)<span class="question-mark">?</span>
             });
         }
 
-        <span class="prelude-val">Ok</span>(())
+        <span class="ident">result</span>
     }
 
     <span class="doccomment">/// Returns true if the OpenGL surface is the current one in the thread.</span>

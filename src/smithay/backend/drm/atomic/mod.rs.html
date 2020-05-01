@@ -404,6 +404,72 @@
 <span id="404">404</span>
 <span id="405">405</span>
 <span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! [`RawDevice`](RawDevice) and [`RawSurface`](RawSurface)</span>
@@ -426,7 +492,8 @@
 
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{<span class="ident">atomic</span>::<span class="ident">AtomicModeReq</span>, <span class="ident">AtomicCommitFlags</span>, <span class="ident">Device</span> <span class="kw">as</span> <span class="ident">ControlDevice</span>, <span class="ident">Event</span>};
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{
-    <span class="ident">connector</span>, <span class="ident">crtc</span>, <span class="ident">encoder</span>, <span class="ident">framebuffer</span>, <span class="ident">plane</span>, <span class="ident">property</span>, <span class="ident">PropertyValueSet</span>, <span class="ident">ResourceHandle</span>, <span class="ident">ResourceHandles</span>,
+    <span class="ident">connector</span>, <span class="ident">crtc</span>, <span class="ident">encoder</span>, <span class="ident">framebuffer</span>, <span class="ident">plane</span>, <span class="ident">property</span>, <span class="ident">Mode</span>, <span class="ident">PropertyValueSet</span>, <span class="ident">ResourceHandle</span>,
+    <span class="ident">ResourceHandles</span>,
 };
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">SystemError</span> <span class="kw">as</span> <span class="ident">DrmError</span>;
 <span class="kw">use</span> <span class="ident">drm</span>::{<span class="ident">ClientCapability</span>, <span class="ident">Device</span> <span class="kw">as</span> <span class="ident">BasicDevice</span>};
@@ -594,9 +661,21 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">AtomicDrmDevice</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Create a new [`AtomicDrmDevice`] from an open drm node</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// Returns an error if the file is no valid drm node or context creation was not</span>
-    <span class="doccomment">/// successful.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>(<span class="ident">fd</span>: <span class="ident">A</span>, <span class="ident">logger</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&gt;</span>
+    <span class="doccomment">/// # Arguments</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// - `fd` - Open drm node</span>
+    <span class="doccomment">/// - `disable_connectors` - Setting this to true will initialize all connectors \</span>
+    <span class="doccomment">///     as disabled on device creation. smithay enables connectors, when attached \</span>
+    <span class="doccomment">///     to a surface, and disables them, when detached. Setting this to `false` \</span>
+    <span class="doccomment">///     requires usage of `drm-rs` to disable unused connectors to prevent them \</span>
+    <span class="doccomment">///     showing garbage, but will also prevent flickering of already turned on \</span>
+    <span class="doccomment">///     connectors (assuming you won&#39;t change the resolution).</span>
+    <span class="doccomment">/// - `logger` - Optional [`slog::Logger`] to be used by this device.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Return</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Returns an error if the file is no valid drm node or the device is not accessible.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>(<span class="ident">fd</span>: <span class="ident">A</span>, <span class="ident">disable_connectors</span>: <span class="ident">bool</span>, <span class="ident">logger</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">L</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>::<span class="ident">slog</span>::<span class="ident">Logger</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     {
@@ -668,7 +747,49 @@
 
         <span class="ident">dev</span>.<span class="ident">old_state</span> <span class="op">=</span> <span class="ident">old_state</span>;
         <span class="ident">dev</span>.<span class="ident">prop_mapping</span> <span class="op">=</span> <span class="ident">mapping</span>;
-        <span class="macro">debug</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Mapping: {:#?}&quot;</span>, <span class="ident">dev</span>.<span class="ident">prop_mapping</span>);
+        <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Mapping: {:#?}&quot;</span>, <span class="ident">dev</span>.<span class="ident">prop_mapping</span>);
+
+        <span class="kw">if</span> <span class="ident">disable_connectors</span> {
+            <span class="comment">// Disable all connectors as initial state</span>
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">AtomicModeReq</span>::<span class="ident">new</span>();
+            <span class="kw">for</span> <span class="ident">conn</span> <span class="kw">in</span> <span class="ident">res_handles</span>.<span class="ident">connectors</span>() {
+                <span class="kw">let</span> <span class="ident">prop</span> <span class="op">=</span> <span class="ident">dev</span>
+                    .<span class="ident">prop_mapping</span>
+                    .<span class="number">0</span>
+                    .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">conn</span>)
+                    .<span class="ident">expect</span>(<span class="string">&quot;Unknown handle&quot;</span>)
+                    .<span class="ident">get</span>(<span class="string">&quot;CRTC_ID&quot;</span>)
+                    .<span class="ident">expect</span>(<span class="string">&quot;Unknown property CRTC_ID&quot;</span>);
+                <span class="ident">req</span>.<span class="ident">add_property</span>(<span class="kw-2">*</span><span class="ident">conn</span>, <span class="kw-2">*</span><span class="ident">prop</span>, <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">CRTC</span>(<span class="prelude-val">None</span>));
+            }
+            <span class="comment">// A crtc without a connector has no mode, we also need to reset that.</span>
+            <span class="comment">// Otherwise the commit will not be accepted.</span>
+            <span class="kw">for</span> <span class="ident">crtc</span> <span class="kw">in</span> <span class="ident">res_handles</span>.<span class="ident">crtcs</span>() {
+                <span class="kw">let</span> <span class="ident">active_prop</span> <span class="op">=</span> <span class="ident">dev</span>
+                    .<span class="ident">prop_mapping</span>
+                    .<span class="number">1</span>
+                    .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">crtc</span>)
+                    .<span class="ident">expect</span>(<span class="string">&quot;Unknown handle&quot;</span>)
+                    .<span class="ident">get</span>(<span class="string">&quot;ACTIVE&quot;</span>)
+                    .<span class="ident">expect</span>(<span class="string">&quot;Unknown property ACTIVE&quot;</span>);
+                <span class="kw">let</span> <span class="ident">mode_prop</span> <span class="op">=</span> <span class="ident">dev</span>
+                    .<span class="ident">prop_mapping</span>
+                    .<span class="number">1</span>
+                    .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">crtc</span>)
+                    .<span class="ident">expect</span>(<span class="string">&quot;Unknown handle&quot;</span>)
+                    .<span class="ident">get</span>(<span class="string">&quot;MODE_ID&quot;</span>)
+                    .<span class="ident">expect</span>(<span class="string">&quot;Unknown property MODE_ID&quot;</span>);
+                <span class="ident">req</span>.<span class="ident">add_property</span>(<span class="kw-2">*</span><span class="ident">crtc</span>, <span class="kw-2">*</span><span class="ident">mode_prop</span>, <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">Unknown</span>(<span class="number">0</span>));
+                <span class="ident">req</span>.<span class="ident">add_property</span>(<span class="kw-2">*</span><span class="ident">crtc</span>, <span class="kw-2">*</span><span class="ident">active_prop</span>, <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">Boolean</span>(<span class="bool-val">false</span>));
+            }
+            <span class="ident">dev</span>.<span class="ident">atomic_commit</span>(<span class="kw-2">&amp;</span>[<span class="ident">AtomicCommitFlags</span>::<span class="ident">AllowModeset</span>], <span class="ident">req</span>)
+                .<span class="ident">compat</span>()
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
+                    <span class="ident">errmsg</span>: <span class="string">&quot;Failed to disable connectors&quot;</span>,
+                    <span class="ident">dev</span>: <span class="ident">dev</span>.<span class="ident">dev_path</span>(),
+                    <span class="ident">source</span>,
+                })<span class="question-mark">?</span>;
+        }
 
         <span class="prelude-val">Ok</span>(<span class="ident">AtomicDrmDevice</span> {
             <span class="ident">dev</span>: <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">dev</span>),
@@ -705,7 +826,12 @@
         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">handler</span>.<span class="ident">take</span>();
     }
 
-    <span class="kw">fn</span> <span class="ident">create_surface</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AtomicDrmSurface</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">create_surface</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>,
+        <span class="ident">mode</span>: <span class="ident">Mode</span>,
+        <span class="ident">connectors</span>: <span class="kw-2">&amp;</span>[<span class="ident">connector</span>::<span class="ident">Handle</span>],
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AtomicDrmSurface</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">backends</span>.<span class="ident">borrow</span>().<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">crtc</span>) {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">CrtcAlreadyInUse</span>(<span class="ident">crtc</span>));
         }
@@ -714,9 +840,15 @@
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DeviceInactive</span>);
         }
 
+        <span class="kw">if</span> <span class="ident">connectors</span>.<span class="ident">is_empty</span>() {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">SurfaceWithoutConnectors</span>(<span class="ident">crtc</span>));
+        }
+
         <span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">AtomicDrmSurfaceInternal</span>::<span class="ident">new</span>(
             <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">clone</span>(),
             <span class="ident">crtc</span>,
+            <span class="ident">mode</span>,
+            <span class="ident">connectors</span>,
             <span class="self">self</span>.<span class="ident">logger</span>.<span class="ident">new</span>(<span class="macro">o</span><span class="macro">!</span>(<span class="string">&quot;crtc&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">crtc</span>))),
         )<span class="question-mark">?</span>);
 

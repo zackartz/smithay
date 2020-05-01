@@ -406,6 +406,131 @@
 <span id="406">406</span>
 <span id="407">407</span>
 <span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">buffer</span>::<span class="ident">Buffer</span>;
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{
@@ -417,11 +542,10 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashSet</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">os</span>::<span class="ident">unix</span>::<span class="ident">io</span>::{<span class="ident">AsRawFd</span>, <span class="ident">RawFd</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::<span class="ident">Rc</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">RwLock</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">atomic</span>::<span class="ident">Ordering</span>, <span class="ident">RwLock</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::{<span class="ident">common</span>::<span class="ident">Error</span>, <span class="ident">DevPath</span>, <span class="ident">RawSurface</span>, <span class="ident">Surface</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">CursorBackend</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">SwapBuffersError</span>;
 
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">Dev</span>;
 
@@ -429,7 +553,7 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">State</span> {
-    <span class="kw">pub</span> <span class="ident">mode</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">mode</span>: <span class="ident">Mode</span>,
     <span class="kw">pub</span> <span class="ident">connectors</span>: <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">connector</span>::<span class="ident">Handle</span><span class="op">&gt;</span>,
 }
 
@@ -455,6 +579,10 @@
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
 
     <span class="kw">fn</span> <span class="ident">set_cursor_position</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">x</span>: <span class="ident">u32</span>, <span class="ident">y</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">active</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>) {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DeviceInactive</span>);
+        }
+
         <span class="macro">trace</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Move the cursor to {},{}&quot;</span>, <span class="ident">x</span>, <span class="ident">y</span>);
         <span class="self">self</span>.<span class="ident">move_cursor</span>(<span class="self">self</span>.<span class="ident">crtc</span>, (<span class="ident">x</span> <span class="kw">as</span> <span class="ident">i32</span>, <span class="ident">y</span> <span class="kw">as</span> <span class="ident">i32</span>))
             .<span class="ident">compat</span>()
@@ -470,6 +598,10 @@
         <span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">CursorFormat</span>,
         <span class="ident">hotspot</span>: (<span class="ident">u32</span>, <span class="ident">u32</span>),
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">active</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>) {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DeviceInactive</span>);
+        }
+
         <span class="macro">trace</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Setting the new imported cursor&quot;</span>);
 
         <span class="kw">if</span> <span class="self">self</span>
@@ -505,18 +637,22 @@
         <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">read</span>().<span class="ident">unwrap</span>().<span class="ident">connectors</span>.<span class="ident">clone</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">current_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">current_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Mode</span> {
         <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">read</span>().<span class="ident">unwrap</span>().<span class="ident">mode</span>
     }
 
-    <span class="kw">fn</span> <span class="ident">pending_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">pending_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Mode</span> {
         <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">read</span>().<span class="ident">unwrap</span>().<span class="ident">mode</span>
     }
 
     <span class="kw">fn</span> <span class="ident">add_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">conn</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">active</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>) {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DeviceInactive</span>);
+        }
+
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pending</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>();
 
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">check_connector</span>(<span class="ident">conn</span>, <span class="ident">pending</span>.<span class="ident">mode</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>())<span class="question-mark">?</span> {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">check_connector</span>(<span class="ident">conn</span>, <span class="kw-2">&amp;</span><span class="ident">pending</span>.<span class="ident">mode</span>)<span class="question-mark">?</span> {
             <span class="ident">pending</span>.<span class="ident">connectors</span>.<span class="ident">insert</span>(<span class="ident">conn</span>);
         }
 
@@ -524,16 +660,30 @@
     }
 
     <span class="kw">fn</span> <span class="ident">remove_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connector</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>().<span class="ident">connectors</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">connector</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pending</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>();
+
+        <span class="kw">if</span> <span class="ident">pending</span>.<span class="ident">connectors</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">connector</span>) <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">pending</span>.<span class="ident">connectors</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="number">1</span> {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">SurfaceWithoutConnectors</span>(<span class="self">self</span>.<span class="ident">crtc</span>));
+        }
+
+        <span class="ident">pending</span>.<span class="ident">connectors</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">connector</span>);
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn</span> <span class="ident">set_connectors</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">connectors</span>: <span class="kw-2">&amp;</span>[<span class="ident">connector</span>::<span class="ident">Handle</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="ident">connectors</span>.<span class="ident">is_empty</span>() {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">SurfaceWithoutConnectors</span>(<span class="self">self</span>.<span class="ident">crtc</span>));
+        }
+
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">active</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>) {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DeviceInactive</span>);
+        }
+
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pending</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>();
 
         <span class="kw">if</span> <span class="ident">connectors</span>
             .<span class="ident">iter</span>()
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">conn</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">check_connector</span>(<span class="kw-2">*</span><span class="ident">conn</span>, <span class="ident">pending</span>.<span class="ident">mode</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>()))
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">conn</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">check_connector</span>(<span class="kw-2">*</span><span class="ident">conn</span>, <span class="kw-2">&amp;</span><span class="ident">pending</span>.<span class="ident">mode</span>))
             .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span>, <span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()<span class="question-mark">?</span>
             .<span class="ident">iter</span>()
             .<span class="ident">all</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">v</span>)
@@ -544,25 +694,27 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="ident">Mode</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">active</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>) {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DeviceInactive</span>);
+        }
+
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pending</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>();
 
         <span class="comment">// check the connectors to see if this mode is supported</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">mode</span>) <span class="op">=</span> <span class="ident">mode</span> {
-            <span class="kw">for</span> <span class="ident">connector</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">pending</span>.<span class="ident">connectors</span> {
-                <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>
-                    .<span class="ident">get_connector</span>(<span class="kw-2">*</span><span class="ident">connector</span>)
-                    .<span class="ident">compat</span>()
-                    .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
-                        <span class="ident">errmsg</span>: <span class="string">&quot;Error loading connector info&quot;</span>,
-                        <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
-                        <span class="ident">source</span>,
-                    })<span class="question-mark">?</span>
-                    .<span class="ident">modes</span>()
-                    .<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">mode</span>)
-                {
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">ModeNotSuitable</span>(<span class="ident">mode</span>));
-                }
+        <span class="kw">for</span> <span class="ident">connector</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">pending</span>.<span class="ident">connectors</span> {
+            <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>
+                .<span class="ident">get_connector</span>(<span class="kw-2">*</span><span class="ident">connector</span>)
+                .<span class="ident">compat</span>()
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
+                    <span class="ident">errmsg</span>: <span class="string">&quot;Error loading connector info&quot;</span>,
+                    <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
+                    <span class="ident">source</span>,
+                })<span class="question-mark">?</span>
+                .<span class="ident">modes</span>()
+                .<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">mode</span>)
+            {
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">ModeNotSuitable</span>(<span class="ident">mode</span>));
             }
         }
 
@@ -578,6 +730,10 @@
     }
 
     <span class="kw">fn</span> <span class="ident">commit</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">framebuffer</span>: <span class="ident">framebuffer</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">active</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>) {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DeviceInactive</span>);
+        }
+
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">current</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">pending</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">read</span>().<span class="ident">unwrap</span>();
 
@@ -586,7 +742,7 @@
             <span class="kw">let</span> <span class="ident">added</span> <span class="op">=</span> <span class="ident">pending</span>.<span class="ident">connectors</span>.<span class="ident">difference</span>(<span class="kw-2">&amp;</span><span class="ident">current</span>.<span class="ident">connectors</span>);
 
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">conn_removed</span> <span class="op">=</span> <span class="bool-val">false</span>;
-            <span class="kw">for</span> <span class="ident">conn</span> <span class="kw">in</span> <span class="ident">removed</span> {
+            <span class="kw">for</span> <span class="ident">conn</span> <span class="kw">in</span> <span class="ident">removed</span>.<span class="ident">clone</span>() {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">info</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_connector</span>(<span class="kw-2">*</span><span class="ident">conn</span>) {
                     <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Removing connector: {:?}&quot;</span>, <span class="ident">info</span>.<span class="ident">interface</span>());
                 } <span class="kw">else</span> {
@@ -596,6 +752,7 @@
                 <span class="comment">// the graphics pipeline will not be freed otherwise</span>
                 <span class="ident">conn_removed</span> <span class="op">=</span> <span class="bool-val">true</span>;
             }
+            <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">set_connector_state</span>(<span class="ident">removed</span>.<span class="ident">copied</span>(), <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
             <span class="kw">if</span> <span class="ident">conn_removed</span> {
                 <span class="comment">// We need to do a null commit to free graphics pipelines</span>
@@ -608,20 +765,17 @@
                     })<span class="question-mark">?</span>;
             }
 
-            <span class="kw">for</span> <span class="ident">conn</span> <span class="kw">in</span> <span class="ident">added</span> {
+            <span class="kw">for</span> <span class="ident">conn</span> <span class="kw">in</span> <span class="ident">added</span>.<span class="ident">clone</span>() {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">info</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_connector</span>(<span class="kw-2">*</span><span class="ident">conn</span>) {
                     <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Adding connector: {:?}&quot;</span>, <span class="ident">info</span>.<span class="ident">interface</span>());
                 } <span class="kw">else</span> {
                     <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Adding unknown connector&quot;</span>);
                 }
             }
+            <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">set_connector_state</span>(<span class="ident">added</span>.<span class="ident">copied</span>(), <span class="bool-val">true</span>)<span class="question-mark">?</span>;
 
             <span class="kw">if</span> <span class="ident">current</span>.<span class="ident">mode</span> <span class="op">!</span><span class="op">=</span> <span class="ident">pending</span>.<span class="ident">mode</span> {
-                <span class="macro">info</span><span class="macro">!</span>(
-                    <span class="self">self</span>.<span class="ident">logger</span>,
-                    <span class="string">&quot;Setting new mode: {:?}&quot;</span>,
-                    <span class="ident">pending</span>.<span class="ident">mode</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>().<span class="ident">name</span>()
-                );
+                <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Setting new mode: {:?}&quot;</span>, <span class="ident">pending</span>.<span class="ident">mode</span>.<span class="ident">name</span>());
             }
         }
 
@@ -635,7 +789,7 @@
                 .<span class="ident">iter</span>()
                 .<span class="ident">copied</span>()
                 .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">connector</span>::<span class="ident">Handle</span><span class="op">&gt;</span><span class="op">&gt;</span>(),
-            <span class="ident">pending</span>.<span class="ident">mode</span>,
+            <span class="prelude-val">Some</span>(<span class="ident">pending</span>.<span class="ident">mode</span>),
         )
         .<span class="ident">compat</span>()
         .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
@@ -660,8 +814,12 @@
         })
     }
 
-    <span class="kw">fn</span> <span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">framebuffer</span>: <span class="ident">framebuffer</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">framebuffer</span>: <span class="ident">framebuffer</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="macro">trace</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Queueing Page flip&quot;</span>);
+
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">active</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>) {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DeviceInactive</span>);
+        }
 
         <span class="ident">ControlDevice</span>::<span class="ident">page_flip</span>(
             <span class="self">self</span>,
@@ -670,11 +828,84 @@
             <span class="kw-2">&amp;</span>[<span class="ident">PageFlipFlags</span>::<span class="ident">PageFlipEvent</span>],
             <span class="prelude-val">None</span>,
         )
-        .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SwapBuffersError</span>::<span class="ident">ContextLost</span>)
+        .<span class="ident">compat</span>()
+        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
+            <span class="ident">errmsg</span>: <span class="string">&quot;Failed to page flip&quot;</span>,
+            <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
+            <span class="ident">source</span>,
+        })
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">LegacyDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(
+        <span class="ident">dev</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>,
+        <span class="ident">mode</span>: <span class="ident">Mode</span>,
+        <span class="ident">connectors</span>: <span class="kw-2">&amp;</span>[<span class="ident">connector</span>::<span class="ident">Handle</span>],
+        <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">LegacyDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="comment">// Try to enumarate the current state to set the initial state variable correctly</span>
+        <span class="kw">let</span> <span class="ident">crtc_info</span> <span class="op">=</span> <span class="ident">dev</span>.<span class="ident">get_crtc</span>(<span class="ident">crtc</span>).<span class="ident">compat</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
+            <span class="ident">errmsg</span>: <span class="string">&quot;Error loading crtc info&quot;</span>,
+            <span class="ident">dev</span>: <span class="ident">dev</span>.<span class="ident">dev_path</span>(),
+            <span class="ident">source</span>,
+        })<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">current_mode</span> <span class="op">=</span> <span class="ident">crtc_info</span>.<span class="ident">mode</span>();
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">current_connectors</span> <span class="op">=</span> <span class="ident">HashSet</span>::<span class="ident">new</span>();
+        <span class="kw">let</span> <span class="ident">res_handles</span> <span class="op">=</span> <span class="ident">ControlDevice</span>::<span class="ident">resource_handles</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">dev</span>)
+            .<span class="ident">compat</span>()
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
+                <span class="ident">errmsg</span>: <span class="string">&quot;Error loading drm resources&quot;</span>,
+                <span class="ident">dev</span>: <span class="ident">dev</span>.<span class="ident">dev_path</span>(),
+                <span class="ident">source</span>,
+            })<span class="question-mark">?</span>;
+        <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">con</span> <span class="kw">in</span> <span class="ident">res_handles</span>.<span class="ident">connectors</span>() {
+            <span class="kw">let</span> <span class="ident">con_info</span> <span class="op">=</span> <span class="ident">dev</span>.<span class="ident">get_connector</span>(<span class="ident">con</span>).<span class="ident">compat</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
+                <span class="ident">errmsg</span>: <span class="string">&quot;Error loading connector info&quot;</span>,
+                <span class="ident">dev</span>: <span class="ident">dev</span>.<span class="ident">dev_path</span>(),
+                <span class="ident">source</span>,
+            })<span class="question-mark">?</span>;
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">enc</span>) <span class="op">=</span> <span class="ident">con_info</span>.<span class="ident">current_encoder</span>() {
+                <span class="kw">let</span> <span class="ident">enc_info</span> <span class="op">=</span> <span class="ident">dev</span>.<span class="ident">get_encoder</span>(<span class="ident">enc</span>).<span class="ident">compat</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
+                    <span class="ident">errmsg</span>: <span class="string">&quot;Error loading encoder info&quot;</span>,
+                    <span class="ident">dev</span>: <span class="ident">dev</span>.<span class="ident">dev_path</span>(),
+                    <span class="ident">source</span>,
+                })<span class="question-mark">?</span>;
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">current_crtc</span>) <span class="op">=</span> <span class="ident">enc_info</span>.<span class="ident">crtc</span>() {
+                    <span class="kw">if</span> <span class="ident">crtc</span> <span class="op">=</span><span class="op">=</span> <span class="ident">current_crtc</span> {
+                        <span class="ident">current_connectors</span>.<span class="ident">insert</span>(<span class="ident">con</span>);
+                    }
+                }
+            }
+        }
+
+        <span class="comment">// If we have no current mode, we create a fake one, which will not match (and thus gets overriden on the commit below).</span>
+        <span class="comment">// A better fix would probably be making mode an `Option`, but that would mean</span>
+        <span class="comment">// we need to be sure, we require a mode to always be set without relying on the compiler.</span>
+        <span class="comment">// So we cheat, because it works and is easier to handle later.</span>
+        <span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="ident">State</span> {
+            <span class="ident">mode</span>: <span class="ident">current_mode</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> { <span class="ident">std</span>::<span class="ident">mem</span>::<span class="ident">zeroed</span>() }),
+            <span class="ident">connectors</span>: <span class="ident">current_connectors</span>,
+        };
+        <span class="kw">let</span> <span class="ident">pending</span> <span class="op">=</span> <span class="ident">State</span> {
+            <span class="ident">mode</span>,
+            <span class="ident">connectors</span>: <span class="ident">connectors</span>.<span class="ident">iter</span>().<span class="ident">copied</span>().<span class="ident">collect</span>(),
+        };
+
+        <span class="kw">let</span> <span class="ident">surface</span> <span class="op">=</span> <span class="ident">LegacyDrmSurfaceInternal</span> {
+            <span class="ident">dev</span>,
+            <span class="ident">crtc</span>,
+            <span class="ident">state</span>: <span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">state</span>),
+            <span class="ident">pending</span>: <span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">pending</span>),
+            <span class="ident">logger</span>,
+        };
+
+        <span class="prelude-val">Ok</span>(<span class="ident">surface</span>)
+    }
+
     <span class="kw">fn</span> <span class="ident">check_connector</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">conn</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>, <span class="ident">mode</span>: <span class="kw-2">&amp;</span><span class="ident">Mode</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">info</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">get_connector</span>(<span class="ident">conn</span>)
@@ -728,7 +959,26 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">LegacyDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="comment">// ignore failure at this point</span>
+
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">active</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>) {
+            <span class="comment">// the device is gone or we are on another tty</span>
+            <span class="comment">// old state has been restored, we shouldn&#39;t touch it.</span>
+            <span class="comment">// if we are on another tty the connectors will get disabled</span>
+            <span class="comment">// by the device, when switching back</span>
+            <span class="kw">return</span>;
+        }
+
         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">set_cursor</span>(<span class="self">self</span>.<span class="ident">crtc</span>, <span class="prelude-ty">Option</span>::<span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">DumbBuffer</span><span class="op">&gt;</span>::<span class="prelude-val">None</span>);
+        <span class="comment">// disable connectors again</span>
+        <span class="kw">let</span> <span class="ident">current</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">read</span>().<span class="ident">unwrap</span>();
+        <span class="kw">if</span> <span class="self">self</span>
+            .<span class="ident">dev</span>
+            .<span class="ident">set_connector_state</span>(<span class="ident">current</span>.<span class="ident">connectors</span>.<span class="ident">iter</span>().<span class="ident">copied</span>(), <span class="bool-val">false</span>)
+            .<span class="ident">is_ok</span>()
+        {
+            <span class="comment">// null commit</span>
+            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">set_crtc</span>(<span class="self">self</span>.<span class="ident">crtc</span>, <span class="prelude-val">None</span>, (<span class="number">0</span>, <span class="number">0</span>), <span class="kw-2">&amp;</span>[], <span class="prelude-val">None</span>);
+        }
     }
 }
 
@@ -777,11 +1027,11 @@
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">pending_connectors</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">current_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">current_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Mode</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">current_mode</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">pending_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">pending_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Mode</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">pending_mode</span>()
     }
 
@@ -797,7 +1047,7 @@
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">set_connectors</span>(<span class="ident">connectors</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Mode</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="ident">Mode</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">use_mode</span>(<span class="ident">mode</span>)
     }
 }
@@ -811,7 +1061,7 @@
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">commit</span>(<span class="ident">framebuffer</span>)
     }
 
-    <span class="kw">fn</span> <span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">framebuffer</span>: <span class="ident">framebuffer</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">framebuffer</span>: <span class="ident">framebuffer</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="ident">RawSurface</span>::<span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="number">0</span>, <span class="ident">framebuffer</span>)
     }
 }
