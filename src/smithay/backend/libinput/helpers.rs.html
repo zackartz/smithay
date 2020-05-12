@@ -242,29 +242,62 @@
 <span id="242">242</span>
 <span id="243">243</span>
 <span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">input</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">backend</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">input</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">backend</span>, <span class="ident">InputEvent</span>};
 <span class="kw">use</span> <span class="ident">input</span> <span class="kw">as</span> <span class="ident">libinput</span>;
 <span class="kw">use</span> <span class="ident">input</span>::<span class="ident">event</span>::{
     <span class="ident">device</span>::<span class="ident">DeviceEvent</span>, <span class="ident">keyboard</span>::<span class="ident">KeyboardEvent</span>, <span class="ident">pointer</span>::<span class="ident">PointerEvent</span>, <span class="ident">touch</span>::<span class="ident">TouchEvent</span>, <span class="ident">EventTrait</span>,
 };
 <span class="kw">use</span> <span class="ident">slog</span>::<span class="ident">Logger</span>;
 
-<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">LibinputInputBackend</span>;
+<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">LibinputConfig</span>, <span class="ident">LibinputEvent</span>, <span class="ident">LibinputInputBackend</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">collections</span>::<span class="ident">hash_map</span>::{<span class="ident">DefaultHasher</span>, <span class="ident">Entry</span>, <span class="ident">HashMap</span>},
     <span class="ident">hash</span>::{<span class="ident">Hash</span>, <span class="ident">Hasher</span>},
 };
 
 <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">on_device_event</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>(
-    <span class="ident">handler</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">on_device_event</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(
+    <span class="ident">callback</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">F</span>,
     <span class="ident">seats</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">libinput</span>::<span class="ident">Seat</span>, <span class="ident">backend</span>::<span class="ident">Seat</span><span class="op">&gt;</span>,
-    <span class="ident">devices</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">libinput</span>::<span class="ident">Device</span><span class="op">&gt;</span>,
+    <span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LibinputConfig</span>,
     <span class="ident">event</span>: <span class="ident">DeviceEvent</span>,
     <span class="ident">logger</span>: <span class="kw-2">&amp;</span><span class="ident">Logger</span>,
 ) <span class="kw">where</span>
-    <span class="ident">H</span>: <span class="ident">backend</span>::<span class="ident">InputHandler</span><span class="op">&lt;</span><span class="ident">LibinputInputBackend</span><span class="op">&gt;</span>,
+    <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">InputEvent</span><span class="op">&lt;</span><span class="ident">LibinputInputBackend</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LibinputConfig</span>),
 {
     <span class="kw">match</span> <span class="ident">event</span> {
         <span class="ident">DeviceEvent</span>::<span class="ident">Added</span>(<span class="ident">device_added_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
@@ -283,7 +316,7 @@
                 <span class="ident">added</span>.<span class="ident">sysname</span>(),
                 <span class="ident">device_seat</span>.<span class="ident">logical_name</span>()
             );
-            <span class="ident">devices</span>.<span class="ident">push</span>(<span class="ident">added</span>);
+            <span class="ident">config</span>.<span class="ident">devices</span>.<span class="ident">push</span>(<span class="ident">added</span>.<span class="ident">clone</span>());
 
             <span class="kw">match</span> <span class="ident">seats</span>.<span class="ident">entry</span>(<span class="ident">device_seat</span>.<span class="ident">clone</span>()) {
                 <span class="ident">Entry</span>::<span class="ident">Occupied</span>(<span class="kw-2">mut</span> <span class="ident">seat_entry</span>) <span class="op">=</span><span class="op">&gt;</span> {
@@ -294,10 +327,7 @@
                         <span class="ident">caps</span>.<span class="ident">keyboard</span> <span class="op">=</span> <span class="ident">new_caps</span>.<span class="ident">keyboard</span> <span class="op">|</span><span class="op">|</span> <span class="ident">caps</span>.<span class="ident">keyboard</span>;
                         <span class="ident">caps</span>.<span class="ident">touch</span> <span class="op">=</span> <span class="ident">new_caps</span>.<span class="ident">touch</span> <span class="op">|</span><span class="op">|</span> <span class="ident">caps</span>.<span class="ident">touch</span>;
                     }
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">handler</span>) <span class="op">=</span> <span class="ident">handler</span> {
-                        <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_seat_changed with {:?}&quot;</span>, <span class="ident">old_seat</span>);
-                        <span class="ident">handler</span>.<span class="ident">on_seat_changed</span>(<span class="ident">old_seat</span>);
-                    }
+                    <span class="ident">callback</span>(<span class="ident">InputEvent</span>::<span class="ident">SeatChanged</span>(<span class="ident">old_seat</span>.<span class="ident">clone</span>()), <span class="ident">config</span>);
                 }
                 <span class="ident">Entry</span>::<span class="ident">Vacant</span>(<span class="ident">seat_entry</span>) <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">hasher</span> <span class="op">=</span> <span class="ident">DefaultHasher</span>::<span class="ident">default</span>();
@@ -307,18 +337,17 @@
                         <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}:{}&quot;</span>, <span class="ident">device_seat</span>.<span class="ident">physical_name</span>(), <span class="ident">device_seat</span>.<span class="ident">logical_name</span>()),
                         <span class="ident">new_caps</span>,
                     ));
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">handler</span>) <span class="op">=</span> <span class="ident">handler</span> {
-                        <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_seat_created with {:?}&quot;</span>, <span class="ident">seat</span>);
-                        <span class="ident">handler</span>.<span class="ident">on_seat_created</span>(<span class="ident">seat</span>);
-                    }
+                    <span class="ident">callback</span>(<span class="ident">InputEvent</span>::<span class="ident">NewSeat</span>(<span class="ident">seat</span>.<span class="ident">clone</span>()), <span class="ident">config</span>);
                 }
             }
+
+            <span class="ident">callback</span>(<span class="ident">InputEvent</span>::<span class="ident">Special</span>(<span class="ident">LibinputEvent</span>::<span class="ident">NewDevice</span>(<span class="ident">added</span>)), <span class="ident">config</span>);
         }
         <span class="ident">DeviceEvent</span>::<span class="ident">Removed</span>(<span class="ident">device_removed_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
             <span class="kw">let</span> <span class="ident">removed</span> <span class="op">=</span> <span class="ident">device_removed_event</span>.<span class="ident">device</span>();
 
             <span class="comment">// remove device</span>
-            <span class="ident">devices</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">dev</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">dev</span> <span class="op">!</span><span class="op">=</span> <span class="ident">removed</span>);
+            <span class="ident">config</span>.<span class="ident">devices</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">dev</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">dev</span> <span class="op">!</span><span class="op">=</span> <span class="ident">removed</span>);
 
             <span class="kw">let</span> <span class="ident">device_seat</span> <span class="op">=</span> <span class="ident">removed</span>.<span class="ident">seat</span>();
             <span class="macro">info</span><span class="macro">!</span>(
@@ -331,15 +360,18 @@
             <span class="comment">// update capabilities, so they appear correctly on `on_seat_changed` and `on_seat_destroyed`.</span>
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">seat</span>) <span class="op">=</span> <span class="ident">seats</span>.<span class="ident">get_mut</span>(<span class="kw-2">&amp;</span><span class="ident">device_seat</span>) {
                 <span class="kw">let</span> <span class="ident">caps</span> <span class="op">=</span> <span class="ident">seat</span>.<span class="ident">capabilities_mut</span>();
-                <span class="ident">caps</span>.<span class="ident">pointer</span> <span class="op">=</span> <span class="ident">devices</span>
+                <span class="ident">caps</span>.<span class="ident">pointer</span> <span class="op">=</span> <span class="ident">config</span>
+                    .<span class="ident">devices</span>
                     .<span class="ident">iter</span>()
                     .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">seat</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">device_seat</span>)
                     .<span class="ident">any</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">has_capability</span>(<span class="ident">libinput</span>::<span class="ident">DeviceCapability</span>::<span class="ident">Pointer</span>));
-                <span class="ident">caps</span>.<span class="ident">keyboard</span> <span class="op">=</span> <span class="ident">devices</span>
+                <span class="ident">caps</span>.<span class="ident">keyboard</span> <span class="op">=</span> <span class="ident">config</span>
+                    .<span class="ident">devices</span>
                     .<span class="ident">iter</span>()
                     .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">seat</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">device_seat</span>)
                     .<span class="ident">any</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">has_capability</span>(<span class="ident">libinput</span>::<span class="ident">DeviceCapability</span>::<span class="ident">Keyboard</span>));
-                <span class="ident">caps</span>.<span class="ident">touch</span> <span class="op">=</span> <span class="ident">devices</span>
+                <span class="ident">caps</span>.<span class="ident">touch</span> <span class="op">=</span> <span class="ident">config</span>
+                    .<span class="ident">devices</span>
                     .<span class="ident">iter</span>()
                     .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">seat</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">device_seat</span>)
                     .<span class="ident">any</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">has_capability</span>(<span class="ident">libinput</span>::<span class="ident">DeviceCapability</span>::<span class="ident">Touch</span>));
@@ -349,7 +381,7 @@
             }
 
             <span class="comment">// check if the seat has any other devices</span>
-            <span class="kw">if</span> <span class="op">!</span><span class="ident">devices</span>.<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">seat</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">device_seat</span>) {
+            <span class="kw">if</span> <span class="op">!</span><span class="ident">config</span>.<span class="ident">devices</span>.<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">seat</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">device_seat</span>) {
                 <span class="comment">// it has not, lets destroy it</span>
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">seat</span>) <span class="op">=</span> <span class="ident">seats</span>.<span class="ident">remove</span>(<span class="kw-2">&amp;</span><span class="ident">device_seat</span>) {
                     <span class="macro">info</span><span class="macro">!</span>(
@@ -357,134 +389,168 @@
                         <span class="string">&quot;Removing seat {} which no longer has any device&quot;</span>,
                         <span class="ident">device_seat</span>.<span class="ident">logical_name</span>()
                     );
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">handler</span>) <span class="op">=</span> <span class="ident">handler</span> {
-                        <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_seat_destroyed with {:?}&quot;</span>, <span class="ident">seat</span>);
-                        <span class="ident">handler</span>.<span class="ident">on_seat_destroyed</span>(<span class="kw-2">&amp;</span><span class="ident">seat</span>);
-                    }
+                    <span class="ident">callback</span>(<span class="ident">InputEvent</span>::<span class="ident">SeatRemoved</span>(<span class="ident">seat</span>), <span class="ident">config</span>);
                 } <span class="kw">else</span> {
                     <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Seat destroyed that was never created&quot;</span>);
                     <span class="kw">return</span>;
                 }
             <span class="comment">// it has, notify about updates</span>
-            } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">handler</span>) <span class="op">=</span> <span class="ident">handler</span> {
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">seat</span>) <span class="op">=</span> <span class="ident">seats</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">device_seat</span>) {
-                    <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_seat_changed with {:?}&quot;</span>, <span class="ident">seat</span>);
-                    <span class="ident">handler</span>.<span class="ident">on_seat_changed</span>(<span class="kw-2">&amp;</span><span class="ident">seat</span>);
-                } <span class="kw">else</span> {
-                    <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Seat changed that was never created&quot;</span>);
-                    <span class="kw">return</span>;
-                }
+            } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">seat</span>) <span class="op">=</span> <span class="ident">seats</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">device_seat</span>) {
+                <span class="ident">callback</span>(<span class="ident">InputEvent</span>::<span class="ident">SeatChanged</span>(<span class="ident">seat</span>.<span class="ident">clone</span>()), <span class="ident">config</span>);
+            } <span class="kw">else</span> {
+                <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Seat changed that was never created&quot;</span>);
+                <span class="kw">return</span>;
             }
+
+            <span class="ident">callback</span>(<span class="ident">InputEvent</span>::<span class="ident">Special</span>(<span class="ident">LibinputEvent</span>::<span class="ident">RemovedDevice</span>(<span class="ident">removed</span>)), <span class="ident">config</span>);
         }
-    }
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">handler</span>) <span class="op">=</span> <span class="ident">handler</span> {
-        <span class="ident">handler</span>.<span class="ident">on_input_config_changed</span>(<span class="ident">devices</span>);
     }
 }
 
 <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">on_touch_event</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>(
-    <span class="ident">handler</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">on_touch_event</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(
+    <span class="ident">callback</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">F</span>,
     <span class="ident">seats</span>: <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">libinput</span>::<span class="ident">Seat</span>, <span class="ident">backend</span>::<span class="ident">Seat</span><span class="op">&gt;</span>,
+    <span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LibinputConfig</span>,
     <span class="ident">event</span>: <span class="ident">TouchEvent</span>,
     <span class="ident">logger</span>: <span class="kw-2">&amp;</span><span class="ident">Logger</span>,
 ) <span class="kw">where</span>
-    <span class="ident">H</span>: <span class="ident">backend</span>::<span class="ident">InputHandler</span><span class="op">&lt;</span><span class="ident">LibinputInputBackend</span><span class="op">&gt;</span>,
+    <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">InputEvent</span><span class="op">&lt;</span><span class="ident">LibinputInputBackend</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LibinputConfig</span>),
 {
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">handler</span>) <span class="op">=</span> <span class="ident">handler</span> {
-        <span class="kw">let</span> <span class="ident">device_seat</span> <span class="op">=</span> <span class="ident">event</span>.<span class="ident">device</span>().<span class="ident">seat</span>();
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">seat</span>) <span class="op">=</span> <span class="ident">seats</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">device_seat</span>) {
-            <span class="kw">match</span> <span class="ident">event</span> {
-                <span class="ident">TouchEvent</span>::<span class="ident">Down</span>(<span class="ident">down_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_touch_down with {:?}&quot;</span>, <span class="ident">down_event</span>);
-                    <span class="ident">handler</span>.<span class="ident">on_touch_down</span>(<span class="ident">seat</span>, <span class="ident">down_event</span>)
-                }
-                <span class="ident">TouchEvent</span>::<span class="ident">Motion</span>(<span class="ident">motion_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_touch_motion with {:?}&quot;</span>, <span class="ident">motion_event</span>);
-                    <span class="ident">handler</span>.<span class="ident">on_touch_motion</span>(<span class="ident">seat</span>, <span class="ident">motion_event</span>)
-                }
-                <span class="ident">TouchEvent</span>::<span class="ident">Up</span>(<span class="ident">up_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_touch_up with {:?}&quot;</span>, <span class="ident">up_event</span>);
-                    <span class="ident">handler</span>.<span class="ident">on_touch_up</span>(<span class="ident">seat</span>, <span class="ident">up_event</span>)
-                }
-                <span class="ident">TouchEvent</span>::<span class="ident">Cancel</span>(<span class="ident">cancel_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_touch_cancel with {:?}&quot;</span>, <span class="ident">cancel_event</span>);
-                    <span class="ident">handler</span>.<span class="ident">on_touch_cancel</span>(<span class="ident">seat</span>, <span class="ident">cancel_event</span>)
-                }
-                <span class="ident">TouchEvent</span>::<span class="ident">Frame</span>(<span class="ident">frame_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_touch_frame with {:?}&quot;</span>, <span class="ident">frame_event</span>);
-                    <span class="ident">handler</span>.<span class="ident">on_touch_frame</span>(<span class="ident">seat</span>, <span class="ident">frame_event</span>)
-                }
+    <span class="kw">let</span> <span class="ident">device_seat</span> <span class="op">=</span> <span class="ident">event</span>.<span class="ident">device</span>().<span class="ident">seat</span>();
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">seat</span>) <span class="op">=</span> <span class="ident">seats</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">device_seat</span>).<span class="ident">cloned</span>() {
+        <span class="kw">match</span> <span class="ident">event</span> {
+            <span class="ident">TouchEvent</span>::<span class="ident">Down</span>(<span class="ident">down_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">callback</span>(
+                    <span class="ident">InputEvent</span>::<span class="ident">TouchDown</span> {
+                        <span class="ident">seat</span>,
+                        <span class="ident">event</span>: <span class="ident">down_event</span>,
+                    },
+                    <span class="ident">config</span>,
+                );
             }
-        } <span class="kw">else</span> {
-            <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Received touch event of non existing Seat&quot;</span>);
-            <span class="kw">return</span>;
+            <span class="ident">TouchEvent</span>::<span class="ident">Motion</span>(<span class="ident">motion_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">callback</span>(
+                    <span class="ident">InputEvent</span>::<span class="ident">TouchMotion</span> {
+                        <span class="ident">seat</span>,
+                        <span class="ident">event</span>: <span class="ident">motion_event</span>,
+                    },
+                    <span class="ident">config</span>,
+                );
+            }
+            <span class="ident">TouchEvent</span>::<span class="ident">Up</span>(<span class="ident">up_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">callback</span>(
+                    <span class="ident">InputEvent</span>::<span class="ident">TouchUp</span> {
+                        <span class="ident">seat</span>,
+                        <span class="ident">event</span>: <span class="ident">up_event</span>,
+                    },
+                    <span class="ident">config</span>,
+                );
+            }
+            <span class="ident">TouchEvent</span>::<span class="ident">Cancel</span>(<span class="ident">cancel_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">callback</span>(
+                    <span class="ident">InputEvent</span>::<span class="ident">TouchCancel</span> {
+                        <span class="ident">seat</span>,
+                        <span class="ident">event</span>: <span class="ident">cancel_event</span>,
+                    },
+                    <span class="ident">config</span>,
+                );
+            }
+            <span class="ident">TouchEvent</span>::<span class="ident">Frame</span>(<span class="ident">frame_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">callback</span>(
+                    <span class="ident">InputEvent</span>::<span class="ident">TouchFrame</span> {
+                        <span class="ident">seat</span>,
+                        <span class="ident">event</span>: <span class="ident">frame_event</span>,
+                    },
+                    <span class="ident">config</span>,
+                );
+            }
         }
+    } <span class="kw">else</span> {
+        <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Received touch event of non existing Seat&quot;</span>);
     }
 }
 
 <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">on_keyboard_event</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>(
-    <span class="ident">handler</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">on_keyboard_event</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(
+    <span class="ident">callback</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">F</span>,
     <span class="ident">seats</span>: <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">libinput</span>::<span class="ident">Seat</span>, <span class="ident">backend</span>::<span class="ident">Seat</span><span class="op">&gt;</span>,
+    <span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LibinputConfig</span>,
     <span class="ident">event</span>: <span class="ident">KeyboardEvent</span>,
     <span class="ident">logger</span>: <span class="kw-2">&amp;</span><span class="ident">Logger</span>,
 ) <span class="kw">where</span>
-    <span class="ident">H</span>: <span class="ident">backend</span>::<span class="ident">InputHandler</span><span class="op">&lt;</span><span class="ident">LibinputInputBackend</span><span class="op">&gt;</span>,
+    <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">InputEvent</span><span class="op">&lt;</span><span class="ident">LibinputInputBackend</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LibinputConfig</span>),
 {
     <span class="kw">match</span> <span class="ident">event</span> {
         <span class="ident">KeyboardEvent</span>::<span class="ident">Key</span>(<span class="ident">key_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">handler</span>) <span class="op">=</span> <span class="ident">handler</span> {
-                <span class="kw">let</span> <span class="ident">device_seat</span> <span class="op">=</span> <span class="ident">key_event</span>.<span class="ident">device</span>().<span class="ident">seat</span>();
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">seat</span>) <span class="op">=</span> <span class="ident">seats</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">device_seat</span>) {
-                    <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_keyboard_key with {:?}&quot;</span>, <span class="ident">key_event</span>);
-                    <span class="ident">handler</span>.<span class="ident">on_keyboard_key</span>(<span class="ident">seat</span>, <span class="ident">key_event</span>);
-                } <span class="kw">else</span> {
-                    <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Received key event of non existing Seat&quot;</span>);
-                    <span class="kw">return</span>;
-                }
+            <span class="kw">let</span> <span class="ident">device_seat</span> <span class="op">=</span> <span class="ident">key_event</span>.<span class="ident">device</span>().<span class="ident">seat</span>();
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">seat</span>) <span class="op">=</span> <span class="ident">seats</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">device_seat</span>).<span class="ident">cloned</span>() {
+                <span class="ident">callback</span>(
+                    <span class="ident">InputEvent</span>::<span class="ident">Keyboard</span> {
+                        <span class="ident">seat</span>,
+                        <span class="ident">event</span>: <span class="ident">key_event</span>,
+                    },
+                    <span class="ident">config</span>,
+                );
+            } <span class="kw">else</span> {
+                <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Received key event of non existing Seat&quot;</span>);
             }
         }
     }
 }
 
 <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">on_pointer_event</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>(
-    <span class="ident">handler</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">H</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">on_pointer_event</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(
+    <span class="ident">callback</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">F</span>,
     <span class="ident">seats</span>: <span class="kw-2">&amp;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">libinput</span>::<span class="ident">Seat</span>, <span class="ident">backend</span>::<span class="ident">Seat</span><span class="op">&gt;</span>,
+    <span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LibinputConfig</span>,
     <span class="ident">event</span>: <span class="ident">PointerEvent</span>,
     <span class="ident">logger</span>: <span class="kw-2">&amp;</span><span class="ident">Logger</span>,
 ) <span class="kw">where</span>
-    <span class="ident">H</span>: <span class="ident">backend</span>::<span class="ident">InputHandler</span><span class="op">&lt;</span><span class="ident">LibinputInputBackend</span><span class="op">&gt;</span>,
+    <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">InputEvent</span><span class="op">&lt;</span><span class="ident">LibinputInputBackend</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LibinputConfig</span>),
 {
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">handler</span>) <span class="op">=</span> <span class="ident">handler</span> {
-        <span class="kw">let</span> <span class="ident">device_seat</span> <span class="op">=</span> <span class="ident">event</span>.<span class="ident">device</span>().<span class="ident">seat</span>();
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">seat</span>) <span class="op">=</span> <span class="ident">seats</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">device_seat</span>) {
-            <span class="kw">match</span> <span class="ident">event</span> {
-                <span class="ident">PointerEvent</span>::<span class="ident">Motion</span>(<span class="ident">motion_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_pointer_move with {:?}&quot;</span>, <span class="ident">motion_event</span>);
-                    <span class="ident">handler</span>.<span class="ident">on_pointer_move</span>(<span class="ident">seat</span>, <span class="ident">motion_event</span>);
-                }
-                <span class="ident">PointerEvent</span>::<span class="ident">MotionAbsolute</span>(<span class="ident">motion_abs_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">trace</span><span class="macro">!</span>(
-                        <span class="ident">logger</span>,
-                        <span class="string">&quot;Calling on_pointer_move_absolute with {:?}&quot;</span>,
-                        <span class="ident">motion_abs_event</span>
-                    );
-                    <span class="ident">handler</span>.<span class="ident">on_pointer_move_absolute</span>(<span class="ident">seat</span>, <span class="ident">motion_abs_event</span>);
-                }
-                <span class="ident">PointerEvent</span>::<span class="ident">Axis</span>(<span class="ident">axis_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_pointer_axis with {:?}&quot;</span>, <span class="ident">axis_event</span>);
-                    <span class="ident">handler</span>.<span class="ident">on_pointer_axis</span>(<span class="ident">seat</span>, <span class="ident">axis_event</span>);
-                }
-                <span class="ident">PointerEvent</span>::<span class="ident">Button</span>(<span class="ident">button_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Calling on_pointer_button with {:?}&quot;</span>, <span class="ident">button_event</span>);
-                    <span class="ident">handler</span>.<span class="ident">on_pointer_button</span>(<span class="ident">seat</span>, <span class="ident">button_event</span>);
-                }
+    <span class="kw">let</span> <span class="ident">device_seat</span> <span class="op">=</span> <span class="ident">event</span>.<span class="ident">device</span>().<span class="ident">seat</span>();
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">seat</span>) <span class="op">=</span> <span class="ident">seats</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">device_seat</span>).<span class="ident">cloned</span>() {
+        <span class="kw">match</span> <span class="ident">event</span> {
+            <span class="ident">PointerEvent</span>::<span class="ident">Motion</span>(<span class="ident">motion_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">callback</span>(
+                    <span class="ident">InputEvent</span>::<span class="ident">PointerMotion</span> {
+                        <span class="ident">seat</span>,
+                        <span class="ident">event</span>: <span class="ident">motion_event</span>,
+                    },
+                    <span class="ident">config</span>,
+                );
             }
-        } <span class="kw">else</span> {
-            <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Received pointer event of non existing Seat&quot;</span>);
+            <span class="ident">PointerEvent</span>::<span class="ident">MotionAbsolute</span>(<span class="ident">motion_abs_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">callback</span>(
+                    <span class="ident">InputEvent</span>::<span class="ident">PointerMotionAbsolute</span> {
+                        <span class="ident">seat</span>,
+                        <span class="ident">event</span>: <span class="ident">motion_abs_event</span>,
+                    },
+                    <span class="ident">config</span>,
+                );
+            }
+            <span class="ident">PointerEvent</span>::<span class="ident">Axis</span>(<span class="ident">axis_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">callback</span>(
+                    <span class="ident">InputEvent</span>::<span class="ident">PointerAxis</span> {
+                        <span class="ident">seat</span>,
+                        <span class="ident">event</span>: <span class="ident">axis_event</span>,
+                    },
+                    <span class="ident">config</span>,
+                );
+            }
+            <span class="ident">PointerEvent</span>::<span class="ident">Button</span>(<span class="ident">button_event</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">callback</span>(
+                    <span class="ident">InputEvent</span>::<span class="ident">PointerButton</span> {
+                        <span class="ident">seat</span>,
+                        <span class="ident">event</span>: <span class="ident">button_event</span>,
+                    },
+                    <span class="ident">config</span>,
+                );
+            }
         }
+    } <span class="kw">else</span> {
+        <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">logger</span>, <span class="string">&quot;Received pointer event of non existing Seat&quot;</span>);
     }
 }
 </pre></div>

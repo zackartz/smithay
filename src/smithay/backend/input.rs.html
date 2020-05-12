@@ -620,69 +620,6 @@
 <span id="620">620</span>
 <span id="621">621</span>
 <span id="622">622</span>
-<span id="623">623</span>
-<span id="624">624</span>
-<span id="625">625</span>
-<span id="626">626</span>
-<span id="627">627</span>
-<span id="628">628</span>
-<span id="629">629</span>
-<span id="630">630</span>
-<span id="631">631</span>
-<span id="632">632</span>
-<span id="633">633</span>
-<span id="634">634</span>
-<span id="635">635</span>
-<span id="636">636</span>
-<span id="637">637</span>
-<span id="638">638</span>
-<span id="639">639</span>
-<span id="640">640</span>
-<span id="641">641</span>
-<span id="642">642</span>
-<span id="643">643</span>
-<span id="644">644</span>
-<span id="645">645</span>
-<span id="646">646</span>
-<span id="647">647</span>
-<span id="648">648</span>
-<span id="649">649</span>
-<span id="650">650</span>
-<span id="651">651</span>
-<span id="652">652</span>
-<span id="653">653</span>
-<span id="654">654</span>
-<span id="655">655</span>
-<span id="656">656</span>
-<span id="657">657</span>
-<span id="658">658</span>
-<span id="659">659</span>
-<span id="660">660</span>
-<span id="661">661</span>
-<span id="662">662</span>
-<span id="663">663</span>
-<span id="664">664</span>
-<span id="665">665</span>
-<span id="666">666</span>
-<span id="667">667</span>
-<span id="668">668</span>
-<span id="669">669</span>
-<span id="670">670</span>
-<span id="671">671</span>
-<span id="672">672</span>
-<span id="673">673</span>
-<span id="674">674</span>
-<span id="675">675</span>
-<span id="676">676</span>
-<span id="677">677</span>
-<span id="678">678</span>
-<span id="679">679</span>
-<span id="680">680</span>
-<span id="681">681</span>
-<span id="682">682</span>
-<span id="683">683</span>
-<span id="684">684</span>
-<span id="685">685</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Common traits for input backends to receive input from.</span>
 
@@ -1177,9 +1114,6 @@
 <span class="doccomment">/// need to implement this and provide the same base guarantees about the precision of</span>
 <span class="doccomment">/// given events.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">InputBackend</span>: <span class="ident">Sized</span> {
-    <span class="doccomment">/// Type of input device associated with the backend</span>
-    <span class="kw">type</span> <span class="ident">InputConfig</span>: <span class="question-mark">?</span><span class="ident">Sized</span>;
-
     <span class="doccomment">/// Type representing errors that may be returned when processing events</span>
     <span class="kw">type</span> <span class="ident">EventError</span>: <span class="ident">Error</span>;
 
@@ -1204,170 +1138,110 @@
     <span class="doccomment">/// Type representing touch frame events</span>
     <span class="kw">type</span> <span class="ident">TouchFrameEvent</span>: <span class="ident">TouchFrameEvent</span>;
 
-    <span class="doccomment">/// Sets a new handler for this [`InputBackend`]</span>
-    <span class="kw">fn</span> <span class="ident">set_handler</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">InputHandler</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">handler</span>: <span class="ident">H</span>);
-    <span class="doccomment">/// Get a reference to the currently set handler, if any</span>
-    <span class="kw">fn</span> <span class="ident">get_handler</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">InputHandler</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span>;
-    <span class="doccomment">/// Clears the currently handler, if one is set</span>
-    <span class="kw">fn</span> <span class="ident">clear_handler</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>);
+    <span class="doccomment">/// Special events that are custom to this backend</span>
+    <span class="kw">type</span> <span class="ident">SpecialEvent</span>;
 
-    <span class="doccomment">/// Get current `InputConfig`</span>
+    <span class="doccomment">/// Backend-specific type allowing you to configure it</span>
+    <span class="kw">type</span> <span class="ident">InputConfig</span>: <span class="question-mark">?</span><span class="ident">Sized</span>;
+
+    <span class="doccomment">/// Get the list of currently known Seats</span>
+    <span class="kw">fn</span> <span class="ident">seats</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Seat</span><span class="op">&gt;</span>;
+
+    <span class="doccomment">/// Access the input configuration interface</span>
     <span class="kw">fn</span> <span class="ident">input_config</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">InputConfig</span>;
 
     <span class="doccomment">/// Processes new events of the underlying backend and drives the [`InputHandler`].</span>
-    <span class="kw">fn</span> <span class="ident">dispatch_new_events</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">EventError</span><span class="op">&gt;</span>;
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The callback can only assume its second argument to be usable if the event is</span>
+    <span class="doccomment">/// `InputEvent::ConfigChanged`.</span>
+    <span class="kw">fn</span> <span class="ident">dispatch_new_events</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">callback</span>: <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">EventError</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">F</span>: <span class="ident">FnMut</span>(<span class="ident">InputEvent</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span>::<span class="ident">InputConfig</span>);
 }
 
-<span class="doccomment">/// Implement to receive input events from any [`InputBackend`].</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">InputHandler</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">InputBackend</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Called when a new [`Seat`] has been created</span>
-    <span class="kw">fn</span> <span class="ident">on_seat_created</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>);
-    <span class="doccomment">/// Called when an existing [`Seat`] has been destroyed.</span>
-    <span class="kw">fn</span> <span class="ident">on_seat_destroyed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>);
-    <span class="doccomment">/// Called when a [`Seat`]&#39;s properties have changed.</span>
+<span class="doccomment">/// Different events that can be generated by an input backend</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">InputEvent</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">InputBackend</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// A new seat has been created</span>
+    <span class="ident">NewSeat</span>(<span class="ident">Seat</span>),
+    <span class="doccomment">/// A seat has changed</span>
+    <span class="ident">SeatChanged</span>(<span class="ident">Seat</span>),
+    <span class="doccomment">/// A seat has been removed</span>
+    <span class="ident">SeatRemoved</span>(<span class="ident">Seat</span>),
+    <span class="doccomment">/// A keyboard event occured</span>
+    <span class="ident">Keyboard</span> {
+        <span class="doccomment">/// Seat that generated the event</span>
+        <span class="ident">seat</span>: <span class="ident">Seat</span>,
+        <span class="doccomment">/// The keyboard event</span>
+        <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">KeyboardKeyEvent</span>,
+    },
+    <span class="doccomment">/// A relative pointer motion occured</span>
+    <span class="ident">PointerMotion</span> {
+        <span class="doccomment">/// Seat that generated the event</span>
+        <span class="ident">seat</span>: <span class="ident">Seat</span>,
+        <span class="doccomment">/// The pointer motion event</span>
+        <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerMotionEvent</span>,
+    },
+    <span class="doccomment">/// An absolute pointer motion occures</span>
+    <span class="ident">PointerMotionAbsolute</span> {
+        <span class="doccomment">/// Seat that generated the event</span>
+        <span class="ident">seat</span>: <span class="ident">Seat</span>,
+        <span class="doccomment">/// The absolute pointer motion event</span>
+        <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerMotionAbsoluteEvent</span>,
+    },
+    <span class="doccomment">/// A pointer button was pressed or released</span>
+    <span class="ident">PointerButton</span> {
+        <span class="doccomment">/// Seat that generated the event</span>
+        <span class="ident">seat</span>: <span class="ident">Seat</span>,
+        <span class="doccomment">/// The pointer button event</span>
+        <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerButtonEvent</span>,
+    },
+    <span class="doccomment">/// A pointer axis was actionned</span>
+    <span class="ident">PointerAxis</span> {
+        <span class="doccomment">/// Seat that generated the event</span>
+        <span class="ident">seat</span>: <span class="ident">Seat</span>,
+        <span class="doccomment">/// The pointer axis event</span>
+        <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerAxisEvent</span>,
+    },
+    <span class="doccomment">/// A new touchpoint appeared</span>
+    <span class="ident">TouchDown</span> {
+        <span class="doccomment">/// Seat that generated the event</span>
+        <span class="ident">seat</span>: <span class="ident">Seat</span>,
+        <span class="doccomment">/// The touch down event</span>
+        <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchDownEvent</span>,
+    },
+    <span class="doccomment">/// A touchpoint moved</span>
+    <span class="ident">TouchMotion</span> {
+        <span class="doccomment">/// Seat that generated the event</span>
+        <span class="ident">seat</span>: <span class="ident">Seat</span>,
+        <span class="doccomment">/// The touch motion event</span>
+        <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchMotionEvent</span>,
+    },
+    <span class="doccomment">/// A touchpoint was removed</span>
+    <span class="ident">TouchUp</span> {
+        <span class="doccomment">/// Seat that generated the event</span>
+        <span class="ident">seat</span>: <span class="ident">Seat</span>,
+        <span class="doccomment">/// The touch up event</span>
+        <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchUpEvent</span>,
+    },
+    <span class="doccomment">/// A touch sequence was cancelled</span>
+    <span class="ident">TouchCancel</span> {
+        <span class="doccomment">/// Seat that generated the event</span>
+        <span class="ident">seat</span>: <span class="ident">Seat</span>,
+        <span class="doccomment">/// The touch cancel event</span>
+        <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchCancelEvent</span>,
+    },
+    <span class="doccomment">/// A touch frame was emmited</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// ## Note:</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// It is not guaranteed that any change has actually happened.</span>
-    <span class="kw">fn</span> <span class="ident">on_seat_changed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>);
-
-    <span class="doccomment">/// Called when a new keyboard event was received.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// - `seat` - The [`Seat`] the event belongs to</span>
-    <span class="doccomment">/// - `event` - The keyboard event</span>
-    <span class="doccomment">///</span>
-    <span class="kw">fn</span> <span class="ident">on_keyboard_key</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">KeyboardKeyEvent</span>);
-
-    <span class="doccomment">/// Called when a new pointer movement event was received.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// - `seat` - The [`Seat`] the event belongs to</span>
-    <span class="doccomment">/// - `event` - The pointer movement event</span>
-    <span class="kw">fn</span> <span class="ident">on_pointer_move</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerMotionEvent</span>);
-    <span class="doccomment">/// Called when a new pointer absolute movement event was received.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// - `seat` - The [`Seat`] the event belongs to</span>
-    <span class="doccomment">/// - `event` - The pointer absolute movement event</span>
-    <span class="kw">fn</span> <span class="ident">on_pointer_move_absolute</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerMotionAbsoluteEvent</span>);
-    <span class="doccomment">/// Called when a new pointer button event was received.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// - `seat` - The [`Seat`] the event belongs to</span>
-    <span class="doccomment">/// - `event` - The pointer button event</span>
-    <span class="kw">fn</span> <span class="ident">on_pointer_button</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerButtonEvent</span>);
-    <span class="doccomment">/// Called when a new pointer scroll event was received.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// - `seat` - The [`Seat`] the event belongs to</span>
-    <span class="doccomment">/// - `event` - A upward counting variable useful for event ordering. Makes no guarantees about actual time passed between events.</span>
-    <span class="kw">fn</span> <span class="ident">on_pointer_axis</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerAxisEvent</span>);
-
-    <span class="doccomment">/// Called when a new touch down event was received.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// - `seat` - The [`Seat`] the event belongs to</span>
-    <span class="doccomment">/// - `event` - The touch down event</span>
-    <span class="kw">fn</span> <span class="ident">on_touch_down</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchDownEvent</span>);
-    <span class="doccomment">/// Called when a new touch motion event was received.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// - `seat` - The [`Seat`] the event belongs to</span>
-    <span class="doccomment">/// - `event` - The touch motion event.</span>
-    <span class="kw">fn</span> <span class="ident">on_touch_motion</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchMotionEvent</span>);
-    <span class="doccomment">/// Called when a new touch up event was received.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// - `seat` - The [`Seat`] the event belongs to</span>
-    <span class="doccomment">/// - `event` - The touch up event.</span>
-    <span class="kw">fn</span> <span class="ident">on_touch_up</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchUpEvent</span>);
-    <span class="doccomment">/// Called when a new touch cancel event was received.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// - `seat` - The [`Seat`] the event belongs to</span>
-    <span class="doccomment">/// - `event` - The touch cancel event.</span>
-    <span class="kw">fn</span> <span class="ident">on_touch_cancel</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchCancelEvent</span>);
-    <span class="doccomment">/// Called when a new touch frame event was received.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// - `seat` - The [`Seat`] the event belongs to</span>
-    <span class="doccomment">/// - `event` - The touch frame event.</span>
-    <span class="kw">fn</span> <span class="ident">on_touch_frame</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchFrameEvent</span>);
-
-    <span class="doccomment">/// Called when the `InputConfig` was changed through an external event.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// What kind of events can trigger this call is completely backend dependent.</span>
-    <span class="doccomment">/// E.g. an input devices was attached/detached or changed it&#39;s own configuration.</span>
-    <span class="kw">fn</span> <span class="ident">on_input_config_changed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">B</span>::<span class="ident">InputConfig</span>);
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">InputBackend</span><span class="op">&gt;</span> <span class="ident">InputHandler</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">InputHandler</span><span class="op">&lt;</span><span class="ident">B</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">on_seat_created</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_seat_created</span>(<span class="ident">seat</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_seat_destroyed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_seat_destroyed</span>(<span class="ident">seat</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_seat_changed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_seat_changed</span>(<span class="ident">seat</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_keyboard_key</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">KeyboardKeyEvent</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_keyboard_key</span>(<span class="ident">seat</span>, <span class="ident">event</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_pointer_move</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerMotionEvent</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_pointer_move</span>(<span class="ident">seat</span>, <span class="ident">event</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_pointer_move_absolute</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerMotionAbsoluteEvent</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_pointer_move_absolute</span>(<span class="ident">seat</span>, <span class="ident">event</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_pointer_button</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerButtonEvent</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_pointer_button</span>(<span class="ident">seat</span>, <span class="ident">event</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_pointer_axis</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">PointerAxisEvent</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_pointer_axis</span>(<span class="ident">seat</span>, <span class="ident">event</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_touch_down</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchDownEvent</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_touch_down</span>(<span class="ident">seat</span>, <span class="ident">event</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_touch_motion</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchMotionEvent</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_touch_motion</span>(<span class="ident">seat</span>, <span class="ident">event</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_touch_up</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchUpEvent</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_touch_up</span>(<span class="ident">seat</span>, <span class="ident">event</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_touch_cancel</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchCancelEvent</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_touch_cancel</span>(<span class="ident">seat</span>, <span class="ident">event</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_touch_frame</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">seat</span>: <span class="kw-2">&amp;</span><span class="ident">Seat</span>, <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchFrameEvent</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_touch_frame</span>(<span class="ident">seat</span>, <span class="ident">event</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">on_input_config_changed</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">B</span>::<span class="ident">InputConfig</span>) {
-        (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>).<span class="ident">on_input_config_changed</span>(<span class="ident">config</span>)
-    }
+    <span class="doccomment">/// A set of two events received on the same seat between two frames should</span>
+    <span class="doccomment">/// be interpreted as an atomic event.</span>
+    <span class="ident">TouchFrame</span> {
+        <span class="doccomment">/// Seat that generated the event</span>
+        <span class="ident">seat</span>: <span class="ident">Seat</span>,
+        <span class="doccomment">/// The touch frame event</span>
+        <span class="ident">event</span>: <span class="ident">B</span>::<span class="ident">TouchFrameEvent</span>,
+    },
+    <span class="doccomment">/// Special event specific of this backend</span>
+    <span class="ident">Special</span>(<span class="ident">B</span>::<span class="ident">SpecialEvent</span>),
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "smithay";</script><script src="../../../aliases.js"></script><script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script><script defer src="../../../search-index.js"></script></body></html>
