@@ -474,6 +474,8 @@
 <span id="474">474</span>
 <span id="475">475</span>
 <span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">input</span>::<span class="ident">KeyState</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{
@@ -812,10 +814,12 @@
             <span class="ident">KeyState</span>::<span class="ident">Released</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">WlKeyState</span>::<span class="ident">Released</span>,
         };
         <span class="ident">guard</span>.<span class="ident">with_focused_kbds</span>(<span class="op">|</span><span class="ident">kbd</span>, <span class="kw">_</span><span class="op">|</span> {
+            <span class="comment">// key event must be sent before modifers event for libxkbcommon</span>
+            <span class="comment">// to process them correctly</span>
+            <span class="ident">kbd</span>.<span class="ident">key</span>(<span class="ident">serial</span>, <span class="ident">time</span>, <span class="ident">keycode</span>, <span class="ident">wl_state</span>);
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">dep</span>, <span class="ident">la</span>, <span class="ident">lo</span>, <span class="ident">gr</span>)) <span class="op">=</span> <span class="ident">modifiers</span> {
                 <span class="ident">kbd</span>.<span class="ident">modifiers</span>(<span class="ident">serial</span>, <span class="ident">dep</span>, <span class="ident">la</span>, <span class="ident">lo</span>, <span class="ident">gr</span>);
             }
-            <span class="ident">kbd</span>.<span class="ident">key</span>(<span class="ident">serial</span>, <span class="ident">time</span>, <span class="ident">keycode</span>, <span class="ident">wl_state</span>);
         });
         <span class="kw">if</span> <span class="ident">guard</span>.<span class="ident">focus</span>.<span class="ident">is_some</span>() {
             <span class="macro">trace</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">arc</span>.<span class="ident">logger</span>, <span class="string">&quot;Input forwarded to client&quot;</span>);
