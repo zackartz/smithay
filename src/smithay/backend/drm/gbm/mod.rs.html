@@ -281,6 +281,10 @@
 <span id="281">281</span>
 <span id="282">282</span>
 <span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! [`Device`](Device) and [`Surface`](Surface)</span>
@@ -360,6 +364,8 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GbmDevice</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="ident">ControlDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
     <span class="kw">pub</span>(<span class="self">self</span>) <span class="ident">dev</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">gbm</span>::<span class="ident">Device</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">backends</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">GbmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_session&quot;</span>)]</span>
+    <span class="ident">links</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">signaling</span>::<span class="ident">SignalToken</span><span class="op">&gt;</span>,
     <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
 }
 
@@ -394,6 +400,8 @@
             <span class="comment">// Open the gbm device from the drm device</span>
             <span class="ident">dev</span>: <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">RefCell</span>::<span class="ident">new</span>(<span class="ident">gbm</span>::<span class="ident">Device</span>::<span class="ident">new</span>(<span class="ident">dev</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">InitFailed</span>)<span class="question-mark">?</span>)),
             <span class="ident">backends</span>: <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">RefCell</span>::<span class="ident">new</span>(<span class="ident">HashMap</span>::<span class="ident">new</span>())),
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_session&quot;</span>)]</span>
+            <span class="ident">links</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
             <span class="ident">logger</span>: <span class="ident">log</span>,
         })
     }

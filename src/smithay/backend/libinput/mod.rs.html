@@ -465,6 +465,15 @@
 <span id="465">465</span>
 <span id="466">466</span>
 <span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Implementation of input backend trait for types provided by `libinput`</span>
 
@@ -473,7 +482,10 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">input</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">backend</span>, <span class="ident">Axis</span>, <span class="ident">InputBackend</span>, <span class="ident">InputEvent</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_session&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">session</span>::{<span class="ident">AsErrno</span>, <span class="ident">Session</span>, <span class="ident">SessionObserver</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{
+    <span class="ident">backend</span>::<span class="ident">session</span>::{<span class="ident">AsErrno</span>, <span class="ident">Session</span>, <span class="ident">Signal</span> <span class="kw">as</span> <span class="ident">SessionSignal</span>},
+    <span class="ident">signaling</span>::{<span class="ident">Linkable</span>, <span class="ident">SignalToken</span>, <span class="ident">Signaler</span>},
+};
 <span class="kw">use</span> <span class="ident">input</span> <span class="kw">as</span> <span class="ident">libinput</span>;
 <span class="kw">use</span> <span class="ident">input</span>::<span class="ident">event</span>;
 
@@ -501,6 +513,7 @@
     <span class="ident">context</span>: <span class="ident">libinput</span>::<span class="ident">Libinput</span>,
     <span class="ident">config</span>: <span class="ident">LibinputConfig</span>,
     <span class="ident">seats</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">libinput</span>::<span class="ident">Seat</span>, <span class="ident">backend</span>::<span class="ident">Seat</span><span class="op">&gt;</span>,
+    <span class="ident">links</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SignalToken</span><span class="op">&gt;</span>,
     <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
 }
 
@@ -517,8 +530,32 @@
             <span class="ident">context</span>,
             <span class="ident">config</span>: <span class="ident">LibinputConfig</span> { <span class="ident">devices</span>: <span class="ident">Vec</span>::<span class="ident">new</span>() },
             <span class="ident">seats</span>: <span class="ident">HashMap</span>::<span class="ident">new</span>(),
+            <span class="ident">links</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
             <span class="ident">logger</span>: <span class="ident">log</span>,
         }
+    }
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_session&quot;</span>)]</span>
+<span class="kw">impl</span> <span class="ident">Linkable</span><span class="op">&lt;</span><span class="ident">SessionSignal</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">LibinputInputBackend</span> {
+    <span class="kw">fn</span> <span class="ident">link</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">signaler</span>: <span class="ident">Signaler</span><span class="op">&lt;</span><span class="ident">SessionSignal</span><span class="op">&gt;</span>) {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">input</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">context</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">log</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">logger</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">token</span> <span class="op">=</span> <span class="ident">signaler</span>.<span class="ident">register</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">s</span> {
+            <span class="ident">SessionSignal</span>::<span class="ident">PauseSession</span>
+            <span class="op">|</span> <span class="ident">SessionSignal</span>::<span class="ident">PauseDevice</span> {
+                <span class="ident">major</span>: <span class="ident">INPUT_MAJOR</span>, ..
+            } <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">input</span>.<span class="ident">suspend</span>();
+            }
+            <span class="ident">SessionSignal</span>::<span class="ident">ActivateSession</span> <span class="op">|</span> <span class="ident">SessionSignal</span>::<span class="ident">ActivateDevice</span> { .. } <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">if</span> <span class="ident">input</span>.<span class="ident">resume</span>().<span class="ident">is_err</span>() {
+                    <span class="macro">error</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Failed to resume libinput context&quot;</span>);
+                }
+            }
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {}
+        });
+        <span class="self">self</span>.<span class="ident">links</span>.<span class="ident">push</span>(<span class="ident">token</span>);
     }
 }
 
@@ -855,25 +892,6 @@
             <span class="ident">event</span>::<span class="ident">pointer</span>::<span class="ident">ButtonState</span>::<span class="ident">Pressed</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">backend</span>::<span class="ident">MouseButtonState</span>::<span class="ident">Pressed</span>,
             <span class="ident">event</span>::<span class="ident">pointer</span>::<span class="ident">ButtonState</span>::<span class="ident">Released</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">backend</span>::<span class="ident">MouseButtonState</span>::<span class="ident">Released</span>,
         }
-    }
-}
-
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_session&quot;</span>)]</span>
-<span class="kw">impl</span> <span class="ident">SessionObserver</span> <span class="kw">for</span> <span class="ident">libinput</span>::<span class="ident">Libinput</span> {
-    <span class="kw">fn</span> <span class="ident">pause</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">device</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>) {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">major</span>, <span class="kw">_</span>)) <span class="op">=</span> <span class="ident">device</span> {
-            <span class="kw">if</span> <span class="ident">major</span> <span class="op">!</span><span class="op">=</span> <span class="ident">INPUT_MAJOR</span> {
-                <span class="kw">return</span>;
-            }
-        }
-        <span class="comment">// lets hope multiple suspends are okay in case of logind?</span>
-        <span class="self">self</span>.<span class="ident">suspend</span>()
-    }
-
-    <span class="kw">fn</span> <span class="ident">activate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">_device</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">RawFd</span><span class="op">&gt;</span>)<span class="op">&gt;</span>) {
-        <span class="comment">// libinput closes the devices on suspend, so we should not get any INPUT_MAJOR calls</span>
-        <span class="comment">// also lets hope multiple resumes are okay in case of logind</span>
-        <span class="self">self</span>.<span class="ident">resume</span>().<span class="ident">expect</span>(<span class="string">&quot;Unable to resume libinput context&quot;</span>);
     }
 }
 

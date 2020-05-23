@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["SignalToken","A token associated with a callback registered to a Signaler"],["Signaler","A signaler, main type for signaling"]]});
+initSidebarItems({"struct":[["SignalToken","A token associated with a callback registered to a Signaler"],["Signaler","A signaler, main type for signaling"]],"trait":[["Linkable","Trait representing the capability of an object to listen for some signals"]]});

@@ -362,6 +362,10 @@
 <span id="362">362</span>
 <span id="363">363</span>
 <span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! [`Device`](Device) and [`Surface`](Surface) implementations using</span>
@@ -447,6 +451,8 @@
     <span class="ident">raw</span>: <span class="ident">D</span>,
     <span class="ident">backends</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">EglStreamSurfaceInternal</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_session&quot;</span>)]</span>
+    <span class="ident">links</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">signaling</span>::<span class="ident">SignalToken</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="ident">ControlDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">EglStreamDevice</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
@@ -567,6 +573,8 @@
             <span class="ident">raw</span>,
             <span class="ident">backends</span>: <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">RefCell</span>::<span class="ident">new</span>(<span class="ident">HashMap</span>::<span class="ident">new</span>())),
             <span class="ident">logger</span>: <span class="ident">log</span>,
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_session&quot;</span>)]</span>
+            <span class="ident">links</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
         })
     }
 }

@@ -82,6 +82,10 @@
 <span id="82">82</span>
 <span id="83">83</span>
 <span id="84">84</span>
+<span id="85">85</span>
+<span id="86">86</span>
+<span id="87">87</span>
+<span id="88">88</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Support to register a [`GbmDevice`](GbmDevice)</span>
@@ -92,53 +96,57 @@
 <span class="kw">use</span> <span class="ident">gbm</span>::<span class="ident">BufferObject</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">RefCell</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">os</span>::<span class="ident">unix</span>::<span class="ident">io</span>::<span class="ident">RawFd</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::{<span class="ident">Rc</span>, <span class="ident">Weak</span>};
 
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">GbmDevice</span>, <span class="ident">GbmSurfaceInternal</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::{<span class="ident">RawDevice</span>, <span class="ident">RawSurface</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::{<span class="ident">Device</span>, <span class="ident">RawDevice</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">CursorBackend</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">session</span>::{<span class="ident">AsSessionObserver</span>, <span class="ident">SessionObserver</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{
+    <span class="ident">backend</span>::<span class="ident">session</span>::<span class="ident">Signal</span> <span class="kw">as</span> <span class="ident">SessionSignal</span>,
+    <span class="ident">signaling</span>::{<span class="ident">Linkable</span>, <span class="ident">Signaler</span>},
+};
 
 <span class="doccomment">/// [`SessionObserver`](SessionObserver)</span>
 <span class="doccomment">/// linked to the [`GbmDevice`](GbmDevice) it was</span>
 <span class="doccomment">/// created from.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GbmDeviceObserver</span><span class="op">&lt;</span>
-    <span class="ident">S</span>: <span class="ident">SessionObserver</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> ::<span class="ident">drm</span>::<span class="ident">control</span>::<span class="ident">Device</span> <span class="op">+</span> <span class="ident">AsSessionObserver</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-<span class="op">&gt;</span> {
-    <span class="ident">observer</span>: <span class="ident">S</span>,
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">GbmDeviceObserver</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> ::<span class="ident">drm</span>::<span class="ident">control</span>::<span class="ident">Device</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
     <span class="ident">backends</span>: <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">GbmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span>
-        <span class="ident">O</span>: <span class="ident">SessionObserver</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">S</span>: <span class="ident">CursorBackend</span><span class="op">&lt;</span><span class="ident">CursorFormat</span> <span class="op">=</span> <span class="kw">dyn</span> <span class="ident">drm</span>::<span class="ident">buffer</span>::<span class="ident">Buffer</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">RawSurface</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">D</span>: <span class="ident">RawDevice</span><span class="op">&lt;</span><span class="ident">Surface</span> <span class="op">=</span> <span class="ident">S</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">drm</span>::<span class="ident">control</span>::<span class="ident">Device</span> <span class="op">+</span> <span class="ident">AsSessionObserver</span><span class="op">&lt;</span><span class="ident">O</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="op">&gt;</span> <span class="ident">AsSessionObserver</span><span class="op">&lt;</span><span class="ident">GbmDeviceObserver</span><span class="op">&lt;</span><span class="ident">O</span>, <span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GbmDevice</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> <span class="ident">Linkable</span><span class="op">&lt;</span><span class="ident">SessionSignal</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GbmDevice</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="ident">drm</span>::<span class="ident">control</span>::<span class="ident">Device</span> <span class="op">+</span> <span class="ident">Linkable</span><span class="op">&lt;</span><span class="ident">SessionSignal</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span>: <span class="ident">CursorBackend</span><span class="op">&lt;</span><span class="ident">CursorFormat</span> <span class="op">=</span> <span class="kw">dyn</span> <span class="ident">drm</span>::<span class="ident">buffer</span>::<span class="ident">Buffer</span><span class="op">&gt;</span>,
 {
-    <span class="kw">fn</span> <span class="ident">observer</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">GbmDeviceObserver</span><span class="op">&lt;</span><span class="ident">O</span>, <span class="ident">D</span><span class="op">&gt;</span> {
-        <span class="ident">GbmDeviceObserver</span> {
-            <span class="ident">observer</span>: (<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow_mut</span>()).<span class="ident">observer</span>(),
+    <span class="kw">fn</span> <span class="ident">link</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">signaler</span>: <span class="ident">Signaler</span><span class="op">&lt;</span><span class="ident">SessionSignal</span><span class="op">&gt;</span>) {
+        <span class="kw">let</span> <span class="ident">lower_signal</span> <span class="op">=</span> <span class="ident">Signaler</span>::<span class="ident">new</span>();
+        <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow_mut</span>().<span class="ident">link</span>(<span class="ident">lower_signal</span>.<span class="ident">clone</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">observer</span> <span class="op">=</span> <span class="ident">GbmDeviceObserver</span> {
             <span class="ident">backends</span>: <span class="ident">Rc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">backends</span>),
             <span class="ident">logger</span>: <span class="self">self</span>.<span class="ident">logger</span>.<span class="ident">clone</span>(),
-        }
+        };
+
+        <span class="kw">let</span> <span class="ident">token</span> <span class="op">=</span> <span class="ident">signaler</span>.<span class="ident">register</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw-2">&amp;</span><span class="ident">signal</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">signal</span> {
+            <span class="ident">SessionSignal</span>::<span class="ident">ActivateSession</span> <span class="op">|</span> <span class="ident">SessionSignal</span>::<span class="ident">ActivateDevice</span> { .. } <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="comment">// Activate lower *before* we process the event</span>
+                <span class="ident">lower_signal</span>.<span class="ident">signal</span>(<span class="ident">signal</span>);
+                <span class="ident">observer</span>.<span class="ident">activate</span>()
+            }
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">lower_signal</span>.<span class="ident">signal</span>(<span class="ident">signal</span>);
+            }
+        });
+
+        <span class="self">self</span>.<span class="ident">links</span>.<span class="ident">push</span>(<span class="ident">token</span>);
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span>
-        <span class="ident">O</span>: <span class="ident">SessionObserver</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">S</span>: <span class="ident">CursorBackend</span><span class="op">&lt;</span><span class="ident">CursorFormat</span> <span class="op">=</span> <span class="kw">dyn</span> <span class="ident">drm</span>::<span class="ident">buffer</span>::<span class="ident">Buffer</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">RawSurface</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-        <span class="ident">D</span>: <span class="ident">RawDevice</span><span class="op">&lt;</span><span class="ident">Surface</span> <span class="op">=</span> <span class="ident">S</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">drm</span>::<span class="ident">control</span>::<span class="ident">Device</span> <span class="op">+</span> <span class="ident">AsSessionObserver</span><span class="op">&lt;</span><span class="ident">O</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="op">&gt;</span> <span class="ident">SessionObserver</span> <span class="kw">for</span> <span class="ident">GbmDeviceObserver</span><span class="op">&lt;</span><span class="ident">O</span>, <span class="ident">D</span><span class="op">&gt;</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="ident">drm</span>::<span class="ident">control</span>::<span class="ident">Device</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">GbmDeviceObserver</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span>: <span class="ident">CursorBackend</span><span class="op">&lt;</span><span class="ident">CursorFormat</span> <span class="op">=</span> <span class="kw">dyn</span> <span class="ident">drm</span>::<span class="ident">buffer</span>::<span class="ident">Buffer</span><span class="op">&gt;</span>,
 {
-    <span class="kw">fn</span> <span class="ident">pause</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">devnum</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>) {
-        <span class="self">self</span>.<span class="ident">observer</span>.<span class="ident">pause</span>(<span class="ident">devnum</span>);
-    }
-
-    <span class="kw">fn</span> <span class="ident">activate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">devnum</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">RawFd</span><span class="op">&gt;</span>)<span class="op">&gt;</span>) {
-        <span class="self">self</span>.<span class="ident">observer</span>.<span class="ident">activate</span>(<span class="ident">devnum</span>);
+    <span class="kw">fn</span> <span class="ident">activate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">crtcs</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">backends</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">backends</span>.<span class="ident">upgrade</span>() {
             <span class="kw">for</span> (<span class="ident">crtc</span>, <span class="ident">backend</span>) <span class="kw">in</span> <span class="ident">backends</span>.<span class="ident">borrow</span>().<span class="ident">iter</span>() {

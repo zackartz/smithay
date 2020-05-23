@@ -172,6 +172,23 @@
 <span id="172">172</span>
 <span id="173">173</span>
 <span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Support to register an open [`LegacyDrmDevice`](LegacyDrmDevice)</span>
@@ -191,12 +208,15 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">Dev</span>, <span class="ident">DevPath</span>, <span class="ident">Error</span>, <span class="ident">LegacyDrmDevice</span>, <span class="ident">LegacyDrmSurfaceInternal</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">session</span>::{<span class="ident">AsSessionObserver</span>, <span class="ident">SessionObserver</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{
+    <span class="ident">backend</span>::<span class="ident">session</span>::<span class="ident">Signal</span> <span class="kw">as</span> <span class="ident">SessionSignal</span>,
+    <span class="ident">signaling</span>::{<span class="ident">Linkable</span>, <span class="ident">Signaler</span>},
+};
 
 <span class="doccomment">/// [`SessionObserver`](SessionObserver)</span>
 <span class="doccomment">/// linked to the [`LegacyDrmDevice`](LegacyDrmDevice)</span>
 <span class="doccomment">/// it was created from.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">LegacyDrmDeviceObserver</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">LegacyDrmDeviceObserver</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
     <span class="ident">dev</span>: <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">dev_id</span>: <span class="ident">dev_t</span>,
     <span class="ident">privileged</span>: <span class="ident">bool</span>,
@@ -205,20 +225,34 @@
     <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">AsSessionObserver</span><span class="op">&lt;</span><span class="ident">LegacyDrmDeviceObserver</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">LegacyDrmDevice</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">observer</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">LegacyDrmDeviceObserver</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-        <span class="ident">LegacyDrmDeviceObserver</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Linkable</span><span class="op">&lt;</span><span class="ident">SessionSignal</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">LegacyDrmDevice</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">link</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">signaler</span>: <span class="ident">Signaler</span><span class="op">&lt;</span><span class="ident">SessionSignal</span><span class="op">&gt;</span>) {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">observer</span> <span class="op">=</span> <span class="ident">LegacyDrmDeviceObserver</span> {
             <span class="ident">dev</span>: <span class="ident">Rc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dev</span>),
             <span class="ident">dev_id</span>: <span class="self">self</span>.<span class="ident">dev_id</span>,
             <span class="ident">active</span>: <span class="self">self</span>.<span class="ident">active</span>.<span class="ident">clone</span>(),
             <span class="ident">privileged</span>: <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">privileged</span>,
             <span class="ident">backends</span>: <span class="ident">Rc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">backends</span>),
             <span class="ident">logger</span>: <span class="self">self</span>.<span class="ident">logger</span>.<span class="ident">clone</span>(),
-        }
+        };
+
+        <span class="kw">let</span> <span class="ident">token</span> <span class="op">=</span> <span class="ident">signaler</span>.<span class="ident">register</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">signal</span><span class="op">|</span> <span class="ident">observer</span>.<span class="ident">signal</span>(<span class="kw-2">*</span><span class="ident">signal</span>));
+        <span class="self">self</span>.<span class="ident">links</span>.<span class="ident">push</span>(<span class="ident">token</span>);
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">SessionObserver</span> <span class="kw">for</span> <span class="ident">LegacyDrmDeviceObserver</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">LegacyDrmDeviceObserver</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">signal</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">signal</span>: <span class="ident">SessionSignal</span>) {
+        <span class="kw">match</span> <span class="ident">signal</span> {
+            <span class="ident">SessionSignal</span>::<span class="ident">PauseSession</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">pause</span>(<span class="prelude-val">None</span>),
+            <span class="ident">SessionSignal</span>::<span class="ident">PauseDevice</span> { <span class="ident">major</span>, <span class="ident">minor</span> } <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">pause</span>(<span class="prelude-val">Some</span>((<span class="ident">major</span>, <span class="ident">minor</span>))),
+            <span class="ident">SessionSignal</span>::<span class="ident">ActivateSession</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">activate</span>(<span class="prelude-val">None</span>),
+            <span class="ident">SessionSignal</span>::<span class="ident">ActivateDevice</span> { <span class="ident">major</span>, <span class="ident">minor</span>, <span class="ident">new_fd</span> } <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="self">self</span>.<span class="ident">activate</span>(<span class="prelude-val">Some</span>((<span class="ident">major</span>, <span class="ident">minor</span>, <span class="ident">new_fd</span>)))
+            }
+        }
+    }
+
     <span class="kw">fn</span> <span class="ident">pause</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">devnum</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>) {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">major</span>, <span class="ident">minor</span>)) <span class="op">=</span> <span class="ident">devnum</span> {
             <span class="kw">if</span> <span class="ident">major</span> <span class="kw">as</span> <span class="ident">u64</span> <span class="op">!</span><span class="op">=</span> <span class="ident">stat</span>::<span class="ident">major</span>(<span class="self">self</span>.<span class="ident">dev_id</span>) <span class="op">|</span><span class="op">|</span> <span class="ident">minor</span> <span class="kw">as</span> <span class="ident">u64</span> <span class="op">!</span><span class="op">=</span> <span class="ident">stat</span>::<span class="ident">minor</span>(<span class="self">self</span>.<span class="ident">dev_id</span>) {

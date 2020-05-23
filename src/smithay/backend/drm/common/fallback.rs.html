@@ -575,35 +575,6 @@
 <span id="575">575</span>
 <span id="576">576</span>
 <span id="577">577</span>
-<span id="578">578</span>
-<span id="579">579</span>
-<span id="580">580</span>
-<span id="581">581</span>
-<span id="582">582</span>
-<span id="583">583</span>
-<span id="584">584</span>
-<span id="585">585</span>
-<span id="586">586</span>
-<span id="587">587</span>
-<span id="588">588</span>
-<span id="589">589</span>
-<span id="590">590</span>
-<span id="591">591</span>
-<span id="592">592</span>
-<span id="593">593</span>
-<span id="594">594</span>
-<span id="595">595</span>
-<span id="596">596</span>
-<span id="597">597</span>
-<span id="598">598</span>
-<span id="599">599</span>
-<span id="600">600</span>
-<span id="601">601</span>
-<span id="602">602</span>
-<span id="603">603</span>
-<span id="604">604</span>
-<span id="605">605</span>
-<span id="606">606</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Types to make fallback device initialization easier</span>
@@ -631,7 +602,6 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;renderer_gl&quot;</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">PixelFormat</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::{<span class="ident">CursorBackend</span>, <span class="ident">SwapBuffersError</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">session</span>::{<span class="ident">AsSessionObserver</span>, <span class="ident">SessionObserver</span>};
 
 <span class="kw">use</span> <span class="ident">drm</span>::{
     <span class="ident">control</span>::{<span class="ident">connector</span>, <span class="ident">crtc</span>, <span class="ident">encoder</span>, <span class="ident">framebuffer</span>, <span class="ident">plane</span>, <span class="ident">Device</span> <span class="kw">as</span> <span class="ident">ControlDevice</span>, <span class="ident">Mode</span>, <span class="ident">ResourceHandles</span>},
@@ -718,44 +688,16 @@
     }
 }
 
-<span class="doccomment">/// [`SessionObserver`](::backend::session::SessionObserver) Wrapper to assist fallback</span>
-<span class="doccomment">/// in case initialization of the preferred device type fails.</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">FallbackDeviceObserver</span><span class="op">&lt;</span><span class="ident">O1</span>: <span class="ident">SessionObserver</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>, <span class="ident">O2</span>: <span class="ident">SessionObserver</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Variant for successful initialization of the preferred device</span>
-    <span class="ident">Preference</span>(<span class="ident">O1</span>),
-    <span class="doccomment">/// Variant for the fallback device</span>
-    <span class="ident">Fallback</span>(<span class="ident">O2</span>),
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">O1</span>, <span class="ident">O2</span>, <span class="ident">D1</span>, <span class="ident">D2</span><span class="op">&gt;</span> <span class="ident">AsSessionObserver</span><span class="op">&lt;</span><span class="ident">FallbackDeviceObserver</span><span class="op">&lt;</span><span class="ident">O1</span>, <span class="ident">O2</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">FallbackDevice</span><span class="op">&lt;</span><span class="ident">D1</span>, <span class="ident">D2</span><span class="op">&gt;</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_session&quot;</span>)]</span>
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D1</span>, <span class="ident">D2</span><span class="op">&gt;</span> <span class="kw">crate</span>::<span class="ident">signaling</span>::<span class="ident">Linkable</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">session</span>::<span class="ident">Signal</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">FallbackDevice</span><span class="op">&lt;</span><span class="ident">D1</span>, <span class="ident">D2</span><span class="op">&gt;</span>
 <span class="kw">where</span>
-    <span class="ident">O1</span>: <span class="ident">SessionObserver</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">O2</span>: <span class="ident">SessionObserver</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">D1</span>: <span class="ident">Device</span> <span class="op">+</span> <span class="ident">AsSessionObserver</span><span class="op">&lt;</span><span class="ident">O1</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
-    <span class="ident">D2</span>: <span class="ident">Device</span> <span class="op">+</span> <span class="ident">AsSessionObserver</span><span class="op">&lt;</span><span class="ident">O2</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="ident">D1</span>: <span class="ident">Device</span> <span class="op">+</span> <span class="kw">crate</span>::<span class="ident">signaling</span>::<span class="ident">Linkable</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">session</span>::<span class="ident">Signal</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="ident">D2</span>: <span class="ident">Device</span> <span class="op">+</span> <span class="kw">crate</span>::<span class="ident">signaling</span>::<span class="ident">Linkable</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">session</span>::<span class="ident">Signal</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">fn</span> <span class="ident">observer</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">FallbackDeviceObserver</span><span class="op">&lt;</span><span class="ident">O1</span>, <span class="ident">O2</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">link</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">signal</span>: <span class="kw">crate</span>::<span class="ident">signaling</span>::<span class="ident">Signaler</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">session</span>::<span class="ident">Signal</span><span class="op">&gt;</span>) {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">FallbackDevice</span>::<span class="ident">Preference</span>(<span class="ident">dev</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FallbackDeviceObserver</span>::<span class="ident">Preference</span>(<span class="ident">dev</span>.<span class="ident">observer</span>()),
-            <span class="ident">FallbackDevice</span>::<span class="ident">Fallback</span>(<span class="ident">dev</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FallbackDeviceObserver</span>::<span class="ident">Fallback</span>(<span class="ident">dev</span>.<span class="ident">observer</span>()),
-        }
-    }
-}
-
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">O1</span>: <span class="ident">SessionObserver</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>, <span class="ident">O2</span>: <span class="ident">SessionObserver</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">SessionObserver</span>
-    <span class="kw">for</span> <span class="ident">FallbackDeviceObserver</span><span class="op">&lt;</span><span class="ident">O1</span>, <span class="ident">O2</span><span class="op">&gt;</span>
-{
-    <span class="kw">fn</span> <span class="ident">pause</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">device</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>) {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">FallbackDeviceObserver</span>::<span class="ident">Preference</span>(<span class="ident">dev</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">dev</span>.<span class="ident">pause</span>(<span class="ident">device</span>),
-            <span class="ident">FallbackDeviceObserver</span>::<span class="ident">Fallback</span>(<span class="ident">dev</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">dev</span>.<span class="ident">pause</span>(<span class="ident">device</span>),
-        }
-    }
-
-    <span class="kw">fn</span> <span class="ident">activate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">device</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">RawFd</span><span class="op">&gt;</span>)<span class="op">&gt;</span>) {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">FallbackDeviceObserver</span>::<span class="ident">Preference</span>(<span class="ident">dev</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">dev</span>.<span class="ident">activate</span>(<span class="ident">device</span>),
-            <span class="ident">FallbackDeviceObserver</span>::<span class="ident">Fallback</span>(<span class="ident">dev</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">dev</span>.<span class="ident">activate</span>(<span class="ident">device</span>),
+            <span class="ident">FallbackDevice</span>::<span class="ident">Preference</span>(<span class="ident">d</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">d</span>.<span class="ident">link</span>(<span class="ident">signal</span>),
+            <span class="ident">FallbackDevice</span>::<span class="ident">Fallback</span>(<span class="ident">d</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">d</span>.<span class="ident">link</span>(<span class="ident">signal</span>),
         }
     }
 }

@@ -21,8 +21,6 @@
 <span id="21">21</span>
 <span id="22">22</span>
 <span id="23">23</span>
-<span id="24">24</span>
-<span id="25">25</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Reexports of crates, that are part of the public api, for convenience</span>
 
@@ -39,8 +37,6 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">input</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">any</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_udev&quot;</span>, <span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm&quot;</span>))]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">nix</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_session_logind&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">systemd</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_udev&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">udev</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;wayland_frontend&quot;</span>)]</span>
