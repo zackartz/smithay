@@ -256,6 +256,27 @@
 <span id="256">256</span>
 <span id="257">257</span>
 <span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Provides `udev` related functionality for automated device scanning.</span>
@@ -514,6 +535,27 @@
         })
         .<span class="ident">flat_map</span>(<span class="op">|</span><span class="ident">device</span><span class="op">|</span> <span class="ident">device</span>.<span class="ident">devnode</span>().<span class="ident">map</span>(<span class="ident">PathBuf</span>::<span class="ident">from</span>))
         .<span class="ident">collect</span>())
+}
+
+<span class="doccomment">/// Returns the loaded driver for a device named by it&#39;s [`dev_t`](::nix::sys::stat::dev_t).</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">driver</span>(<span class="ident">dev</span>: <span class="ident">dev_t</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">IoResult</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">OsString</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">enumerator</span> <span class="op">=</span> <span class="ident">Enumerator</span>::<span class="ident">new</span>()<span class="question-mark">?</span>;
+    <span class="ident">enumerator</span>.<span class="ident">match_subsystem</span>(<span class="string">&quot;drm&quot;</span>)<span class="question-mark">?</span>;
+    <span class="ident">enumerator</span>.<span class="ident">match_sysname</span>(<span class="string">&quot;card[0-9]*&quot;</span>)<span class="question-mark">?</span>;
+    <span class="prelude-val">Ok</span>(<span class="ident">enumerator</span>
+        .<span class="ident">scan_devices</span>()<span class="question-mark">?</span>
+        .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">device</span><span class="op">|</span> <span class="ident">device</span>.<span class="ident">devnum</span>() <span class="op">=</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">dev</span>))
+        .<span class="ident">flat_map</span>(<span class="op">|</span><span class="ident">dev</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">device</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">dev</span>);
+            <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dev</span>) <span class="op">=</span> <span class="ident">device</span> {
+                <span class="kw">if</span> <span class="ident">dev</span>.<span class="ident">driver</span>().<span class="ident">is_some</span>() {
+                    <span class="kw">return</span> <span class="ident">dev</span>.<span class="ident">driver</span>().<span class="ident">map</span>(<span class="ident">std</span>::<span class="ident">ffi</span>::<span class="ident">OsStr</span>::<span class="ident">to_os_string</span>);
+                }
+                <span class="ident">device</span> <span class="op">=</span> <span class="ident">dev</span>.<span class="ident">parent</span>();
+            }
+            <span class="prelude-val">None</span>
+        })
+        .<span class="ident">next</span>())
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "smithay";</script><script src="../../../aliases.js"></script><script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script><script defer src="../../../search-index.js"></script></body></html>

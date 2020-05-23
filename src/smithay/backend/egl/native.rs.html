@@ -241,13 +241,59 @@
 <span id="241">241</span>
 <span id="242">242</span>
 <span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Type safe native types for safe context/surface creation</span>
 
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">ffi</span>, <span class="ident">wrap_egl_call</span>, <span class="ident">EGLError</span>, <span class="ident">Error</span>};
-
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_winit&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ptr</span>;
+<span class="kw">use</span> <span class="kw">super</span>::{
+    <span class="ident">display</span>::<span class="ident">EGLDisplayHandle</span>, <span class="ident">ffi</span>, <span class="ident">wrap_egl_call</span>, <span class="ident">EGLError</span>, <span class="ident">Error</span>, <span class="ident">SurfaceCreationError</span>, <span class="ident">SwapBuffersError</span>,
+};
+<span class="kw">use</span> <span class="ident">nix</span>::<span class="ident">libc</span>::{<span class="ident">c_int</span>, <span class="ident">c_void</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_winit&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">wayland_egl</span> <span class="kw">as</span> <span class="ident">wegl</span>;
@@ -259,7 +305,9 @@
 <span class="doccomment">/// Trait for typed backend variants (X11/Wayland/GBM)</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Backend</span> {
     <span class="doccomment">/// Surface type created by this backend</span>
-    <span class="kw">type</span> <span class="ident">Surface</span>: <span class="ident">NativeSurface</span>;
+    <span class="kw">type</span> <span class="ident">Surface</span>: <span class="ident">NativeSurface</span><span class="op">&lt;</span><span class="ident">Error</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+    <span class="doccomment">/// Error type thrown by the surface creation in case of failure.</span>
+    <span class="kw">type</span> <span class="ident">Error</span>: ::<span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
 
     <span class="doccomment">/// Return an [`EGLDisplay`](ffi::egl::types::EGLDisplay) based on this backend</span>
     <span class="doccomment">///</span>
@@ -269,6 +317,7 @@
     <span class="doccomment">/// but there is no way to test that.</span>
     <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">get_display</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">Fn</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span><span class="op">&gt;</span>(
         <span class="ident">display</span>: <span class="ident">ffi</span>::<span class="ident">NativeDisplayType</span>,
+        <span class="ident">attribs</span>: <span class="kw-2">&amp;</span>[<span class="ident">ffi</span>::<span class="ident">EGLint</span>],
         <span class="ident">has_dp_extension</span>: <span class="ident">F</span>,
         <span class="ident">log</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLDisplay</span>, <span class="ident">EGLError</span><span class="op">&gt;</span>;
@@ -280,9 +329,11 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_winit&quot;</span>)]</span>
 <span class="kw">impl</span> <span class="ident">Backend</span> <span class="kw">for</span> <span class="ident">Wayland</span> {
     <span class="kw">type</span> <span class="ident">Surface</span> <span class="op">=</span> <span class="ident">wegl</span>::<span class="ident">WlEglSurface</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
 
     <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">get_display</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(
         <span class="ident">display</span>: <span class="ident">ffi</span>::<span class="ident">NativeDisplayType</span>,
+        <span class="ident">attribs</span>: <span class="kw-2">&amp;</span>[<span class="ident">ffi</span>::<span class="ident">EGLint</span>],
         <span class="ident">has_dp_extension</span>: <span class="ident">F</span>,
         <span class="ident">log</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLDisplay</span>, <span class="ident">EGLError</span><span class="op">&gt;</span>
@@ -291,8 +342,13 @@
     {
         <span class="kw">if</span> <span class="ident">has_dp_extension</span>(<span class="string">&quot;EGL_KHR_platform_wayland&quot;</span>) <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetPlatformDisplay</span>::<span class="ident">is_loaded</span>() {
             <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;EGL Display Initialization via EGL_KHR_platform_wayland&quot;</span>);
+            <span class="kw">let</span> <span class="ident">attribs</span> <span class="op">=</span> <span class="ident">attribs</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">x</span> <span class="kw">as</span> <span class="ident">isize</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
             <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> {
-                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetPlatformDisplay</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">PLATFORM_WAYLAND_KHR</span>, <span class="ident">display</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="kw">_</span>, <span class="ident">ptr</span>::<span class="ident">null</span>())
+                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetPlatformDisplay</span>(
+                    <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">PLATFORM_WAYLAND_KHR</span>,
+                    <span class="ident">display</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="kw">_</span>,
+                    <span class="ident">attribs</span>.<span class="ident">as_ptr</span>(),
+                )
             })
         } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">has_dp_extension</span>(<span class="string">&quot;EGL_EXT_platform_wayland&quot;</span>) <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetPlatformDisplayEXT</span>::<span class="ident">is_loaded</span>()
         {
@@ -301,7 +357,7 @@
                 <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetPlatformDisplayEXT</span>(
                     <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">PLATFORM_WAYLAND_EXT</span>,
                     <span class="ident">display</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="kw">_</span>,
-                    <span class="ident">ptr</span>::<span class="ident">null</span>(),
+                    <span class="ident">attribs</span>.<span class="ident">as_ptr</span>(),
                 )
             })
         } <span class="kw">else</span> {
@@ -320,9 +376,11 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_winit&quot;</span>)]</span>
 <span class="kw">impl</span> <span class="ident">Backend</span> <span class="kw">for</span> <span class="ident">X11</span> {
     <span class="kw">type</span> <span class="ident">Surface</span> <span class="op">=</span> <span class="ident">XlibWindow</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
 
     <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">get_display</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(
         <span class="ident">display</span>: <span class="ident">ffi</span>::<span class="ident">NativeDisplayType</span>,
+        <span class="ident">attribs</span>: <span class="kw-2">&amp;</span>[<span class="ident">ffi</span>::<span class="ident">EGLint</span>],
         <span class="ident">has_dp_extension</span>: <span class="ident">F</span>,
         <span class="ident">log</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLDisplay</span>, <span class="ident">EGLError</span><span class="op">&gt;</span>
@@ -331,13 +389,18 @@
     {
         <span class="kw">if</span> <span class="ident">has_dp_extension</span>(<span class="string">&quot;EGL_KHR_platform_x11&quot;</span>) <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetPlatformDisplay</span>::<span class="ident">is_loaded</span>() {
             <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;EGL Display Initialization via EGL_KHR_platform_x11&quot;</span>);
+            <span class="kw">let</span> <span class="ident">attribs</span> <span class="op">=</span> <span class="ident">attribs</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">x</span> <span class="kw">as</span> <span class="ident">isize</span>).<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();
             <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> {
-                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetPlatformDisplay</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">PLATFORM_X11_KHR</span>, <span class="ident">display</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="kw">_</span>, <span class="ident">ptr</span>::<span class="ident">null</span>())
+                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetPlatformDisplay</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">PLATFORM_X11_KHR</span>, <span class="ident">display</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="kw">_</span>, <span class="ident">attribs</span>.<span class="ident">as_ptr</span>())
             })
         } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">has_dp_extension</span>(<span class="string">&quot;EGL_EXT_platform_x11&quot;</span>) <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetPlatformDisplayEXT</span>::<span class="ident">is_loaded</span>() {
             <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;EGL Display Initialization via EGL_EXT_platform_x11&quot;</span>);
             <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> {
-                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetPlatformDisplayEXT</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">PLATFORM_X11_EXT</span>, <span class="ident">display</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="kw">_</span>, <span class="ident">ptr</span>::<span class="ident">null</span>())
+                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetPlatformDisplayEXT</span>(
+                    <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">PLATFORM_X11_EXT</span>,
+                    <span class="ident">display</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="kw">_</span>,
+                    <span class="ident">attribs</span>.<span class="ident">as_ptr</span>(),
+                )
             })
         } <span class="kw">else</span> {
             <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Default EGL Display Initialization via GetDisplay&quot;</span>);
@@ -354,21 +417,28 @@
 <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">trait</span> <span class="ident">NativeDisplay</span><span class="op">&lt;</span><span class="ident">B</span>: <span class="ident">Backend</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Arguments used to surface creation.</span>
     <span class="kw">type</span> <span class="ident">Arguments</span>;
-    <span class="doccomment">/// Error type thrown by the surface creation in case of failure.</span>
-    <span class="kw">type</span> <span class="ident">Error</span>: ::<span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
     <span class="doccomment">/// Because one type might implement multiple [`Backend`]s this function must be called to check</span>
     <span class="doccomment">/// if the expected [`Backend`] is used at runtime.</span>
     <span class="kw">fn</span> <span class="ident">is_backend</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span>;
     <span class="doccomment">/// Return a raw pointer EGL will accept for context creation.</span>
     <span class="kw">fn</span> <span class="ident">ptr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">NativeDisplayType</span>, <span class="ident">Error</span><span class="op">&gt;</span>;
+    <span class="doccomment">/// Return attributes that might be used by `B::get_display`</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Default implementation returns an empty list</span>
+    <span class="kw">fn</span> <span class="ident">attributes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">EGLint</span><span class="op">&gt;</span> {
+        <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NONE</span> <span class="kw">as</span> <span class="ident">ffi</span>::<span class="ident">EGLint</span>]
+    }
+    <span class="doccomment">/// Type of surfaces created</span>
+    <span class="kw">fn</span> <span class="ident">surface_type</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ffi</span>::<span class="ident">EGLint</span> {
+        <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">WINDOW_BIT</span> <span class="kw">as</span> <span class="ident">ffi</span>::<span class="ident">EGLint</span>
+    }
     <span class="doccomment">/// Create a surface</span>
-    <span class="kw">fn</span> <span class="ident">create_surface</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">args</span>: <span class="self">Self</span>::<span class="ident">Arguments</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Surface</span>, <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+    <span class="kw">fn</span> <span class="ident">create_surface</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">args</span>: <span class="self">Self</span>::<span class="ident">Arguments</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">B</span>::<span class="ident">Surface</span>, <span class="ident">B</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_winit&quot;</span>)]</span>
 <span class="kw">unsafe</span> <span class="kw">impl</span> <span class="ident">NativeDisplay</span><span class="op">&lt;</span><span class="ident">X11</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WinitWindow</span> {
     <span class="kw">type</span> <span class="ident">Arguments</span> <span class="op">=</span> ();
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
 
     <span class="kw">fn</span> <span class="ident">is_backend</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">xlib_display</span>().<span class="ident">is_some</span>()
@@ -390,7 +460,6 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_winit&quot;</span>)]</span>
 <span class="kw">unsafe</span> <span class="kw">impl</span> <span class="ident">NativeDisplay</span><span class="op">&lt;</span><span class="ident">Wayland</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">WinitWindow</span> {
     <span class="kw">type</span> <span class="ident">Arguments</span> <span class="op">=</span> ();
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
 
     <span class="kw">fn</span> <span class="ident">is_backend</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">wayland_display</span>().<span class="ident">is_some</span>()
@@ -421,68 +490,89 @@
 <span class="doccomment">/// The returned [`NativeWindowType`](ffi::NativeWindowType) must be valid for EGL</span>
 <span class="doccomment">/// and there is no way to test that.</span>
 <span class="kw">pub</span> <span class="kw">unsafe</span> <span class="kw">trait</span> <span class="ident">NativeSurface</span> {
-    <span class="doccomment">/// Error of the underlying surface</span>
-    <span class="kw">type</span> <span class="ident">Error</span>: <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span>;
-
-    <span class="doccomment">/// Return a raw pointer egl will accept for surface creation.</span>
-    <span class="kw">fn</span> <span class="ident">ptr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ffi</span>::<span class="ident">NativeWindowType</span>;
+    <span class="doccomment">/// Error type thrown by the surface creation in case of failure.</span>
+    <span class="kw">type</span> <span class="ident">Error</span>: ::<span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>;
+    <span class="doccomment">/// Create an EGLSurface from the internal native type.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Must be able to deal with re-creation of existing resources,</span>
+    <span class="doccomment">/// if `needs_recreation` can return `true`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Safety</span>
+    <span class="doccomment">/// This is usually an unsafe operation returning a raw pointer.</span>
+    <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">create</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">display</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">EGLDisplayHandle</span><span class="op">&gt;</span>,
+        <span class="ident">config_id</span>: <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLConfig</span>,
+        <span class="ident">surface_attributes</span>: <span class="kw-2">&amp;</span>[<span class="ident">c_int</span>],
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">c_void</span>, <span class="ident">SurfaceCreationError</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// Will be called to check if any internal resources will need</span>
-    <span class="doccomment">/// to be recreated. Old resources must be used until `recreate`</span>
-    <span class="doccomment">/// was called.</span>
+    <span class="doccomment">/// to be recreated. Old resources must be used until `create`</span>
+    <span class="doccomment">/// was called again and a new surface was optained.</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// Only needs to be recreated, if this shall sometimes return true.</span>
+    <span class="doccomment">/// Only needs to be recreated, if this may return true.</span>
     <span class="doccomment">/// The default implementation always returns false.</span>
     <span class="kw">fn</span> <span class="ident">needs_recreation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="bool-val">false</span>
-    }
-
-    <span class="doccomment">/// Instructs the surface to recreate internal resources</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Must only be implemented if `needs_recreation` can return `true`.</span>
-    <span class="doccomment">/// Returns true on success.</span>
-    <span class="doccomment">/// If this call was successful `ptr()` *should* return something different.</span>
-    <span class="kw">fn</span> <span class="ident">recreate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Adds additional semantics when calling</span>
     <span class="doccomment">/// [EGLSurface::swap_buffers](::backend::egl::surface::EGLSurface::swap_buffers)</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Only implement if required by the backend.</span>
-    <span class="kw">fn</span> <span class="ident">swap_buffers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(())
+    <span class="kw">fn</span> <span class="ident">swap_buffers</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">display</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">EGLDisplayHandle</span><span class="op">&gt;</span>,
+        <span class="ident">surface</span>: <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLSurface</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> {
+            <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">SwapBuffers</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">display</span>, <span class="ident">surface</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>);
+        })
+        .<span class="ident">map_err</span>(<span class="ident">SwapBuffersError</span>::<span class="ident">EGLSwapBuffers</span>)
     }
 }
-
-<span class="doccomment">/// Hack until ! gets stablized</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Never</span> {}
-<span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">Never</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
-        <span class="macro">unreachable</span><span class="macro">!</span>()
-    }
-}
-<span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">error</span>::<span class="ident">Error</span> <span class="kw">for</span> <span class="ident">Never</span> {}
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_winit&quot;</span>)]</span>
 <span class="kw">unsafe</span> <span class="kw">impl</span> <span class="ident">NativeSurface</span> <span class="kw">for</span> <span class="ident">XlibWindow</span> {
-    <span class="comment">// this would really be a case for this:</span>
-    <span class="comment">// type Error = !; (https://github.com/rust-lang/rust/issues/35121)</span>
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Never</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
 
-    <span class="kw">fn</span> <span class="ident">ptr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ffi</span>::<span class="ident">NativeWindowType</span> {
-        <span class="self">self</span>.<span class="number">0</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>
+    <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">create</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">display</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">EGLDisplayHandle</span><span class="op">&gt;</span>,
+        <span class="ident">config_id</span>: <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLConfig</span>,
+        <span class="ident">surface_attributes</span>: <span class="kw-2">&amp;</span>[<span class="ident">c_int</span>],
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">c_void</span>, <span class="ident">SurfaceCreationError</span><span class="op">&lt;</span><span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> {
+            <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CreateWindowSurface</span>(
+                <span class="ident">display</span>.<span class="ident">handle</span>,
+                <span class="ident">config_id</span>,
+                <span class="self">self</span>.<span class="number">0</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>,
+                <span class="ident">surface_attributes</span>.<span class="ident">as_ptr</span>(),
+            )
+        })
+        .<span class="ident">map_err</span>(<span class="ident">SurfaceCreationError</span>::<span class="ident">EGLSurfaceCreationFailed</span>)
     }
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_winit&quot;</span>)]</span>
 <span class="kw">unsafe</span> <span class="kw">impl</span> <span class="ident">NativeSurface</span> <span class="kw">for</span> <span class="ident">wegl</span>::<span class="ident">WlEglSurface</span> {
-    <span class="comment">// type Error = !;</span>
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Never</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span>;
 
-    <span class="kw">fn</span> <span class="ident">ptr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ffi</span>::<span class="ident">NativeWindowType</span> {
-        <span class="self">self</span>.<span class="ident">ptr</span>() <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>
+    <span class="kw">unsafe</span> <span class="kw">fn</span> <span class="ident">create</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">display</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">EGLDisplayHandle</span><span class="op">&gt;</span>,
+        <span class="ident">config_id</span>: <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLConfig</span>,
+        <span class="ident">surface_attributes</span>: <span class="kw-2">&amp;</span>[<span class="ident">c_int</span>],
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">c_void</span>, <span class="ident">SurfaceCreationError</span><span class="op">&lt;</span><span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> {
+            <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CreateWindowSurface</span>(
+                <span class="ident">display</span>.<span class="ident">handle</span>,
+                <span class="ident">config_id</span>,
+                <span class="self">self</span>.<span class="ident">ptr</span>() <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>,
+                <span class="ident">surface_attributes</span>.<span class="ident">as_ptr</span>(),
+            )
+        })
+        .<span class="ident">map_err</span>(<span class="ident">SurfaceCreationError</span>::<span class="ident">EGLSurfaceCreationFailed</span>)
     }
 }
 </pre></div>

@@ -130,6 +130,15 @@
 <span id="130">130</span>
 <span id="131">131</span>
 <span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">ffi</span>;
 
@@ -148,9 +157,12 @@
     <span class="doccomment">/// Backend does not match the context type</span>
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;The expected backend &#39;{0:?}&#39; does not match the runtime&quot;</span>)]</span>
     <span class="ident">NonMatchingBackend</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>),
+    <span class="doccomment">/// Display creation failed</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Display creation failed with error: {0:}&quot;</span>)]</span>
+    <span class="ident">DisplayCreationError</span>(<span class="attribute">#[<span class="ident">source</span>]</span> <span class="ident">EGLError</span>),
     <span class="doccomment">/// Unable to obtain a valid EGL Display</span>
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Unable to obtain a valid EGL Display. Err: {0:}&quot;</span>)]</span>
-    <span class="ident">DisplayNotSupported</span>(<span class="attribute">#[<span class="ident">source</span>]</span> <span class="ident">EGLError</span>),
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Unable to obtain a valid EGL Display.&quot;</span>)]</span>
+    <span class="ident">DisplayNotSupported</span>,
     <span class="doccomment">/// `eglInitialize` returned an error</span>
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Failed to initialize EGL. Err: {0:}&quot;</span>)]</span>
     <span class="ident">InitFailed</span>(<span class="attribute">#[<span class="ident">source</span>]</span> <span class="ident">EGLError</span>),
@@ -221,6 +233,10 @@
     <span class="doccomment">/// A NativeWindowType argument does not refer to a valid native window.</span>
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;A NativeWindowType argument does not refer to a valid native window.&quot;</span>)]</span>
     <span class="ident">BadNativeWindow</span>,
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm_eglstream&quot;</span>)]</span>
+    <span class="doccomment">/// The EGL operation failed due to temporary unavailability of a requested resource, but the arguments were otherwise valid, and a subsequent attempt may succeed.</span>
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;The EGL operation failed due to temporary unavailability of a requested resource, but the arguments were otherwise valid, and a subsequent attempt may succeed.&quot;</span>)]</span>
+    <span class="ident">ResourceBusy</span>,
     <span class="doccomment">/// A power management event has occurred. The application must destroy all contexts and reinitialise OpenGL ES state and objects to continue rendering.</span>
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;A power management event has occurred. The application must destroy all contexts and reinitialise OpenGL ES state and objects to continue rendering.&quot;</span>)]</span>
     <span class="ident">ContextLost</span>,
@@ -244,6 +260,8 @@
             <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">BAD_PARAMETER</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">EGLError</span>::<span class="ident">BadParameter</span>,
             <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">BAD_NATIVE_PIXMAP</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">EGLError</span>::<span class="ident">BadNativePixmap</span>,
             <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">BAD_NATIVE_WINDOW</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">EGLError</span>::<span class="ident">BadNativeWindow</span>,
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm_eglstream&quot;</span>)]</span>
+            <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">RESOURCE_BUSY_EXT</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">EGLError</span>::<span class="ident">ResourceBusy</span>,
             <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CONTEXT_LOST</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">EGLError</span>::<span class="ident">ContextLost</span>,
             <span class="ident">x</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">EGLError</span>::<span class="ident">Unknown</span>(<span class="ident">x</span>),
         }

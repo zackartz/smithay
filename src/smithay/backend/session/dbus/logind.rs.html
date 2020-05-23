@@ -596,6 +596,21 @@
 <span id="596">596</span>
 <span id="597">597</span>
 <span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Implementation of the [`Session`](::backend::session::Session) trait through the logind dbus interface.</span>
@@ -877,21 +892,36 @@
                     <span class="kw">let</span> (<span class="ident">major</span>, <span class="ident">minor</span>, <span class="ident">pause_type</span>) <span class="op">=</span> <span class="ident">message</span>.<span class="ident">get3</span>::<span class="op">&lt;</span><span class="ident">u32</span>, <span class="ident">u32</span>, <span class="ident">String</span><span class="op">&gt;</span>();
                     <span class="kw">let</span> <span class="ident">major</span> <span class="op">=</span> <span class="ident">major</span>.<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="ident">UnexpectedMethodReturn</span>)<span class="question-mark">?</span>;
                     <span class="kw">let</span> <span class="ident">minor</span> <span class="op">=</span> <span class="ident">minor</span>.<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="ident">UnexpectedMethodReturn</span>)<span class="question-mark">?</span>;
+                    <span class="comment">// From https://www.freedesktop.org/wiki/Software/systemd/logind/:</span>
+                    <span class="comment">//  `force` means the device got paused by logind already and this is only an</span>
+                    <span class="comment">//  asynchronous notification.</span>
+                    <span class="comment">//  `pause` means logind tries to pause the device and grants you limited amount</span>
+                    <span class="comment">//  of time to pause it. You must respond to this via PauseDeviceComplete().</span>
+                    <span class="comment">//  This synchronous pausing-mechanism is used for backwards-compatibility to VTs</span>
+                    <span class="comment">//  and logind is **free to not make use of it**.</span>
+                    <span class="comment">//  It is also free to send a forced PauseDevice if you don&#39;t respond in a timely manner</span>
+                    <span class="comment">//  (or for any other reason).</span>
                     <span class="kw">let</span> <span class="ident">pause_type</span> <span class="op">=</span> <span class="ident">pause_type</span>.<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="ident">UnexpectedMethodReturn</span>)<span class="question-mark">?</span>;
                     <span class="macro">debug</span><span class="macro">!</span>(
                         <span class="self">self</span>.<span class="ident">logger</span>,
                         <span class="string">&quot;Request of type \&quot;{}\&quot; to close device ({},{})&quot;</span>, <span class="ident">pause_type</span>, <span class="ident">major</span>, <span class="ident">minor</span>
                     );
-                    <span class="kw">for</span> <span class="ident">signal</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">signals</span>.<span class="ident">borrow_mut</span>() {
-                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">signal</span>) <span class="op">=</span> <span class="ident">signal</span> {
-                            <span class="ident">signal</span>.<span class="ident">pause</span>(<span class="prelude-val">Some</span>((<span class="ident">major</span>, <span class="ident">minor</span>)));
+
+                    <span class="comment">// gone means the device was unplugged from the system and you will no longer get any</span>
+                    <span class="comment">// notifications about it.</span>
+                    <span class="comment">// This is handled via udev and is not part of our session api.</span>
+                    <span class="kw">if</span> <span class="ident">pause_type</span> <span class="op">!</span><span class="op">=</span> <span class="string">&quot;gone&quot;</span> {
+                        <span class="kw">for</span> <span class="ident">signal</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">signals</span>.<span class="ident">borrow_mut</span>() {
+                            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">signal</span>) <span class="op">=</span> <span class="ident">signal</span> {
+                                <span class="ident">signal</span>.<span class="ident">pause</span>(<span class="prelude-val">Some</span>((<span class="ident">major</span>, <span class="ident">minor</span>)));
+                            }
                         }
                     }
                     <span class="comment">// the other possible types are &quot;force&quot; or &quot;gone&quot; (unplugged),</span>
                     <span class="comment">// both expect no acknowledgement (note even this is not *really* necessary,</span>
                     <span class="comment">// logind would just timeout and send a &quot;force&quot; event. There is no way to</span>
                     <span class="comment">// keep the device.)</span>
-                    <span class="kw">if</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">pause_type</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;pause&quot;</span> {
+                    <span class="kw">if</span> <span class="ident">pause_type</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;pause&quot;</span> {
                         <span class="ident">LogindSessionImpl</span>::<span class="ident">blocking_call</span>(
                             <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">conn</span>.<span class="ident">borrow</span>(),
                             <span class="string">&quot;org.freedesktop.login1&quot;</span>,

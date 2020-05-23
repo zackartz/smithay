@@ -1025,6 +1025,13 @@
 <span id="1025">1025</span>
 <span id="1026">1026</span>
 <span id="1027">1027</span>
+<span id="1028">1028</span>
+<span id="1029">1029</span>
+<span id="1030">1030</span>
+<span id="1031">1031</span>
+<span id="1032">1032</span>
+<span id="1033">1033</span>
+<span id="1034">1034</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">buffer</span>::<span class="ident">Buffer</span>;
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::<span class="ident">atomic</span>::<span class="ident">AtomicModeReq</span>;
@@ -1048,9 +1055,9 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CursorState</span> {
-    <span class="ident">position</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">hotspot</span>: <span class="ident">Cell</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>,
-    <span class="ident">framebuffer</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">framebuffer</span>::<span class="ident">Info</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">position</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">hotspot</span>: <span class="ident">Cell</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">framebuffer</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">framebuffer</span>::<span class="ident">Handle</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>)]</span>
@@ -1066,11 +1073,11 @@
     <span class="kw">pub</span> <span class="ident">cursor</span>: <span class="ident">plane</span>::<span class="ident">Handle</span>,
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
+<span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="kw">struct</span> <span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">dev</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>,
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>,
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">cursor</span>: <span class="ident">CursorState</span>,
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">planes</span>: <span class="ident">Planes</span>,
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">planes</span>: <span class="ident">Planes</span>,
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">state</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">pending</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
@@ -1094,6 +1101,11 @@
         <span class="ident">connectors</span>: <span class="kw-2">&amp;</span>[<span class="ident">connector</span>::<span class="ident">Handle</span>],
         <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="macro">info</span><span class="macro">!</span>(
+            <span class="ident">logger</span>,
+            <span class="string">&quot;Initializing drm surface with mode {:?} and connectors {:?}&quot;</span>, <span class="ident">mode</span>, <span class="ident">connectors</span>
+        );
+
         <span class="kw">let</span> <span class="ident">crtc_info</span> <span class="op">=</span> <span class="ident">dev</span>.<span class="ident">get_crtc</span>(<span class="ident">crtc</span>).<span class="ident">compat</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
             <span class="ident">errmsg</span>: <span class="string">&quot;Error loading crtc info&quot;</span>,
             <span class="ident">dev</span>: <span class="ident">dev</span>.<span class="ident">dev_path</span>(),
@@ -1482,7 +1494,7 @@
         }
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">current</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pending</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">pending</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>();
 
         <span class="macro">debug</span><span class="macro">!</span>(
             <span class="self">self</span>.<span class="ident">logger</span>,
@@ -1538,25 +1550,14 @@
                     <span class="self">self</span>.<span class="ident">logger</span>,
                     <span class="string">&quot;New screen configuration invalid!:\n\t{:#?}\n\t{}\n&quot;</span>, <span class="ident">req</span>, <span class="ident">err</span>
                 );
-                <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Reverting back to last know good state&quot;</span>);
 
-                <span class="kw-2">*</span><span class="ident">pending</span> <span class="op">=</span> <span class="ident">current</span>.<span class="ident">clone</span>();
-
-                <span class="self">self</span>.<span class="ident">build_request</span>(
-                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [].<span class="ident">iter</span>(),
-                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [].<span class="ident">iter</span>(),
-                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">planes</span>,
-                    <span class="prelude-val">Some</span>(<span class="ident">framebuffer</span>),
-                    <span class="prelude-val">Some</span>(<span class="ident">current</span>.<span class="ident">mode</span>),
-                    <span class="prelude-val">Some</span>(<span class="ident">current</span>.<span class="ident">blob</span>),
-                )<span class="question-mark">?</span>
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>);
             } <span class="kw">else</span> {
                 <span class="kw">if</span> <span class="ident">current</span>.<span class="ident">mode</span> <span class="op">!</span><span class="op">=</span> <span class="ident">pending</span>.<span class="ident">mode</span> {
                     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">destroy_property_blob</span>(<span class="ident">current</span>.<span class="ident">blob</span>.<span class="ident">into</span>()) {
                         <span class="macro">warn</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Failed to destory old mode property blob: {}&quot;</span>, <span class="ident">err</span>);
                     }
                 }
-                <span class="kw-2">*</span><span class="ident">current</span> <span class="op">=</span> <span class="ident">pending</span>.<span class="ident">clone</span>();
 
                 <span class="comment">// new config</span>
                 <span class="ident">req</span>
@@ -1564,22 +1565,27 @@
         };
 
         <span class="macro">debug</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Setting screen: {:?}&quot;</span>, <span class="ident">req</span>);
-        <span class="self">self</span>.<span class="ident">atomic_commit</span>(
-            <span class="kw-2">&amp;</span>[
-                <span class="ident">AtomicCommitFlags</span>::<span class="ident">PageFlipEvent</span>,
-                <span class="ident">AtomicCommitFlags</span>::<span class="ident">AllowModeset</span>,
-                <span class="ident">AtomicCommitFlags</span>::<span class="ident">Nonblock</span>,
-            ],
-            <span class="ident">req</span>,
-        )
-        .<span class="ident">compat</span>()
-        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
-            <span class="ident">errmsg</span>: <span class="string">&quot;Error setting crtc&quot;</span>,
-            <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
-            <span class="ident">source</span>,
-        })<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">atomic_commit</span>(
+                <span class="kw-2">&amp;</span>[
+                    <span class="ident">AtomicCommitFlags</span>::<span class="ident">PageFlipEvent</span>,
+                    <span class="ident">AtomicCommitFlags</span>::<span class="ident">AllowModeset</span>,
+                    <span class="ident">AtomicCommitFlags</span>::<span class="ident">Nonblock</span>,
+                ],
+                <span class="ident">req</span>,
+            )
+            .<span class="ident">compat</span>()
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
+                <span class="ident">errmsg</span>: <span class="string">&quot;Error setting crtc&quot;</span>,
+                <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
+                <span class="ident">source</span>,
+            });
 
-        <span class="prelude-val">Ok</span>(())
+        <span class="kw">if</span> <span class="ident">result</span>.<span class="ident">is_ok</span>() {
+            <span class="kw-2">*</span><span class="ident">current</span> <span class="op">=</span> <span class="ident">pending</span>.<span class="ident">clone</span>();
+        }
+
+        <span class="ident">result</span>
     }
 
     <span class="kw">fn</span> <span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">framebuffer</span>: <span class="ident">framebuffer</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
@@ -1596,7 +1602,7 @@
             <span class="prelude-val">None</span>,
         )<span class="question-mark">?</span>;
 
-        <span class="macro">trace</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Queueing page flip: {:#?}&quot;</span>, <span class="ident">req</span>);
+        <span class="macro">trace</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Queueing page flip: {:?}&quot;</span>, <span class="ident">req</span>);
         <span class="self">self</span>.<span class="ident">atomic_commit</span>(
             <span class="kw-2">&amp;</span>[<span class="ident">AtomicCommitFlags</span>::<span class="ident">PageFlipEvent</span>, <span class="ident">AtomicCommitFlags</span>::<span class="ident">Nonblock</span>],
             <span class="ident">req</span>,
@@ -1638,23 +1644,17 @@
         <span class="macro">trace</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Setting the new imported cursor&quot;</span>);
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">fb</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">get</span>().<span class="ident">take</span>() {
-            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">destroy_framebuffer</span>(<span class="ident">fb</span>.<span class="ident">handle</span>());
+            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">destroy_framebuffer</span>(<span class="ident">fb</span>);
         }
 
         <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">set</span>(<span class="prelude-val">Some</span>(
-            <span class="self">self</span>.<span class="ident">get_framebuffer</span>(<span class="self">self</span>.<span class="ident">add_planar_framebuffer</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>; <span class="number">4</span>], <span class="number">0</span>).<span class="ident">compat</span>().<span class="ident">map_err</span>(
-                <span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
+            <span class="self">self</span>.<span class="ident">add_planar_framebuffer</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>; <span class="number">4</span>], <span class="number">0</span>)
+                .<span class="ident">compat</span>()
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
                     <span class="ident">errmsg</span>: <span class="string">&quot;Failed to import cursor&quot;</span>,
                     <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
                     <span class="ident">source</span>,
-                },
-            )<span class="question-mark">?</span>)
-            .<span class="ident">compat</span>()
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
-                <span class="ident">errmsg</span>: <span class="string">&quot;Failed to get framebuffer info&quot;</span>,
-                <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
-                <span class="ident">source</span>,
-            })<span class="question-mark">?</span>,
+                })<span class="question-mark">?</span>,
         ));
 
         <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">hotspot</span>.<span class="ident">set</span>(<span class="ident">hotspot</span>);
@@ -1831,58 +1831,70 @@
         <span class="kw">let</span> <span class="ident">cursor_fb</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">get</span>();
 
         <span class="kw">if</span> <span class="kw">let</span> (<span class="prelude-val">Some</span>(<span class="ident">pos</span>), <span class="prelude-val">Some</span>(<span class="ident">fb</span>)) <span class="op">=</span> (<span class="ident">cursor_pos</span>, <span class="ident">cursor_fb</span>) {
-            <span class="kw">let</span> <span class="ident">hotspot</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">hotspot</span>.<span class="ident">get</span>();
+            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">get_framebuffer</span>(<span class="ident">fb</span>).<span class="ident">compat</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
+                <span class="ident">errmsg</span>: <span class="string">&quot;Error getting cursor fb&quot;</span>,
+                <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
+                <span class="ident">source</span>,
+            }) {
+                <span class="prelude-val">Ok</span>(<span class="ident">cursor_info</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">let</span> <span class="ident">hotspot</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">hotspot</span>.<span class="ident">get</span>();
 
-            <span class="ident">req</span>.<span class="ident">add_property</span>(
-                <span class="ident">planes</span>.<span class="ident">cursor</span>,
-                <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;CRTC_ID&quot;</span>)<span class="question-mark">?</span>,
-                <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">CRTC</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">crtc</span>)),
-            );
-            <span class="ident">req</span>.<span class="ident">add_property</span>(
-                <span class="ident">planes</span>.<span class="ident">cursor</span>,
-                <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;SRC_X&quot;</span>)<span class="question-mark">?</span>,
-                <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>(<span class="number">0</span>),
-            );
-            <span class="ident">req</span>.<span class="ident">add_property</span>(
-                <span class="ident">planes</span>.<span class="ident">cursor</span>,
-                <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;SRC_Y&quot;</span>)<span class="question-mark">?</span>,
-                <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>(<span class="number">0</span>),
-            );
-            <span class="ident">req</span>.<span class="ident">add_property</span>(
-                <span class="ident">planes</span>.<span class="ident">cursor</span>,
-                <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;SRC_W&quot;</span>)<span class="question-mark">?</span>,
-                <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>((<span class="ident">fb</span>.<span class="ident">size</span>().<span class="number">0</span> <span class="kw">as</span> <span class="ident">u64</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">16</span>),
-            );
-            <span class="ident">req</span>.<span class="ident">add_property</span>(
-                <span class="ident">planes</span>.<span class="ident">cursor</span>,
-                <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;SRC_H&quot;</span>)<span class="question-mark">?</span>,
-                <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>((<span class="ident">fb</span>.<span class="ident">size</span>().<span class="number">1</span> <span class="kw">as</span> <span class="ident">u64</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">16</span>),
-            );
-            <span class="ident">req</span>.<span class="ident">add_property</span>(
-                <span class="ident">planes</span>.<span class="ident">cursor</span>,
-                <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;CRTC_X&quot;</span>)<span class="question-mark">?</span>,
-                <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">SignedRange</span>(<span class="ident">pos</span>.<span class="number">0</span> <span class="kw">as</span> <span class="ident">i64</span> <span class="op">-</span> (<span class="ident">hotspot</span>.<span class="number">0</span> <span class="kw">as</span> <span class="ident">i64</span>)),
-            );
-            <span class="ident">req</span>.<span class="ident">add_property</span>(
-                <span class="ident">planes</span>.<span class="ident">cursor</span>,
-                <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;CRTC_Y&quot;</span>)<span class="question-mark">?</span>,
-                <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">SignedRange</span>(<span class="ident">pos</span>.<span class="number">1</span> <span class="kw">as</span> <span class="ident">i64</span> <span class="op">-</span> (<span class="ident">hotspot</span>.<span class="number">1</span> <span class="kw">as</span> <span class="ident">i64</span>)),
-            );
-            <span class="ident">req</span>.<span class="ident">add_property</span>(
-                <span class="ident">planes</span>.<span class="ident">cursor</span>,
-                <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;CRTC_W&quot;</span>)<span class="question-mark">?</span>,
-                <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>(<span class="ident">fb</span>.<span class="ident">size</span>().<span class="number">0</span> <span class="kw">as</span> <span class="ident">u64</span>),
-            );
-            <span class="ident">req</span>.<span class="ident">add_property</span>(
-                <span class="ident">planes</span>.<span class="ident">cursor</span>,
-                <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;CRTC_H&quot;</span>)<span class="question-mark">?</span>,
-                <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>(<span class="ident">fb</span>.<span class="ident">size</span>().<span class="number">1</span> <span class="kw">as</span> <span class="ident">u64</span>),
-            );
-            <span class="ident">req</span>.<span class="ident">add_property</span>(
-                <span class="ident">planes</span>.<span class="ident">cursor</span>,
-                <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;FB_ID&quot;</span>)<span class="question-mark">?</span>,
-                <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">Framebuffer</span>(<span class="prelude-val">Some</span>(<span class="ident">fb</span>.<span class="ident">handle</span>())),
-            );
+                    <span class="ident">req</span>.<span class="ident">add_property</span>(
+                        <span class="ident">planes</span>.<span class="ident">cursor</span>,
+                        <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;CRTC_ID&quot;</span>)<span class="question-mark">?</span>,
+                        <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">CRTC</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">crtc</span>)),
+                    );
+                    <span class="ident">req</span>.<span class="ident">add_property</span>(
+                        <span class="ident">planes</span>.<span class="ident">cursor</span>,
+                        <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;SRC_X&quot;</span>)<span class="question-mark">?</span>,
+                        <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>(<span class="number">0</span>),
+                    );
+                    <span class="ident">req</span>.<span class="ident">add_property</span>(
+                        <span class="ident">planes</span>.<span class="ident">cursor</span>,
+                        <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;SRC_Y&quot;</span>)<span class="question-mark">?</span>,
+                        <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>(<span class="number">0</span>),
+                    );
+                    <span class="ident">req</span>.<span class="ident">add_property</span>(
+                        <span class="ident">planes</span>.<span class="ident">cursor</span>,
+                        <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;SRC_W&quot;</span>)<span class="question-mark">?</span>,
+                        <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>((<span class="ident">cursor_info</span>.<span class="ident">size</span>().<span class="number">0</span> <span class="kw">as</span> <span class="ident">u64</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">16</span>),
+                    );
+                    <span class="ident">req</span>.<span class="ident">add_property</span>(
+                        <span class="ident">planes</span>.<span class="ident">cursor</span>,
+                        <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;SRC_H&quot;</span>)<span class="question-mark">?</span>,
+                        <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>((<span class="ident">cursor_info</span>.<span class="ident">size</span>().<span class="number">1</span> <span class="kw">as</span> <span class="ident">u64</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">16</span>),
+                    );
+                    <span class="ident">req</span>.<span class="ident">add_property</span>(
+                        <span class="ident">planes</span>.<span class="ident">cursor</span>,
+                        <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;CRTC_X&quot;</span>)<span class="question-mark">?</span>,
+                        <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">SignedRange</span>(<span class="ident">pos</span>.<span class="number">0</span> <span class="kw">as</span> <span class="ident">i64</span> <span class="op">-</span> (<span class="ident">hotspot</span>.<span class="number">0</span> <span class="kw">as</span> <span class="ident">i64</span>)),
+                    );
+                    <span class="ident">req</span>.<span class="ident">add_property</span>(
+                        <span class="ident">planes</span>.<span class="ident">cursor</span>,
+                        <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;CRTC_Y&quot;</span>)<span class="question-mark">?</span>,
+                        <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">SignedRange</span>(<span class="ident">pos</span>.<span class="number">1</span> <span class="kw">as</span> <span class="ident">i64</span> <span class="op">-</span> (<span class="ident">hotspot</span>.<span class="number">1</span> <span class="kw">as</span> <span class="ident">i64</span>)),
+                    );
+                    <span class="ident">req</span>.<span class="ident">add_property</span>(
+                        <span class="ident">planes</span>.<span class="ident">cursor</span>,
+                        <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;CRTC_W&quot;</span>)<span class="question-mark">?</span>,
+                        <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>(<span class="ident">cursor_info</span>.<span class="ident">size</span>().<span class="number">0</span> <span class="kw">as</span> <span class="ident">u64</span>),
+                    );
+                    <span class="ident">req</span>.<span class="ident">add_property</span>(
+                        <span class="ident">planes</span>.<span class="ident">cursor</span>,
+                        <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;CRTC_H&quot;</span>)<span class="question-mark">?</span>,
+                        <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">UnsignedRange</span>(<span class="ident">cursor_info</span>.<span class="ident">size</span>().<span class="number">1</span> <span class="kw">as</span> <span class="ident">u64</span>),
+                    );
+                    <span class="ident">req</span>.<span class="ident">add_property</span>(
+                        <span class="ident">planes</span>.<span class="ident">cursor</span>,
+                        <span class="self">self</span>.<span class="ident">plane_prop_handle</span>(<span class="ident">planes</span>.<span class="ident">cursor</span>, <span class="string">&quot;FB_ID&quot;</span>)<span class="question-mark">?</span>,
+                        <span class="ident">property</span>::<span class="ident">Value</span>::<span class="ident">Framebuffer</span>(<span class="prelude-val">Some</span>(<span class="ident">fb</span>)),
+                    );
+                }
+                <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="macro">warn</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Cursor FB invalid: {}. Skipping.&quot;</span>, <span class="ident">err</span>);
+                    <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">set</span>(<span class="prelude-val">None</span>);
+                }
+            }
         }
 
         <span class="prelude-val">Ok</span>(<span class="ident">req</span>)
@@ -1941,7 +1953,7 @@
         ))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">clear_plane</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">plane</span>: <span class="ident">plane</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">clear_plane</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">plane</span>: <span class="ident">plane</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">AtomicModeReq</span>::<span class="ident">new</span>();
 
         <span class="ident">req</span>.<span class="ident">add_property</span>(
@@ -1971,7 +1983,9 @@
 }
 
 <span class="doccomment">/// Open raw crtc utilizing atomic mode-setting</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AtomicDrmSurface</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(<span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>);
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AtomicDrmSurface</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+);
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">AsRawFd</span> <span class="kw">for</span> <span class="ident">AtomicDrmSurface</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">as_raw_fd</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RawFd</span> {

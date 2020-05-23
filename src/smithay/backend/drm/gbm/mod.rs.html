@@ -558,7 +558,7 @@
                     <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
                 } <span class="op">=</span><span class="op">&gt;</span>
             {
-                <span class="ident">SwapBuffersError</span>::<span class="ident">TemporaryFailure</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">x</span>))
+                <span class="ident">SwapBuffersError</span>::<span class="ident">TemporaryFailure</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">Error</span>::<span class="op">&lt;</span><span class="ident">E</span><span class="op">&gt;</span>::<span class="ident">FramebufferCreationFailed</span>(<span class="ident">x</span>)))
             }
             <span class="ident">Error</span>::<span class="ident">Underlying</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>.<span class="ident">into</span>(),
             <span class="ident">x</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">SwapBuffersError</span>::<span class="ident">ContextLost</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">x</span>)),

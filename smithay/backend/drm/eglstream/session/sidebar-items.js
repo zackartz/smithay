@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["EglStreamDeviceObserver","`SessionObserver` linked to the `EglStreamDevice` it was created from."]]});
