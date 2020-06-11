@@ -379,15 +379,55 @@
 <span id="379">379</span>
 <span id="380">380</span>
 <span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! [`RawDevice`](RawDevice) and [`RawSurface`](RawSurface)</span>
 <span class="doccomment">//! implementations using the legacy mode-setting infrastructure.</span>
 <span class="doccomment">//!</span>
+<span class="doccomment">//! Legacy mode-setting refers to the now outdated, but still supported direct manager api</span>
+<span class="doccomment">//! of the linux kernel. Adaptations of this api can be found in BSD kernels.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The newer and objectively better api is known as atomic-modesetting (or nuclear-page-flip),</span>
+<span class="doccomment">//! however this api is not supported by every driver, so this is provided for backwards compatibility.</span>
+<span class="doccomment">//! Currenly there are no features in smithay, that are exclusive to the atomic api.</span>
+<span class="doccomment">//!</span>
 <span class="doccomment">//! Usually this implementation will be wrapped into a [`GbmDevice`](::backend::drm::gbm::GbmDevice).</span>
 <span class="doccomment">//! Take a look at `anvil`s source code for an example of this.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! For an example how to use this standalone, take a look at the `raw_legacy_drm` example.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! For detailed overview of these abstractions take a look at the module documentation of backend::drm.</span>
 <span class="doccomment">//!</span>
 
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">common</span>::<span class="ident">Error</span>, <span class="ident">DevPath</span>, <span class="ident">Device</span>, <span class="ident">DeviceHandler</span>, <span class="ident">RawDevice</span>};
@@ -448,6 +488,8 @@
             <span class="comment">// Here we restore the tty to it&#39;s previous state.</span>
             <span class="comment">// In case e.g. getty was running on the tty sets the correct framebuffer again,</span>
             <span class="comment">// so that getty will be visible.</span>
+            <span class="comment">// We do exit correctly, if this fails, but the user will be presented with</span>
+            <span class="comment">// a black screen, if no display handler takes control again.</span>
             <span class="kw">let</span> <span class="ident">old_state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">old_state</span>.<span class="ident">clone</span>();
             <span class="kw">for</span> (<span class="ident">handle</span>, (<span class="ident">info</span>, <span class="ident">connectors</span>)) <span class="kw">in</span> <span class="ident">old_state</span> {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">set_crtc</span>(
@@ -470,7 +512,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">LegacyDrmDevice</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Create a new [`LegacyDrmDevice`] from an open drm node</span>
+    <span class="doccomment">/// Create a new [`LegacyDrmDevice`] from an open drm node.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Arguments</span>
     <span class="doccomment">///</span>
@@ -497,6 +539,8 @@
             .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">UnableToGetDeviceId</span>)<span class="question-mark">?</span>
             .<span class="ident">st_rdev</span>;
 
+        <span class="comment">// we wrap some of the internal state in another struct to share with</span>
+        <span class="comment">// the surfaces and event loop handlers.</span>
         <span class="kw">let</span> <span class="ident">active</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">AtomicBool</span>::<span class="ident">new</span>(<span class="bool-val">true</span>));
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dev</span> <span class="op">=</span> <span class="ident">Dev</span> {
             <span class="ident">fd</span>: <span class="ident">dev</span>,
@@ -506,13 +550,17 @@
             <span class="ident">logger</span>: <span class="ident">log</span>.<span class="ident">clone</span>(),
         };
 
-        <span class="comment">// we want to modeset, so we better be the master, if we run via a tty session</span>
+        <span class="comment">// We want to modeset, so we better be the master, if we run via a tty session.</span>
+        <span class="comment">// This is only needed on older kernels. Newer kernels grant this permission,</span>
+        <span class="comment">// if no other process is already the *master*. So we skip over this error.</span>
         <span class="kw">if</span> <span class="ident">dev</span>.<span class="ident">acquire_master_lock</span>().<span class="ident">is_err</span>() {
             <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Unable to become drm master, assuming unprivileged mode&quot;</span>);
             <span class="ident">dev</span>.<span class="ident">privileged</span> <span class="op">=</span> <span class="bool-val">false</span>;
         };
 
-        <span class="comment">// enumerate (and save) the current device state</span>
+        <span class="comment">// Enumerate (and save) the current device state.</span>
+        <span class="comment">// We need to keep the previous device configuration to restore the state later,</span>
+        <span class="comment">// so we query everything, that we can set.</span>
         <span class="kw">let</span> <span class="ident">res_handles</span> <span class="op">=</span> <span class="ident">ControlDevice</span>::<span class="ident">resource_handles</span>(<span class="kw-2">&amp;</span><span class="ident">dev</span>)
             .<span class="ident">compat</span>()
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
@@ -547,11 +595,18 @@
             }
         }
 
+        <span class="comment">// If the user does not explicitly requests us to skip this,</span>
+        <span class="comment">// we clear out the complete connector&lt;-&gt;crtc mapping on device creation.</span>
+        <span class="comment">//</span>
+        <span class="comment">// The reason is, that certain operations may be racy otherwise, as surfaces can</span>
+        <span class="comment">// exist on different threads. As a result, we cannot enumerate the current state</span>
+        <span class="comment">// on surface creation (it might be changed on another thread during the enumeration).</span>
+        <span class="comment">// An easy workaround is to set a known state on device creation.</span>
         <span class="kw">if</span> <span class="ident">disable_connectors</span> {
             <span class="ident">dev</span>.<span class="ident">set_connector_state</span>(<span class="ident">res_handles</span>.<span class="ident">connectors</span>().<span class="ident">iter</span>().<span class="ident">copied</span>(), <span class="bool-val">false</span>)<span class="question-mark">?</span>;
 
             <span class="kw">for</span> <span class="ident">crtc</span> <span class="kw">in</span> <span class="ident">res_handles</span>.<span class="ident">crtcs</span>() {
-                <span class="comment">// null commit</span>
+                <span class="comment">// null commit (necessary to trigger removal on the kernel side with the legacy api.)</span>
                 <span class="ident">dev</span>.<span class="ident">set_crtc</span>(<span class="kw-2">*</span><span class="ident">crtc</span>, <span class="prelude-val">None</span>, (<span class="number">0</span>, <span class="number">0</span>), <span class="kw-2">&amp;</span>[], <span class="prelude-val">None</span>)
                     .<span class="ident">compat</span>()
                     .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
@@ -581,6 +636,7 @@
         <span class="ident">connectors</span>: <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">connector</span>::<span class="ident">Handle</span><span class="op">&gt;</span>,
         <span class="ident">enabled</span>: <span class="ident">bool</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="comment">// for every connector...</span>
         <span class="kw">for</span> <span class="ident">conn</span> <span class="kw">in</span> <span class="ident">connectors</span> {
             <span class="kw">let</span> <span class="ident">info</span> <span class="op">=</span> <span class="self">self</span>
                 .<span class="ident">get_connector</span>(<span class="ident">conn</span>)
@@ -590,7 +646,9 @@
                     <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
                     <span class="ident">source</span>,
                 })<span class="question-mark">?</span>;
+            <span class="comment">// that is currently connected ...</span>
             <span class="kw">if</span> <span class="ident">info</span>.<span class="ident">state</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">connector</span>::<span class="ident">State</span>::<span class="ident">Connected</span> {
+                <span class="comment">// get a list of it&#39;s properties.</span>
                 <span class="kw">let</span> <span class="ident">props</span> <span class="op">=</span> <span class="self">self</span>
                     .<span class="ident">get_properties</span>(<span class="ident">conn</span>)
                     .<span class="ident">compat</span>()
@@ -600,7 +658,9 @@
                         <span class="ident">source</span>,
                     })<span class="question-mark">?</span>;
                 <span class="kw">let</span> (<span class="ident">handles</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">props</span>.<span class="ident">as_props_and_values</span>();
+                <span class="comment">// for every handle ...</span>
                 <span class="kw">for</span> <span class="ident">handle</span> <span class="kw">in</span> <span class="ident">handles</span> {
+                    <span class="comment">// get information of that property</span>
                     <span class="kw">let</span> <span class="ident">info</span> <span class="op">=</span> <span class="self">self</span>
                         .<span class="ident">get_property</span>(<span class="kw-2">*</span><span class="ident">handle</span>)
                         .<span class="ident">compat</span>()
@@ -609,7 +669,9 @@
                             <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
                             <span class="ident">source</span>,
                         })<span class="question-mark">?</span>;
+                    <span class="comment">// to find out, if we got the handle of the &quot;DPMS&quot; property ...</span>
                     <span class="kw">if</span> <span class="ident">info</span>.<span class="ident">name</span>().<span class="ident">to_str</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;DPMS&quot;</span>).<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>) {
+                        <span class="comment">// so we can use that to turn on / off the connector</span>
                         <span class="self">self</span>.<span class="ident">set_property</span>(
                             <span class="ident">conn</span>,
                             <span class="kw-2">*</span><span class="ident">handle</span>,

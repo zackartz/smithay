@@ -606,6 +606,9 @@
 <span id="606">606</span>
 <span id="607">607</span>
 <span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Type safe native types for safe egl initialisation</span>
 
@@ -699,6 +702,7 @@
         };
         <span class="macro">debug</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;EGL No-Display Extensions: {:?}&quot;</span>, <span class="ident">dp_extensions</span>);
 
+        <span class="comment">// we create an EGLDisplay</span>
         <span class="kw">let</span> <span class="ident">display</span> <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">B</span>::<span class="ident">get_display</span>(
                 <span class="ident">ptr</span>,
@@ -712,6 +716,7 @@
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DisplayNotSupported</span>);
         }
 
+        <span class="comment">// We can then query the egl api version</span>
         <span class="kw">let</span> <span class="ident">egl_version</span> <span class="op">=</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">major</span>: <span class="ident">MaybeUninit</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLint</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MaybeUninit</span>::<span class="ident">uninit</span>();
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">minor</span>: <span class="ident">MaybeUninit</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLint</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">MaybeUninit</span>::<span class="ident">uninit</span>();
@@ -746,6 +751,7 @@
         };
         <span class="macro">info</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;EGL Extensions: {:?}&quot;</span>, <span class="ident">extensions</span>);
 
+        <span class="comment">// egl &lt;= 1.2 does not support OpenGL ES (maybe we want to support OpenGL in the future?)</span>
         <span class="kw">if</span> <span class="ident">egl_version</span> <span class="op">&lt;</span><span class="op">=</span> (<span class="number">1</span>, <span class="number">2</span>) {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">OpenGlesNotSupported</span>(<span class="prelude-val">None</span>));
         }
@@ -831,7 +837,7 @@
             <span class="ident">out</span>
         };
 
-        <span class="comment">// calling `eglChooseConfig`</span>
+        <span class="comment">// Try to find configs that match out criteria</span>
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">num_configs</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> {
             <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">ChooseConfig</span>(
@@ -867,7 +873,6 @@
         }
 
         <span class="kw">let</span> <span class="ident">desired_swap_interval</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">attributes</span>.<span class="ident">vsync</span> { <span class="number">1</span> } <span class="kw">else</span> { <span class="number">0</span> };
-
         <span class="comment">// try to select a config with the desired_swap_interval</span>
         <span class="comment">// (but don&#39;t fail, as the margin might be very small on some cards and most configs are fine)</span>
         <span class="kw">let</span> <span class="ident">config_id</span> <span class="op">=</span> <span class="ident">config_ids</span>
@@ -928,6 +933,7 @@
             }};
         };
 
+        <span class="comment">// return the format that was selected for our config</span>
         <span class="kw">let</span> <span class="ident">desc</span> <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">PixelFormat</span> {
                 <span class="ident">hardware_accelerated</span>: <span class="macro">attrib</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">display</span>, <span class="ident">config_id</span>, <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CONFIG_CAVEAT</span>)

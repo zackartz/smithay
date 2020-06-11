@@ -189,6 +189,13 @@
 <span id="189">189</span>
 <span id="190">190</span>
 <span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Support to register an open [`LegacyDrmDevice`](LegacyDrmDevice)</span>
@@ -264,6 +271,8 @@
                 <span class="kw">for</span> <span class="ident">surface</span> <span class="kw">in</span> <span class="ident">backends</span>.<span class="ident">borrow</span>().<span class="ident">values</span>().<span class="ident">filter_map</span>(<span class="ident">Weak</span>::<span class="ident">upgrade</span>) {
                     <span class="comment">// other ttys that use no cursor, might not clear it themselves.</span>
                     <span class="comment">// This makes sure our cursor won&#39;t stay visible.</span>
+                    <span class="comment">//</span>
+                    <span class="comment">// This usually happens with getty, and a cursor on top of a kernel console looks very weird.</span>
                     <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> (<span class="kw-2">*</span><span class="ident">device</span>).<span class="ident">set_cursor</span>(
                         <span class="ident">surface</span>.<span class="ident">crtc</span>,
                         <span class="prelude-ty">Option</span>::<span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">drm</span>::<span class="ident">control</span>::<span class="ident">dumbbuffer</span>::<span class="ident">DumbBuffer</span><span class="op">&gt;</span>::<span class="prelude-val">None</span>,
@@ -311,6 +320,11 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">LegacyDrmDeviceObserver</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
+    <span class="comment">// reset state enumerates the actual current state of the drm device</span>
+    <span class="comment">// and applies that to the `current_state` as saved in the surfaces.</span>
+    <span class="comment">//</span>
+    <span class="comment">// This re-sync is necessary after a tty swap, as the pipeline might</span>
+    <span class="comment">// be left in a different state.</span>
     <span class="kw">fn</span> <span class="ident">reset_state</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="comment">// lets enumerate it the current state</span>
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dev</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">upgrade</span>() {

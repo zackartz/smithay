@@ -197,6 +197,20 @@
 <span id="197">197</span>
 <span id="198">198</span>
 <span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Support to register an open [`AtomicDrmDevice`](AtomicDrmDevice)</span>
@@ -275,6 +289,8 @@
             <span class="kw">for</span> <span class="ident">surface</span> <span class="kw">in</span> <span class="ident">backends</span>.<span class="ident">borrow</span>().<span class="ident">values</span>().<span class="ident">filter_map</span>(<span class="ident">Weak</span>::<span class="ident">upgrade</span>) {
                 <span class="comment">// other ttys that use no cursor, might not clear it themselves.</span>
                 <span class="comment">// This makes sure our cursor won&#39;t stay visible.</span>
+                <span class="comment">//</span>
+                <span class="comment">// This usually happens with getty, and a cursor on top of a kernel console looks very weird.</span>
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="ident">surface</span>.<span class="ident">clear_plane</span>(<span class="ident">surface</span>.<span class="ident">planes</span>.<span class="ident">cursor</span>) {
                     <span class="macro">warn</span><span class="macro">!</span>(
                         <span class="self">self</span>.<span class="ident">logger</span>,
@@ -323,6 +339,13 @@
     }
 
     <span class="kw">fn</span> <span class="ident">reset_state</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="comment">// reset state sets the connectors into a known state (all disabled),</span>
+        <span class="comment">// for the same reasons we do this on device creation.</span>
+        <span class="comment">//</span>
+        <span class="comment">// We might end up with conflicting commit requirements, if we want to restore our state,</span>
+        <span class="comment">// on top of the state the previous compositor left the device in.</span>
+        <span class="comment">// This is because we do commits per surface and not per device, so we do a global</span>
+        <span class="comment">// commit here, to fix any conflicts.</span>
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">dev</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">upgrade</span>() {
             <span class="kw">let</span> <span class="ident">res_handles</span> <span class="op">=</span> <span class="ident">ControlDevice</span>::<span class="ident">resource_handles</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">dev</span>)
                 .<span class="ident">compat</span>()
@@ -372,6 +395,11 @@
                     <span class="ident">source</span>,
                 })<span class="question-mark">?</span>;
 
+            <span class="comment">// because we change the state and disabled everything,</span>
+            <span class="comment">// we want to force a commit (instead of a page-flip) on all used surfaces</span>
+            <span class="comment">// for the next rendering step to re-activate the connectors.</span>
+            <span class="comment">//</span>
+            <span class="comment">// Lets do that, by creating a garbage/non-matching current-state.</span>
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">backends</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">backends</span>.<span class="ident">upgrade</span>() {
                 <span class="kw">for</span> <span class="ident">surface</span> <span class="kw">in</span> <span class="ident">backends</span>.<span class="ident">borrow</span>().<span class="ident">values</span>().<span class="ident">filter_map</span>(<span class="ident">Weak</span>::<span class="ident">upgrade</span>) {
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">current</span> <span class="op">=</span> <span class="ident">surface</span>.<span class="ident">state</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>();
@@ -387,7 +415,7 @@
                     };
                     <span class="ident">surface</span>.<span class="ident">use_mode</span>(<span class="ident">mode</span>)<span class="question-mark">?</span>;
 
-                    <span class="comment">// drop cursor state</span>
+                    <span class="comment">// drop cursor state to force setting the cursor again.</span>
                     <span class="ident">surface</span>.<span class="ident">cursor</span>.<span class="ident">position</span>.<span class="ident">set</span>(<span class="prelude-val">None</span>);
                     <span class="ident">surface</span>.<span class="ident">cursor</span>.<span class="ident">hotspot</span>.<span class="ident">set</span>((<span class="number">0</span>, <span class="number">0</span>));
                     <span class="ident">surface</span>.<span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">set</span>(<span class="prelude-val">None</span>);

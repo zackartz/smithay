@@ -157,6 +157,8 @@
 <span id="157">157</span>
 <span id="158">158</span>
 <span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! EGL surface related structs</span>
 
@@ -282,6 +284,8 @@
                     })<span class="question-mark">?</span>
             });
 
+            <span class="comment">// if a recreation is pending anyway, ignore page-flip errors.</span>
+            <span class="comment">// lets see if we still fail after the next commit.</span>
             <span class="ident">result</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> {
                 <span class="macro">debug</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Hiding page-flip error *before* recreation: {}&quot;</span>, <span class="ident">err</span>);
                 <span class="ident">SwapBuffersError</span>::<span class="ident">EGLSwapBuffers</span>(<span class="ident">EGLError</span>::<span class="ident">BadSurface</span>)

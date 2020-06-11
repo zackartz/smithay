@@ -466,15 +466,64 @@
 <span id="466">466</span>
 <span id="467">467</span>
 <span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! [`RawDevice`](RawDevice) and [`RawSurface`](RawSurface)</span>
 <span class="doccomment">//! implementations using the atomic mode-setting infrastructure.</span>
 <span class="doccomment">//!</span>
+<span class="doccomment">//! Atomic mode-setting (previously referred to a nuclear page-flip) is a new api of the Direct Rendering</span>
+<span class="doccomment">//! Manager subsystem of the linux kernel. Adaptations of this api can be found in BSD kernels.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! This api is objectively better than the outdated legacy-api, but not supported by every driver.</span>
+<span class="doccomment">//! Initialization will fail, if the api is unsupported. The legacy-api is also wrapped by smithay</span>
+<span class="doccomment">//! and may be used instead in these cases. Currently there are no features in smithay that are</span>
+<span class="doccomment">//! exclusive to the atomic api.</span>
+<span class="doccomment">//!</span>
 <span class="doccomment">//! Usually this implementation will wrapped into a [`GbmDevice`](::backend::drm::gbm::GbmDevice).</span>
 <span class="doccomment">//! Take a look at `anvil`s source code for an example of this.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! For an example how to use this standalone, take a look at the raw_atomic_drm example.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! For detailed overview of these abstractions take a look at the module documentation of backend::drm.</span>
 <span class="doccomment">//!</span>
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">RefCell</span>;
@@ -555,9 +604,11 @@
             <span class="comment">// Here we restore the card/tty&#39;s to it&#39;s previous state.</span>
             <span class="comment">// In case e.g. getty was running on the tty sets the correct framebuffer again,</span>
             <span class="comment">// so that getty will be visible.</span>
+            <span class="comment">// We do exit correctly if this fails, but the user will be presented with</span>
+            <span class="comment">// a black screen if no display handler takes control again.</span>
 
+            <span class="comment">// create an atomic mode request consisting of all properties we captured on creation.</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">AtomicModeReq</span>::<span class="ident">new</span>();
-
             <span class="kw">fn</span> <span class="ident">add_multiple_props</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">ResourceHandle</span><span class="op">&gt;</span>(
                 <span class="ident">req</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">AtomicModeReq</span>,
                 <span class="ident">old_state</span>: <span class="kw-2">&amp;</span>[(<span class="ident">T</span>, <span class="ident">PropertyValueSet</span>)],
@@ -682,6 +733,8 @@
 
         <span class="kw">let</span> <span class="ident">dev_id</span> <span class="op">=</span> <span class="ident">fstat</span>(<span class="ident">fd</span>.<span class="ident">as_raw_fd</span>()).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">UnableToGetDeviceId</span>)<span class="question-mark">?</span>.<span class="ident">st_rdev</span>;
 
+        <span class="comment">// we wrap some of the internal states in another struct to share with</span>
+        <span class="comment">// the surfaces and event loop handlers.</span>
         <span class="kw">let</span> <span class="ident">active</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">AtomicBool</span>::<span class="ident">new</span>(<span class="bool-val">true</span>));
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dev</span> <span class="op">=</span> <span class="ident">Dev</span> {
             <span class="ident">fd</span>,
@@ -692,13 +745,22 @@
             <span class="ident">logger</span>: <span class="ident">log</span>.<span class="ident">clone</span>(),
         };
 
-        <span class="comment">// we want to modeset, so we better be the master, if we run via a tty session</span>
+        <span class="comment">// we need to be the master to do modesetting if we run via a tty session.</span>
+        <span class="comment">// This is only needed on older kernels. Newer kernels grant this permission,</span>
+        <span class="comment">// if no other process is already the *master*. So we skip over this error.</span>
         <span class="kw">if</span> <span class="ident">dev</span>.<span class="ident">acquire_master_lock</span>().<span class="ident">is_err</span>() {
             <span class="macro">warn</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Unable to become drm master, assuming unprivileged mode&quot;</span>);
             <span class="ident">dev</span>.<span class="ident">privileged</span> <span class="op">=</span> <span class="bool-val">false</span>;
         };
 
-        <span class="comment">// enable the features we need</span>
+        <span class="comment">// Enable the features we need.</span>
+        <span class="comment">// We technically could use the atomic api without universal plane support.</span>
+        <span class="comment">// But the two are almost exclusively implemented together, as plane synchronization</span>
+        <span class="comment">// is one of the killer-features of the atomic api.</span>
+        <span class="comment">//</span>
+        <span class="comment">// We could bould more abstractions in smithay for devices with partial support,</span>
+        <span class="comment">// but for now we role with the oldest possible api (legacy) and the newest feature set</span>
+        <span class="comment">// we can use (atomic + universal planes), although we barely use planes yet.</span>
         <span class="ident">dev</span>.<span class="ident">set_client_capability</span>(<span class="ident">ClientCapability</span>::<span class="ident">UniversalPlanes</span>, <span class="bool-val">true</span>)
             .<span class="ident">compat</span>()
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
@@ -714,7 +776,7 @@
                 <span class="ident">source</span>,
             })<span class="question-mark">?</span>;
 
-        <span class="comment">// enumerate (and save) the current device state</span>
+        <span class="comment">// Enumerate (and save) the current device state.</span>
         <span class="kw">let</span> <span class="ident">res_handles</span> <span class="op">=</span> <span class="ident">ControlDevice</span>::<span class="ident">resource_handles</span>(<span class="kw-2">&amp;</span><span class="ident">dev</span>)
             .<span class="ident">compat</span>()
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
@@ -733,11 +795,16 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">old_state</span> <span class="op">=</span> <span class="ident">dev</span>.<span class="ident">old_state</span>.<span class="ident">clone</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mapping</span> <span class="op">=</span> <span class="ident">dev</span>.<span class="ident">prop_mapping</span>.<span class="ident">clone</span>();
 
+        <span class="comment">// This helper function takes a snapshot of the current device properties.</span>
+        <span class="comment">// (everything in the atomic api is set via properties.)</span>
         <span class="ident">dev</span>.<span class="ident">add_props</span>(<span class="ident">res_handles</span>.<span class="ident">connectors</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">old_state</span>.<span class="number">0</span>)<span class="question-mark">?</span>;
         <span class="ident">dev</span>.<span class="ident">add_props</span>(<span class="ident">res_handles</span>.<span class="ident">crtcs</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">old_state</span>.<span class="number">1</span>)<span class="question-mark">?</span>;
         <span class="ident">dev</span>.<span class="ident">add_props</span>(<span class="ident">res_handles</span>.<span class="ident">framebuffers</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">old_state</span>.<span class="number">2</span>)<span class="question-mark">?</span>;
         <span class="ident">dev</span>.<span class="ident">add_props</span>(<span class="ident">planes</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">old_state</span>.<span class="number">3</span>)<span class="question-mark">?</span>;
 
+        <span class="comment">// And because the mapping is not consistent across devices,</span>
+        <span class="comment">// we also need to lookup the handle for a property name.</span>
+        <span class="comment">// And we do this a fair bit, so lets cache that mapping.</span>
         <span class="ident">dev</span>.<span class="ident">map_props</span>(<span class="ident">res_handles</span>.<span class="ident">connectors</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mapping</span>.<span class="number">0</span>)<span class="question-mark">?</span>;
         <span class="ident">dev</span>.<span class="ident">map_props</span>(<span class="ident">res_handles</span>.<span class="ident">crtcs</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mapping</span>.<span class="number">1</span>)<span class="question-mark">?</span>;
         <span class="ident">dev</span>.<span class="ident">map_props</span>(<span class="ident">res_handles</span>.<span class="ident">framebuffers</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mapping</span>.<span class="number">2</span>)<span class="question-mark">?</span>;
@@ -747,6 +814,17 @@
         <span class="ident">dev</span>.<span class="ident">prop_mapping</span> <span class="op">=</span> <span class="ident">mapping</span>;
         <span class="macro">trace</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Mapping: {:#?}&quot;</span>, <span class="ident">dev</span>.<span class="ident">prop_mapping</span>);
 
+        <span class="comment">// If the user does not explicitly requests us to skip this,</span>
+        <span class="comment">// we clear out the complete connector&lt;-&gt;crtc mapping on device creation.</span>
+        <span class="comment">//</span>
+        <span class="comment">// The reason is, that certain operations may be racy otherwise. Surfaces can</span>
+        <span class="comment">// exist on different threads: as a result, we cannot really enumerate the current state</span>
+        <span class="comment">// (it might be changed on another thread during the enumeration). And commits can fail,</span>
+        <span class="comment">// if e.g. a connector is already bound to another surface, which is difficult to analyse at runtime.</span>
+        <span class="comment">//</span>
+        <span class="comment">// An easy workaround is to set a known state on device creation, so we can only</span>
+        <span class="comment">// run into these errors on our own and not because previous compositors left the device</span>
+        <span class="comment">// in a funny state.</span>
         <span class="kw">if</span> <span class="ident">disable_connectors</span> {
             <span class="comment">// Disable all connectors as initial state</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">req</span> <span class="op">=</span> <span class="ident">AtomicModeReq</span>::<span class="ident">new</span>();

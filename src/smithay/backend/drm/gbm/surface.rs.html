@@ -350,6 +350,13 @@
 <span id="350">350</span>
 <span id="351">351</span>
 <span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">super</span>::<span class="kw">super</span>::{<span class="ident">Device</span>, <span class="ident">RawDevice</span>, <span class="ident">RawSurface</span>, <span class="ident">Surface</span>};
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">Error</span>;
@@ -409,7 +416,7 @@
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">FrontBufferLockFailed</span>)<span class="question-mark">?</span>;
 
         <span class="comment">// create a framebuffer if the front buffer does not have one already</span>
-        <span class="comment">// (they are reused by gbm)</span>
+        <span class="comment">// (they are reused internally by gbm)</span>
         <span class="kw">let</span> <span class="ident">maybe_fb</span> <span class="op">=</span> <span class="ident">next_bo</span>
             .<span class="ident">userdata</span>()
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">InvalidInternalState</span>)<span class="question-mark">?</span>
@@ -433,6 +440,7 @@
             }
         }
 
+        <span class="comment">// if we re-created the surface, we need to commit the new changes, as we might trigger a modeset</span>
         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">recreated</span>.<span class="ident">get</span>() {
             <span class="macro">debug</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Commiting new state&quot;</span>);
             <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">commit</span>(<span class="ident">fb</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
@@ -441,6 +449,7 @@
             <span class="ident">RawSurface</span>::<span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">crtc</span>, <span class="ident">fb</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
         };
 
+        <span class="comment">// if it was successful, we can clear the re-created state</span>
         <span class="kw">match</span> <span class="ident">result</span> {
             <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="self">self</span>.<span class="ident">recreated</span>.<span class="ident">set</span>(<span class="bool-val">false</span>);
@@ -448,12 +457,15 @@
                 <span class="prelude-val">Ok</span>(())
             }
             <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="comment">// if there was an error we need to free the buffer again,</span>
+                <span class="comment">// otherwise we may never lock again.</span>
                 <span class="self">self</span>.<span class="ident">unlock_buffer</span>();
                 <span class="prelude-val">Err</span>(<span class="ident">err</span>)
             }
         }
     }
 
+    <span class="comment">// this function is called, if we e.g. need to create the surface to match a new mode.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">recreate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> (<span class="ident">w</span>, <span class="ident">h</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">pending_mode</span>().<span class="ident">size</span>();
 
@@ -482,6 +494,8 @@
         <span class="prelude-val">Ok</span>(())
     }
 
+    <span class="comment">// if the underlying drm-device is closed and re-opened framebuffers may get invalided.</span>
+    <span class="comment">// here we clear them just to be sure, they get recreated on the next page_flip.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">clear_framebuffers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">fb</span>))) <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_buffer</span>.<span class="ident">take</span>().<span class="ident">map</span>(<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">bo</span><span class="op">|</span> <span class="ident">bo</span>.<span class="ident">take_userdata</span>()) {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">destroy_framebuffer</span>(<span class="ident">fb</span>) {

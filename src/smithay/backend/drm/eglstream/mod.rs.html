@@ -366,6 +366,21 @@
 <span id="366">366</span>
 <span id="367">367</span>
 <span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! [`Device`](Device) and [`Surface`](Surface) implementations using</span>
@@ -380,6 +395,8 @@
 <span class="doccomment">//! To use this api in place of GBM for nvidia cards take a look at</span>
 <span class="doccomment">//! [`FallbackDevice`](::backend::drm::common::fallback::FallbackDevice).</span>
 <span class="doccomment">//! Take a look at `anvil`s source code for an example of this.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! For detailed overview of these abstractions take a look at the module documentation of backend::drm.</span>
 <span class="doccomment">//!</span>
 
 <span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">Device</span>, <span class="ident">DeviceHandler</span>, <span class="ident">RawDevice</span>, <span class="ident">Surface</span>};
@@ -513,6 +530,7 @@
                 .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">DeviceIsNoEGLStreamDevice</span>)<span class="question-mark">?</span>;
             }
 
+            <span class="comment">// we can now query the amount of devices implementing the required extension</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">num_devices</span> <span class="op">=</span> <span class="number">0</span>;
             <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">QueryDevicesEXT</span>(<span class="number">0</span>, <span class="ident">ptr</span>::<span class="ident">null_mut</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">num_devices</span>))
                 .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">FailedToEnumerateDevices</span>)<span class="question-mark">?</span>;
@@ -520,6 +538,7 @@
                 <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DeviceIsNoEGLStreamDevice</span>);
             }
 
+            <span class="comment">// afterwards we can allocate a buffer large enough and query the actual device (this is a common pattern in egl).</span>
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">devices</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">num_devices</span> <span class="kw">as</span> <span class="ident">usize</span>);
             <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">QueryDevicesEXT</span>(<span class="ident">num_devices</span>, <span class="ident">devices</span>.<span class="ident">as_mut_ptr</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">num_devices</span>))
                 .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">FailedToEnumerateDevices</span>)<span class="question-mark">?</span>;
@@ -529,8 +548,10 @@
             <span class="ident">devices</span>
                 .<span class="ident">into_iter</span>()
                 .<span class="ident">find</span>(<span class="op">|</span><span class="ident">device</span><span class="op">|</span> {
+                    <span class="comment">// we may get devices, that are - well - NO_DEVICE...</span>
                     <span class="kw-2">*</span><span class="ident">device</span> <span class="op">!</span><span class="op">=</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NO_DEVICE_EXT</span>
                         <span class="kw-2">&amp;</span><span class="op">&amp;</span> {
+                            <span class="comment">// the device then also needs EGL_EXT_device_drm</span>
                             <span class="kw">let</span> <span class="ident">device_extensions</span> <span class="op">=</span> {
                                 <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">QueryDeviceStringEXT</span>(<span class="kw-2">*</span><span class="ident">device</span>, <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">EXTENSIONS</span> <span class="kw">as</span> <span class="ident">i32</span>);
                                 <span class="kw">if</span> <span class="ident">p</span>.<span class="ident">is_null</span>() {
@@ -546,6 +567,14 @@
                             <span class="ident">device_extensions</span>.<span class="ident">iter</span>().<span class="ident">any</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">s</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;EGL_EXT_device_drm&quot;</span>)
                         }
                         <span class="kw-2">&amp;</span><span class="op">&amp;</span> {
+                            <span class="comment">// and we want to get the file descriptor to check, that we found</span>
+                            <span class="comment">// the device the user wants to initialize.</span>
+                            <span class="comment">//</span>
+                            <span class="comment">// notice how this is kinda the other way around.</span>
+                            <span class="comment">// EGL_EXT_device_query expects use to find all devices using this extension...</span>
+                            <span class="comment">// But there is no way, we are going to replace our udev-interface with this, so we list devices</span>
+                            <span class="comment">// just to find the id of the one, that we actually want, because we cannot</span>
+                            <span class="comment">// request it directly afaik...</span>
                             <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> {
                                 <span class="kw">let</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">QueryDeviceStringEXT</span>(
                                     <span class="kw-2">*</span><span class="ident">device</span>,
@@ -568,6 +597,7 @@
                 .<span class="ident">ok_or</span>(<span class="ident">Error</span>::<span class="ident">DeviceIsNoEGLStreamDevice</span>)<span class="question-mark">?</span>
         };
 
+        <span class="comment">// okay the device is compatible and found, ready to go.</span>
         <span class="prelude-val">Ok</span>(<span class="ident">EglStreamDevice</span> {
             <span class="ident">dev</span>: <span class="ident">device</span>,
             <span class="ident">raw</span>,
