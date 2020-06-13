@@ -529,10 +529,10 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">RefCell</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">os</span>::<span class="ident">unix</span>::<span class="ident">io</span>::{<span class="ident">AsRawFd</span>, <span class="ident">RawFd</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::{<span class="ident">Rc</span>, <span class="ident">Weak</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::<span class="ident">Rc</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{
     <span class="ident">atomic</span>::{<span class="ident">AtomicBool</span>, <span class="ident">Ordering</span>},
-    <span class="ident">Arc</span>,
+    <span class="ident">Arc</span>, <span class="ident">Weak</span>,
 };
 
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{<span class="ident">atomic</span>::<span class="ident">AtomicModeReq</span>, <span class="ident">AtomicCommitFlags</span>, <span class="ident">Device</span> <span class="kw">as</span> <span class="ident">ControlDevice</span>, <span class="ident">Event</span>};
@@ -557,7 +557,7 @@
 
 <span class="doccomment">/// Open raw drm device utilizing atomic mode-setting</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AtomicDrmDevice</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-    <span class="ident">dev</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">dev</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">dev_id</span>: <span class="ident">dev_t</span>,
     <span class="ident">active</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicBool</span><span class="op">&gt;</span>,
     <span class="ident">backends</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -868,7 +868,7 @@
         }
 
         <span class="prelude-val">Ok</span>(<span class="ident">AtomicDrmDevice</span> {
-            <span class="ident">dev</span>: <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">dev</span>),
+            <span class="ident">dev</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">dev</span>),
             <span class="ident">dev_id</span>,
             <span class="ident">active</span>,
             <span class="ident">backends</span>: <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">RefCell</span>::<span class="ident">new</span>(<span class="ident">HashMap</span>::<span class="ident">new</span>())),
@@ -922,7 +922,7 @@
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">SurfaceWithoutConnectors</span>(<span class="ident">crtc</span>));
         }
 
-        <span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">AtomicDrmSurfaceInternal</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">AtomicDrmSurfaceInternal</span>::<span class="ident">new</span>(
             <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">clone</span>(),
             <span class="ident">crtc</span>,
             <span class="ident">mode</span>,
@@ -930,7 +930,7 @@
             <span class="self">self</span>.<span class="ident">logger</span>.<span class="ident">new</span>(<span class="macro">o</span><span class="macro">!</span>(<span class="string">&quot;crtc&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">crtc</span>))),
         )<span class="question-mark">?</span>);
 
-        <span class="self">self</span>.<span class="ident">backends</span>.<span class="ident">borrow_mut</span>().<span class="ident">insert</span>(<span class="ident">crtc</span>, <span class="ident">Rc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">backend</span>));
+        <span class="self">self</span>.<span class="ident">backends</span>.<span class="ident">borrow_mut</span>().<span class="ident">insert</span>(<span class="ident">crtc</span>, <span class="ident">Arc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">backend</span>));
         <span class="prelude-val">Ok</span>(<span class="ident">AtomicDrmSurface</span>(<span class="ident">backend</span>))
     }
 

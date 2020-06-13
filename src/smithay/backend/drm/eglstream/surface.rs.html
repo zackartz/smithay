@@ -561,25 +561,42 @@
 <span id="561">561</span>
 <span id="562">562</span>
 <span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="kw">super</span>::<span class="kw">super</span>::{<span class="ident">Device</span>, <span class="ident">RawDevice</span>, <span class="ident">RawSurface</span>, <span class="ident">Surface</span>};
+<span class="kw">use</span> <span class="kw">super</span>::<span class="kw">super</span>::{<span class="ident">RawSurface</span>, <span class="ident">Surface</span>};
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">Error</span>;
 
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">buffer</span>::<span class="ident">format</span>::<span class="ident">PixelFormat</span>;
-<span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{<span class="ident">connector</span>, <span class="ident">crtc</span>, <span class="ident">dumbbuffer</span>::<span class="ident">DumbBuffer</span>, <span class="ident">framebuffer</span>, <span class="ident">Device</span> <span class="kw">as</span> <span class="ident">ControlDevice</span>, <span class="ident">Mode</span>};
+<span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{<span class="ident">connector</span>, <span class="ident">crtc</span>, <span class="ident">dumbbuffer</span>::<span class="ident">DumbBuffer</span>, <span class="ident">framebuffer</span>, <span class="ident">Mode</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">ResultExt</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm&quot;</span>)]</span>
 <span class="kw">use</span> <span class="ident">image</span>::{<span class="ident">ImageBuffer</span>, <span class="ident">Rgba</span>};
 <span class="kw">use</span> <span class="ident">nix</span>::<span class="ident">libc</span>::{<span class="ident">c_int</span>, <span class="ident">c_void</span>};
 
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::{<span class="ident">Cell</span>, <span class="ident">RefCell</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ffi</span>::<span class="ident">CStr</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ptr</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::<span class="ident">Rc</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{
     <span class="ident">atomic</span>::{<span class="ident">AtomicBool</span>, <span class="ident">Ordering</span>},
-    <span class="ident">Arc</span>,
+    <span class="ident">Arc</span>, <span class="ident">Mutex</span>,
 };
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm&quot;</span>)]</span>
@@ -594,18 +611,24 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm&quot;</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">CursorBackend</span>;
 
-<span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="kw">struct</span> <span class="ident">EglStreamSurfaceInternal</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">crtc</span>: <span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span>,
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">cursor</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">DumbBuffer</span>, (<span class="ident">u32</span>, <span class="ident">u32</span>))<span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">stream</span>: <span class="ident">RefCell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">EGLDisplayHandle</span><span class="op">&gt;</span>, <span class="ident">EGLStreamKHR</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">commit_buffer</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">DumbBuffer</span>, <span class="ident">framebuffer</span>::<span class="ident">Handle</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="comment">// We do not want to mark the whole surface as `Send` in case we screw up somewhere else</span>
+<span class="comment">// and because S needs to be `Send` as well for this to work.</span>
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">StreamHandle</span>(<span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">EGLStreamKHR</span>);
+<span class="comment">// EGLStreamKHR can be moved between threads</span>
+<span class="kw">unsafe</span> <span class="kw">impl</span> <span class="ident">Send</span> <span class="kw">for</span> <span class="ident">StreamHandle</span> {}
+
+<span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="kw">struct</span> <span class="ident">EglStreamSurfaceInternal</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">RawSurface</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">crtc</span>: <span class="ident">S</span>,
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">cursor</span>: <span class="ident">Mutex</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">DumbBuffer</span>, (<span class="ident">u32</span>, <span class="ident">u32</span>))<span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">stream</span>: <span class="ident">Mutex</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">EGLDisplayHandle</span><span class="op">&gt;</span>, <span class="ident">StreamHandle</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">commit_buffer</span>: <span class="ident">Mutex</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">DumbBuffer</span>, <span class="ident">framebuffer</span>::<span class="ident">Handle</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">locked</span>: <span class="ident">AtomicBool</span>,
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Surface</span> <span class="kw">for</span> <span class="ident">EglStreamSurfaceInternal</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Connectors</span> <span class="op">=</span> <span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Connectors</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">RawSurface</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Surface</span> <span class="kw">for</span> <span class="ident">EglStreamSurfaceInternal</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
+    <span class="kw">type</span> <span class="ident">Connectors</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">S</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Connectors</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">S</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">crtc</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">crtc</span>::<span class="ident">Handle</span> {
         <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">crtc</span>()
@@ -639,23 +662,23 @@
         <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">pending_mode</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="ident">Mode</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">use_mode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">mode</span>: <span class="ident">Mode</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">S</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">use_mode</span>(<span class="ident">mode</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">EglStreamSurfaceInternal</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">RawSurface</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">EglStreamSurfaceInternal</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">buffer</span>, <span class="kw">_</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">get</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">buffer</span>, <span class="kw">_</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">take</span>() {
             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">destroy_dumb_buffer</span>(<span class="ident">buffer</span>);
         }
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">buffer</span>, <span class="ident">fb</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">commit_buffer</span>.<span class="ident">take</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">buffer</span>, <span class="ident">fb</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">commit_buffer</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">take</span>() {
             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">destroy_framebuffer</span>(<span class="ident">fb</span>);
             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">destroy_dumb_buffer</span>(<span class="ident">buffer</span>);
         }
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">display</span>, <span class="ident">stream</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">stream</span>.<span class="ident">replace</span>(<span class="prelude-val">None</span>) {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">display</span>, <span class="ident">stream</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">stream</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">take</span>() {
             <span class="kw">unsafe</span> {
-                <span class="ident">egl</span>::<span class="ident">DestroyStreamKHR</span>(<span class="ident">display</span>.<span class="ident">handle</span>, <span class="ident">stream</span>);
+                <span class="ident">egl</span>::<span class="ident">DestroyStreamKHR</span>(<span class="ident">display</span>.<span class="ident">handle</span>, <span class="ident">stream</span>.<span class="number">0</span>);
             }
         }
     }
@@ -674,7 +697,7 @@
 <span class="comment">// Note that this might still appear a little choppy, we should just use software cursors</span>
 <span class="comment">// on eglstream devices by default and only use this, if the user really wants it.</span>
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm&quot;</span>)]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">CursorBackend</span> <span class="kw">for</span> <span class="ident">EglStreamSurfaceInternal</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">RawSurface</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">CursorBackend</span> <span class="kw">for</span> <span class="ident">EglStreamSurfaceInternal</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">CursorFormat</span> <span class="op">=</span> <span class="ident">ImageBuffer</span><span class="op">&lt;</span><span class="ident">Rgba</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">DrmError</span><span class="op">&gt;</span>;
 
@@ -742,7 +765,7 @@
         }
 
         <span class="comment">// and store it</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">old</span>, <span class="kw">_</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">replace</span>(<span class="prelude-val">Some</span>((<span class="ident">cursor</span>, <span class="ident">hotspot</span>))) {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">old</span>, <span class="kw">_</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">replace</span>((<span class="ident">cursor</span>, <span class="ident">hotspot</span>)) {
             <span class="kw">if</span> <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">destroy_dumb_buffer</span>(<span class="ident">old</span>).<span class="ident">is_err</span>() {
                 <span class="macro">warn</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Failed to free old cursor&quot;</span>);
             }
@@ -753,14 +776,14 @@
 }
 
 <span class="doccomment">/// egl stream surface for rendering</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EglStreamSurface</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">EglStreamSurfaceInternal</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EglStreamSurface</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">RawSurface</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">EglStreamSurfaceInternal</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 );
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">EglStreamSurface</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">RawSurface</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">EglStreamSurface</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Check if underlying gbm resources need to be recreated.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">needs_recreation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">crtc</span>.<span class="ident">commit_pending</span>() <span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">stream</span>.<span class="ident">borrow</span>().<span class="ident">is_none</span>()
+        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">crtc</span>.<span class="ident">commit_pending</span>() <span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">stream</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">is_none</span>()
     }
 
     <span class="comment">// An EGLStream is basically the pump that requests and consumes images to display them.</span>
@@ -769,12 +792,13 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">display</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">EGLDisplayHandle</span><span class="op">&gt;</span>,
         <span class="ident">output_attribs</span>: <span class="kw-2">&amp;</span>[<span class="ident">isize</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">EGLStreamKHR</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">EGLStreamKHR</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">S</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">stream</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">stream</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>();
         <span class="comment">// drop old steam, if it already exists</span>
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">display</span>, <span class="ident">stream</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">stream</span>.<span class="ident">replace</span>(<span class="prelude-val">None</span>) {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">display</span>, <span class="ident">stream</span>)) <span class="op">=</span> <span class="ident">stream</span>.<span class="ident">take</span>() {
             <span class="comment">// ignore result</span>
             <span class="kw">unsafe</span> {
-                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">DestroyStreamKHR</span>(<span class="ident">display</span>.<span class="ident">handle</span>, <span class="ident">stream</span>);
+                <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">DestroyStreamKHR</span>(<span class="ident">display</span>.<span class="ident">handle</span>, <span class="ident">stream</span>.<span class="number">0</span>);
             }
         }
 
@@ -789,7 +813,7 @@
                 .<span class="ident">create_dumb_buffer</span>((<span class="ident">w</span> <span class="kw">as</span> <span class="ident">u32</span>, <span class="ident">h</span> <span class="kw">as</span> <span class="ident">u32</span>), <span class="ident">PixelFormat</span>::<span class="ident">ARGB8888</span>)
             {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">fb</span>) <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">crtc</span>.<span class="ident">add_framebuffer</span>(<span class="kw-2">&amp;</span><span class="ident">buffer</span>) {
-                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">buffer</span>, <span class="ident">fb</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">commit_buffer</span>.<span class="ident">replace</span>(<span class="prelude-val">Some</span>((<span class="ident">buffer</span>, <span class="ident">fb</span>))) {
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">buffer</span>, <span class="ident">fb</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">commit_buffer</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">replace</span>((<span class="ident">buffer</span>, <span class="ident">fb</span>)) {
                         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">crtc</span>.<span class="ident">destroy_framebuffer</span>(<span class="ident">fb</span>);
                         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">crtc</span>.<span class="ident">destroy_dumb_buffer</span>(<span class="ident">buffer</span>);
                     }
@@ -952,21 +976,21 @@
         };
 
         <span class="comment">// okay, we have a config, lets create the stream.</span>
-        <span class="kw">let</span> <span class="ident">stream</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CreateStreamKHR</span>(<span class="ident">display</span>.<span class="ident">handle</span>, <span class="ident">stream_attributes</span>.<span class="ident">as_ptr</span>()) };
-        <span class="kw">if</span> <span class="ident">stream</span> <span class="op">=</span><span class="op">=</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NO_STREAM_KHR</span> {
+        <span class="kw">let</span> <span class="ident">raw_stream</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">CreateStreamKHR</span>(<span class="ident">display</span>.<span class="ident">handle</span>, <span class="ident">stream_attributes</span>.<span class="ident">as_ptr</span>()) };
+        <span class="kw">if</span> <span class="ident">raw_stream</span> <span class="op">=</span><span class="op">=</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NO_STREAM_KHR</span> {
             <span class="macro">error</span><span class="macro">!</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">logger</span>, <span class="string">&quot;Failed to create egl stream&quot;</span>);
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DeviceStreamCreationFailed</span>);
         }
 
         <span class="comment">// we have a stream, lets connect it to our output layer</span>
-        <span class="kw">if</span> <span class="kw">unsafe</span> { <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">StreamConsumerOutputEXT</span>(<span class="ident">display</span>.<span class="ident">handle</span>, <span class="ident">stream</span>, <span class="ident">layer</span>) } <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+        <span class="kw">if</span> <span class="kw">unsafe</span> { <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">StreamConsumerOutputEXT</span>(<span class="ident">display</span>.<span class="ident">handle</span>, <span class="ident">raw_stream</span>, <span class="ident">layer</span>) } <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
             <span class="macro">error</span><span class="macro">!</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">logger</span>, <span class="string">&quot;Failed to link Output Layer as Stream Consumer&quot;</span>);
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">Error</span>::<span class="ident">DeviceStreamCreationFailed</span>);
         }
 
-        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">stream</span>.<span class="ident">replace</span>(<span class="prelude-val">Some</span>((<span class="ident">display</span>.<span class="ident">clone</span>(), <span class="ident">stream</span>)));
+        <span class="kw-2">*</span><span class="ident">stream</span> <span class="op">=</span> <span class="prelude-val">Some</span>((<span class="ident">display</span>.<span class="ident">clone</span>(), <span class="ident">StreamHandle</span>(<span class="ident">raw_stream</span>)));
 
-        <span class="prelude-val">Ok</span>(<span class="ident">stream</span>)
+        <span class="prelude-val">Ok</span>(<span class="ident">raw_stream</span>)
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">create_surface</span>(
@@ -975,7 +999,7 @@
         <span class="ident">config_id</span>: <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLConfig</span>,
         <span class="ident">_surface_attribs</span>: <span class="kw-2">&amp;</span>[<span class="ident">c_int</span>],
         <span class="ident">output_attribs</span>: <span class="kw-2">&amp;</span>[<span class="ident">isize</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">c_void</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">c_void</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">S</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="comment">// our surface needs a stream</span>
         <span class="kw">let</span> <span class="ident">stream</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_stream</span>(<span class="ident">display</span>, <span class="ident">output_attribs</span>)<span class="question-mark">?</span>;
 
@@ -1014,7 +1038,7 @@
         <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>,
         <span class="ident">display</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">EGLDisplayHandle</span><span class="op">&gt;</span>,
         <span class="ident">surface</span>: <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLSurface</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&lt;</span><span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&lt;</span><span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">S</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="comment">// if we have already swapped the buffer successfully, we need to free it again.</span>
         <span class="comment">//</span>
         <span class="comment">// we need to do this here, because the call may fail (compare this with gbm&#39;s unlock_buffer...).</span>
@@ -1030,7 +1054,7 @@
                 <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">NONE</span> <span class="kw">as</span> <span class="ident">isize</span>,
             ];
 
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">stream</span>) <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">stream</span>.<span class="ident">try_borrow</span>() {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">stream</span>) <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">stream</span>.<span class="ident">try_lock</span>() {
                 <span class="comment">// lets try to acquire the frame.</span>
                 <span class="comment">// this may fail, if the buffer is still in use by the gpu,</span>
                 <span class="comment">// e.g. the flip was not done yet. In this case this call fails as `BUSY`.</span>
@@ -1038,7 +1062,7 @@
                     <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> {
                         <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">StreamConsumerAcquireAttribNV</span>(
                             <span class="ident">display</span>.<span class="ident">handle</span>,
-                            <span class="kw-2">*</span><span class="ident">stream</span>,
+                            <span class="ident">stream</span>.<span class="number">0</span>,
                             <span class="ident">acquire_attributes</span>.<span class="ident">as_ptr</span>(),
                         );
                     })
@@ -1067,9 +1091,9 @@
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Surface</span> <span class="kw">for</span> <span class="ident">EglStreamSurface</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Connectors</span> <span class="op">=</span> <span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Connectors</span>;
-    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">RawSurface</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Surface</span> <span class="kw">for</span> <span class="ident">EglStreamSurface</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
+    <span class="kw">type</span> <span class="ident">Connectors</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">S</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Connectors</span>;
+    <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">S</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">crtc</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">crtc</span>::<span class="ident">Handle</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">crtc</span>()
@@ -1109,7 +1133,7 @@
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_drm_legacy&quot;</span>)]</span>
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">CursorBackend</span> <span class="kw">for</span> <span class="ident">EglStreamSurface</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">RawSurface</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">CursorBackend</span> <span class="kw">for</span> <span class="ident">EglStreamSurface</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">CursorFormat</span> <span class="op">=</span> <span class="ident">ImageBuffer</span><span class="op">&lt;</span><span class="ident">Rgba</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">Error</span><span class="op">&lt;</span><span class="ident">DrmError</span><span class="op">&gt;</span>;
 
@@ -1123,6 +1147,20 @@
         <span class="ident">hotspot</span>: (<span class="ident">u32</span>, <span class="ident">u32</span>),
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">set_cursor_representation</span>(<span class="ident">buffer</span>, <span class="ident">hotspot</span>)
+    }
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="kw">mod</span> <span class="ident">test</span> {
+    <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">EglStreamSurface</span>;
+    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::<span class="ident">legacy</span>::<span class="ident">LegacyDrmSurface</span>;
+    <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">File</span>;
+
+    <span class="kw">fn</span> <span class="ident">is_send</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Send</span><span class="op">&gt;</span>() {}
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">surface_is_send</span>() {
+        <span class="ident">is_send</span>::<span class="op">&lt;</span><span class="ident">EglStreamSurface</span><span class="op">&lt;</span><span class="ident">LegacyDrmSurface</span><span class="op">&lt;</span><span class="ident">File</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>();
     }
 }
 </pre></div>

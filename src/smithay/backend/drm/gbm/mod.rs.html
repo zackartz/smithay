@@ -262,33 +262,6 @@
 <span id="262">262</span>
 <span id="263">263</span>
 <span id="264">264</span>
-<span id="265">265</span>
-<span id="266">266</span>
-<span id="267">267</span>
-<span id="268">268</span>
-<span id="269">269</span>
-<span id="270">270</span>
-<span id="271">271</span>
-<span id="272">272</span>
-<span id="273">273</span>
-<span id="274">274</span>
-<span id="275">275</span>
-<span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
-<span id="282">282</span>
-<span id="283">283</span>
-<span id="284">284</span>
-<span id="285">285</span>
-<span id="286">286</span>
-<span id="287">287</span>
-<span id="288">288</span>
-<span id="289">289</span>
-<span id="290">290</span>
-<span id="291">291</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! [`Device`](Device) and [`Surface`](Surface)</span>
@@ -308,15 +281,14 @@
 
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{<span class="ident">connector</span>, <span class="ident">crtc</span>, <span class="ident">encoder</span>, <span class="ident">framebuffer</span>, <span class="ident">plane</span>, <span class="ident">Device</span> <span class="kw">as</span> <span class="ident">ControlDevice</span>, <span class="ident">Mode</span>};
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">SystemError</span> <span class="kw">as</span> <span class="ident">DrmError</span>;
-<span class="kw">use</span> <span class="ident">gbm</span>::{<span class="self">self</span>, <span class="ident">BufferObjectFlags</span>, <span class="ident">Format</span> <span class="kw">as</span> <span class="ident">GbmFormat</span>};
 <span class="kw">use</span> <span class="ident">nix</span>::<span class="ident">libc</span>::<span class="ident">dev_t</span>;
 
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::{<span class="ident">Cell</span>, <span class="ident">RefCell</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">RefCell</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">os</span>::<span class="ident">unix</span>::<span class="ident">io</span>::{<span class="ident">AsRawFd</span>, <span class="ident">RawFd</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::{<span class="ident">Rc</span>, <span class="ident">Weak</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Once</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>, <span class="ident">Once</span>, <span class="ident">Weak</span> <span class="kw">as</span> <span class="ident">WeakArc</span>};
 
 <span class="doccomment">/// Errors thrown by the [`GbmDevice`](::backend::drm::gbm::GbmDevice)</span>
 <span class="doccomment">/// and [`GbmSurface`](::backend::drm::gbm::GbmSurface).</span>
@@ -366,10 +338,12 @@
 
 <span class="kw">static</span> <span class="ident">LOAD</span>: <span class="ident">Once</span> <span class="op">=</span> <span class="ident">Once</span>::<span class="ident">new</span>();
 
+<span class="kw">type</span> <span class="ident">SurfaceInternalRef</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">WeakArc</span><span class="op">&lt;</span><span class="ident">GbmSurfaceInternal</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 <span class="doccomment">/// Representation of an open gbm device to create rendering surfaces</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GbmDevice</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="ident">ControlDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span>(<span class="self">self</span>) <span class="ident">dev</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">gbm</span>::<span class="ident">Device</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="ident">backends</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">GbmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="self">self</span>) <span class="ident">dev</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">gbm</span>::<span class="ident">Device</span><span class="op">&lt;</span><span class="ident">gbm</span>::<span class="ident">FdWrapper</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="self">self</span>) <span class="ident">raw</span>: <span class="ident">D</span>,
+    <span class="ident">backends</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">SurfaceInternalRef</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_session&quot;</span>)]</span>
     <span class="ident">links</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">crate</span>::<span class="ident">signaling</span>::<span class="ident">SignalToken</span><span class="op">&gt;</span>,
     <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
@@ -404,7 +378,10 @@
         <span class="macro">debug</span><span class="macro">!</span>(<span class="ident">log</span>, <span class="string">&quot;Creating gbm device&quot;</span>);
         <span class="prelude-val">Ok</span>(<span class="ident">GbmDevice</span> {
             <span class="comment">// Open the gbm device from the drm device</span>
-            <span class="ident">dev</span>: <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">RefCell</span>::<span class="ident">new</span>(<span class="ident">gbm</span>::<span class="ident">Device</span>::<span class="ident">new</span>(<span class="ident">dev</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">InitFailed</span>)<span class="question-mark">?</span>)),
+            <span class="ident">dev</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="kw">unsafe</span> {
+                <span class="ident">gbm</span>::<span class="ident">Device</span>::<span class="ident">new_from_fd</span>(<span class="ident">dev</span>.<span class="ident">as_raw_fd</span>()).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">InitFailed</span>)<span class="question-mark">?</span>
+            })),
+            <span class="ident">raw</span>: <span class="ident">dev</span>,
             <span class="ident">backends</span>: <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">RefCell</span>::<span class="ident">new</span>(<span class="ident">HashMap</span>::<span class="ident">new</span>())),
             <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;backend_session&quot;</span>)]</span>
             <span class="ident">links</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
@@ -415,7 +392,7 @@
 
 <span class="kw">struct</span> <span class="ident">InternalDeviceHandler</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="ident">ControlDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
     <span class="ident">handler</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">DeviceHandler</span><span class="op">&lt;</span><span class="ident">Device</span> <span class="op">=</span> <span class="ident">GbmDevice</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>,
-    <span class="ident">backends</span>: <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">GbmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">backends</span>: <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">SurfaceInternalRef</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
 }
 
@@ -445,14 +422,14 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="ident">ControlDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Device</span> <span class="kw">for</span> <span class="ident">GbmDevice</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Surface</span> <span class="op">=</span> <span class="ident">GbmSurface</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">Surface</span> <span class="op">=</span> <span class="ident">GbmSurface</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">device_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">dev_t</span> {
-        <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow</span>().<span class="ident">device_id</span>()
+        <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">device_id</span>()
     }
 
     <span class="kw">fn</span> <span class="ident">set_handler</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">handler</span>: <span class="kw">impl</span> <span class="ident">DeviceHandler</span><span class="op">&lt;</span><span class="ident">Device</span> <span class="op">=</span> <span class="self">Self</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>) {
-        <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow_mut</span>().<span class="ident">set_handler</span>(<span class="ident">InternalDeviceHandler</span> {
+        <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">set_handler</span>(<span class="ident">InternalDeviceHandler</span> {
             <span class="ident">handler</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">handler</span>),
             <span class="ident">backends</span>: <span class="ident">Rc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">backends</span>),
             <span class="ident">logger</span>: <span class="self">self</span>.<span class="ident">logger</span>.<span class="ident">clone</span>(),
@@ -460,7 +437,7 @@
     }
 
     <span class="kw">fn</span> <span class="ident">clear_handler</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow_mut</span>().<span class="ident">clear_handler</span>();
+        <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">clear_handler</span>();
     }
 
     <span class="kw">fn</span> <span class="ident">create_surface</span>(
@@ -468,85 +445,54 @@
         <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>,
         <span class="ident">mode</span>: <span class="ident">Mode</span>,
         <span class="ident">connectors</span>: <span class="kw-2">&amp;</span>[<span class="ident">connector</span>::<span class="ident">Handle</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">GbmSurface</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">GbmSurface</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span><span class="op">&gt;</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="macro">info</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Initializing GbmSurface&quot;</span>);
 
-        <span class="kw">let</span> <span class="ident">drm_surface</span> <span class="op">=</span> <span class="ident">Device</span>::<span class="ident">create_surface</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow_mut</span>(), <span class="ident">crtc</span>, <span class="ident">mode</span>, <span class="ident">connectors</span>)
+        <span class="kw">let</span> <span class="ident">drm_surface</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">raw</span>
+            .<span class="ident">create_surface</span>(<span class="ident">crtc</span>, <span class="ident">mode</span>, <span class="ident">connectors</span>)
             .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)<span class="question-mark">?</span>;
 
-        <span class="comment">// initialize the surface</span>
-        <span class="kw">let</span> (<span class="ident">w</span>, <span class="ident">h</span>) <span class="op">=</span> <span class="ident">drm_surface</span>.<span class="ident">pending_mode</span>().<span class="ident">size</span>();
-        <span class="kw">let</span> <span class="ident">surface</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">dev</span>
-            .<span class="ident">borrow</span>()
-            .<span class="ident">create_surface</span>(
-                <span class="ident">w</span> <span class="kw">as</span> <span class="ident">u32</span>,
-                <span class="ident">h</span> <span class="kw">as</span> <span class="ident">u32</span>,
-                <span class="ident">GbmFormat</span>::<span class="ident">XRGB8888</span>,
-                <span class="ident">BufferObjectFlags</span>::<span class="ident">SCANOUT</span> <span class="op">|</span> <span class="ident">BufferObjectFlags</span>::<span class="ident">RENDERING</span>,
-            )
-            .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">SurfaceCreationFailed</span>)<span class="question-mark">?</span>;
-
-        <span class="comment">// initialize a buffer for the cursor image</span>
-        <span class="kw">let</span> <span class="ident">cursor</span> <span class="op">=</span> <span class="ident">Cell</span>::<span class="ident">new</span>((
-            <span class="self">self</span>.<span class="ident">dev</span>
-                .<span class="ident">borrow</span>()
-                .<span class="ident">create_buffer_object</span>(
-                    <span class="number">1</span>,
-                    <span class="number">1</span>,
-                    <span class="ident">GbmFormat</span>::<span class="ident">ARGB8888</span>,
-                    <span class="ident">BufferObjectFlags</span>::<span class="ident">CURSOR</span> <span class="op">|</span> <span class="ident">BufferObjectFlags</span>::<span class="ident">WRITE</span>,
-                )
-                .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">BufferCreationFailed</span>)<span class="question-mark">?</span>,
-            (<span class="number">0</span>, <span class="number">0</span>),
-        ));
-
-        <span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">GbmSurfaceInternal</span> {
-            <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">clone</span>(),
-            <span class="ident">surface</span>: <span class="ident">RefCell</span>::<span class="ident">new</span>(<span class="ident">surface</span>),
-            <span class="ident">crtc</span>: <span class="ident">drm_surface</span>,
-            <span class="ident">cursor</span>,
-            <span class="ident">current_frame_buffer</span>: <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>),
-            <span class="ident">front_buffer</span>: <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>),
-            <span class="ident">next_buffer</span>: <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>),
-            <span class="ident">recreated</span>: <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="bool-val">true</span>),
-            <span class="ident">logger</span>: <span class="self">self</span>.<span class="ident">logger</span>.<span class="ident">new</span>(<span class="macro">o</span><span class="macro">!</span>(<span class="string">&quot;crtc&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">crtc</span>))),
-        });
-        <span class="self">self</span>.<span class="ident">backends</span>.<span class="ident">borrow_mut</span>().<span class="ident">insert</span>(<span class="ident">crtc</span>, <span class="ident">Rc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">backend</span>));
+        <span class="kw">let</span> <span class="ident">backend</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">GbmSurfaceInternal</span>::<span class="ident">new</span>(
+            <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">clone</span>(),
+            <span class="ident">drm_surface</span>,
+            <span class="self">self</span>.<span class="ident">logger</span>.<span class="ident">new</span>(<span class="macro">o</span><span class="macro">!</span>(<span class="string">&quot;crtc&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">crtc</span>))),
+        )<span class="question-mark">?</span>);
+        <span class="self">self</span>.<span class="ident">backends</span>.<span class="ident">borrow_mut</span>().<span class="ident">insert</span>(<span class="ident">crtc</span>, <span class="ident">Arc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="ident">backend</span>));
         <span class="prelude-val">Ok</span>(<span class="ident">GbmSurface</span>(<span class="ident">backend</span>))
     }
 
     <span class="kw">fn</span> <span class="ident">process_events</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow_mut</span>().<span class="ident">process_events</span>()
+        <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">process_events</span>()
     }
 
     <span class="kw">fn</span> <span class="ident">resource_handles</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ResourceHandles</span>, <span class="ident">Error</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="op">&lt;</span><span class="ident">D</span> <span class="kw">as</span> <span class="ident">Device</span><span class="op">&gt;</span>::<span class="ident">Surface</span> <span class="kw">as</span> <span class="ident">Surface</span><span class="op">&gt;</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="ident">Device</span>::<span class="ident">resource_handles</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow</span>()).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
+        <span class="ident">Device</span>::<span class="ident">resource_handles</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">raw</span>).<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">get_connector_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">conn</span>: <span class="ident">connector</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">connector</span>::<span class="ident">Info</span>, <span class="ident">DrmError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow</span>().<span class="ident">get_connector_info</span>(<span class="ident">conn</span>)
+        <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">get_connector_info</span>(<span class="ident">conn</span>)
     }
     <span class="kw">fn</span> <span class="ident">get_crtc_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Info</span>, <span class="ident">DrmError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow</span>().<span class="ident">get_crtc_info</span>(<span class="ident">crtc</span>)
+        <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">get_crtc_info</span>(<span class="ident">crtc</span>)
     }
     <span class="kw">fn</span> <span class="ident">get_encoder_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">enc</span>: <span class="ident">encoder</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">encoder</span>::<span class="ident">Info</span>, <span class="ident">DrmError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow</span>().<span class="ident">get_encoder_info</span>(<span class="ident">enc</span>)
+        <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">get_encoder_info</span>(<span class="ident">enc</span>)
     }
     <span class="kw">fn</span> <span class="ident">get_framebuffer_info</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">fb</span>: <span class="ident">framebuffer</span>::<span class="ident">Handle</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">framebuffer</span>::<span class="ident">Info</span>, <span class="ident">DrmError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow</span>().<span class="ident">get_framebuffer_info</span>(<span class="ident">fb</span>)
+        <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">get_framebuffer_info</span>(<span class="ident">fb</span>)
     }
     <span class="kw">fn</span> <span class="ident">get_plane_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">plane</span>: <span class="ident">plane</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">plane</span>::<span class="ident">Info</span>, <span class="ident">DrmError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow</span>().<span class="ident">get_plane_info</span>(<span class="ident">plane</span>)
+        <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">get_plane_info</span>(<span class="ident">plane</span>)
     }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">D</span>: <span class="ident">RawDevice</span> <span class="op">+</span> <span class="ident">ControlDevice</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">AsRawFd</span> <span class="kw">for</span> <span class="ident">GbmDevice</span><span class="op">&lt;</span><span class="ident">D</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">as_raw_fd</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RawFd</span> {
-        <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">borrow</span>().<span class="ident">as_raw_fd</span>()
+        <span class="self">self</span>.<span class="ident">raw</span>.<span class="ident">as_raw_fd</span>()
     }
 }
 

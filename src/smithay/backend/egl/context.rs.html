@@ -333,6 +333,8 @@
 <span id="333">333</span>
 <span id="334">334</span>
 <span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! EGL context related structs</span>
 
@@ -343,7 +345,7 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">PixelFormat</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">os</span>::<span class="ident">raw</span>::<span class="ident">c_int</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ptr</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">atomic</span>::<span class="ident">Ordering</span>, <span class="ident">Arc</span>};
 
 <span class="doccomment">/// EGL context for rendering</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EGLContext</span> {
@@ -352,6 +354,9 @@
     <span class="ident">config_id</span>: <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLConfig</span>,
     <span class="ident">pixel_format</span>: <span class="ident">PixelFormat</span>,
 }
+<span class="comment">// EGLContexts can be moved between threads safely</span>
+<span class="kw">unsafe</span> <span class="kw">impl</span> <span class="ident">Send</span> <span class="kw">for</span> <span class="ident">EGLContext</span> {}
+<span class="kw">unsafe</span> <span class="kw">impl</span> <span class="ident">Sync</span> <span class="kw">for</span> <span class="ident">EGLContext</span> {}
 
 <span class="kw">impl</span> <span class="ident">EGLContext</span> {
     <span class="doccomment">/// Create a new [`EGLContext`] from a given [`NativeDisplay`](native::NativeDisplay)</span>
@@ -460,8 +465,7 @@
     <span class="kw">where</span>
         <span class="ident">N</span>: <span class="ident">NativeSurface</span>,
     {
-        <span class="kw">let</span> <span class="ident">surface_ptr</span> <span class="op">=</span> <span class="ident">surface</span>.<span class="ident">surface</span>.<span class="ident">get</span>();
-
+        <span class="kw">let</span> <span class="ident">surface_ptr</span> <span class="op">=</span> <span class="ident">surface</span>.<span class="ident">surface</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>);
         <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">MakeCurrent</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>, <span class="ident">surface_ptr</span>, <span class="ident">surface_ptr</span>, <span class="self">self</span>.<span class="ident">context</span>))
             .<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> ())
             .<span class="ident">map_err</span>(<span class="ident">Into</span>::<span class="ident">into</span>)

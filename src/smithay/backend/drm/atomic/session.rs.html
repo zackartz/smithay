@@ -211,6 +211,8 @@
 <span id="211">211</span>
 <span id="212">212</span>
 <span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Support to register an open [`AtomicDrmDevice`](AtomicDrmDevice)</span>
@@ -227,9 +229,9 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">os</span>::<span class="ident">unix</span>::<span class="ident">io</span>::{<span class="ident">AsRawFd</span>, <span class="ident">RawFd</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::{<span class="ident">Rc</span>, <span class="ident">Weak</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::{<span class="ident">AtomicBool</span>, <span class="ident">Ordering</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">Arc</span>, <span class="ident">Weak</span> <span class="kw">as</span> <span class="ident">WeakArc</span>};
 
-<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">AtomicDrmDevice</span>, <span class="ident">AtomicDrmSurfaceInternal</span>, <span class="ident">Dev</span>};
+<span class="kw">use</span> <span class="kw">super</span>::{<span class="ident">surface</span>::<span class="ident">CursorState</span>, <span class="ident">AtomicDrmDevice</span>, <span class="ident">AtomicDrmSurfaceInternal</span>, <span class="ident">Dev</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::{<span class="ident">common</span>::<span class="ident">Error</span>, <span class="ident">DevPath</span>, <span class="ident">Surface</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">backend</span>::<span class="ident">session</span>::<span class="ident">Signal</span> <span class="kw">as</span> <span class="ident">SessionSignal</span>,
@@ -240,18 +242,18 @@
 <span class="doccomment">/// linked to the [`AtomicDrmDevice`](AtomicDrmDevice)</span>
 <span class="doccomment">/// it was created from.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AtomicDrmDeviceObserver</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-    <span class="ident">dev</span>: <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">dev</span>: <span class="ident">WeakArc</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">dev_id</span>: <span class="ident">dev_t</span>,
     <span class="ident">privileged</span>: <span class="ident">bool</span>,
     <span class="ident">active</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicBool</span><span class="op">&gt;</span>,
-    <span class="ident">backends</span>: <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">backends</span>: <span class="ident">Weak</span><span class="op">&lt;</span><span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">crtc</span>::<span class="ident">Handle</span>, <span class="ident">WeakArc</span><span class="op">&lt;</span><span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Linkable</span><span class="op">&lt;</span><span class="ident">SessionSignal</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">AtomicDrmDevice</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">link</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">signaler</span>: <span class="ident">Signaler</span><span class="op">&lt;</span><span class="ident">SessionSignal</span><span class="op">&gt;</span>) {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">observer</span> <span class="op">=</span> <span class="ident">AtomicDrmDeviceObserver</span> {
-            <span class="ident">dev</span>: <span class="ident">Rc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dev</span>),
+            <span class="ident">dev</span>: <span class="ident">Arc</span>::<span class="ident">downgrade</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dev</span>),
             <span class="ident">dev_id</span>: <span class="self">self</span>.<span class="ident">dev_id</span>,
             <span class="ident">active</span>: <span class="self">self</span>.<span class="ident">active</span>.<span class="ident">clone</span>(),
             <span class="ident">privileged</span>: <span class="self">self</span>.<span class="ident">dev</span>.<span class="ident">privileged</span>,
@@ -286,7 +288,7 @@
         <span class="comment">// TODO: Clear overlay planes (if we ever use them)</span>
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">backends</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">backends</span>.<span class="ident">upgrade</span>() {
-            <span class="kw">for</span> <span class="ident">surface</span> <span class="kw">in</span> <span class="ident">backends</span>.<span class="ident">borrow</span>().<span class="ident">values</span>().<span class="ident">filter_map</span>(<span class="ident">Weak</span>::<span class="ident">upgrade</span>) {
+            <span class="kw">for</span> <span class="ident">surface</span> <span class="kw">in</span> <span class="ident">backends</span>.<span class="ident">borrow</span>().<span class="ident">values</span>().<span class="ident">filter_map</span>(<span class="ident">WeakArc</span>::<span class="ident">upgrade</span>) {
                 <span class="comment">// other ttys that use no cursor, might not clear it themselves.</span>
                 <span class="comment">// This makes sure our cursor won&#39;t stay visible.</span>
                 <span class="comment">//</span>
@@ -401,7 +403,7 @@
             <span class="comment">//</span>
             <span class="comment">// Lets do that, by creating a garbage/non-matching current-state.</span>
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">backends</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">backends</span>.<span class="ident">upgrade</span>() {
-                <span class="kw">for</span> <span class="ident">surface</span> <span class="kw">in</span> <span class="ident">backends</span>.<span class="ident">borrow</span>().<span class="ident">values</span>().<span class="ident">filter_map</span>(<span class="ident">Weak</span>::<span class="ident">upgrade</span>) {
+                <span class="kw">for</span> <span class="ident">surface</span> <span class="kw">in</span> <span class="ident">backends</span>.<span class="ident">borrow</span>().<span class="ident">values</span>().<span class="ident">filter_map</span>(<span class="ident">WeakArc</span>::<span class="ident">upgrade</span>) {
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">current</span> <span class="op">=</span> <span class="ident">surface</span>.<span class="ident">state</span>.<span class="ident">write</span>().<span class="ident">unwrap</span>();
 
                     <span class="comment">// lets force a non matching state</span>
@@ -416,9 +418,11 @@
                     <span class="ident">surface</span>.<span class="ident">use_mode</span>(<span class="ident">mode</span>)<span class="question-mark">?</span>;
 
                     <span class="comment">// drop cursor state to force setting the cursor again.</span>
-                    <span class="ident">surface</span>.<span class="ident">cursor</span>.<span class="ident">position</span>.<span class="ident">set</span>(<span class="prelude-val">None</span>);
-                    <span class="ident">surface</span>.<span class="ident">cursor</span>.<span class="ident">hotspot</span>.<span class="ident">set</span>((<span class="number">0</span>, <span class="number">0</span>));
-                    <span class="ident">surface</span>.<span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">set</span>(<span class="prelude-val">None</span>);
+                    <span class="kw-2">*</span><span class="ident">surface</span>.<span class="ident">cursor</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>() <span class="op">=</span> <span class="ident">CursorState</span> {
+                        <span class="ident">position</span>: <span class="prelude-val">None</span>,
+                        <span class="ident">hotspot</span>: (<span class="number">0</span>, <span class="number">0</span>),
+                        <span class="ident">framebuffer</span>: <span class="prelude-val">None</span>,
+                    };
                 }
             }
         }

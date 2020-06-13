@@ -136,10 +136,25 @@
 <span id="136">136</span>
 <span id="137">137</span>
 <span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::{<span class="ident">connector</span>, <span class="ident">crtc</span>, <span class="ident">Mode</span>};
 <span class="kw">use</span> <span class="ident">nix</span>::<span class="ident">libc</span>::<span class="ident">c_void</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryInto</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">Error</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::<span class="ident">Surface</span>;
@@ -151,10 +166,8 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">PixelFormat</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::{<span class="ident">CursorBackend</span>, <span class="ident">SwapBuffersError</span>};
 
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::<span class="ident">Rc</span>;
-
 <span class="doccomment">/// Egl surface for rendering</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EglSurface</span><span class="op">&lt;</span><span class="ident">N</span>: <span class="ident">native</span>::<span class="ident">NativeSurface</span> <span class="op">+</span> <span class="ident">Surface</span><span class="op">&gt;</span>(<span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">EglSurfaceInternal</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>);
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EglSurface</span><span class="op">&lt;</span><span class="ident">N</span>: <span class="ident">native</span>::<span class="ident">NativeSurface</span> <span class="op">+</span> <span class="ident">Surface</span><span class="op">&gt;</span>(<span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">EglSurfaceInternal</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span><span class="op">&gt;</span>);
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">EglSurfaceInternal</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span>
 <span class="kw">where</span>
@@ -273,6 +286,21 @@
 
     <span class="kw">fn</span> <span class="ident">get_pixel_format</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PixelFormat</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">surface</span>.<span class="ident">get_pixel_format</span>()
+    }
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="kw">mod</span> <span class="ident">test</span> {
+    <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">EglSurface</span>;
+    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::<span class="ident">gbm</span>::<span class="ident">GbmSurface</span>;
+    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>::<span class="ident">legacy</span>::<span class="ident">LegacyDrmSurface</span>;
+    <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">File</span>;
+
+    <span class="kw">fn</span> <span class="ident">is_send</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Send</span><span class="op">&gt;</span>() {}
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">surface_is_send</span>() {
+        <span class="ident">is_send</span>::<span class="op">&lt;</span><span class="ident">EglSurface</span><span class="op">&lt;</span><span class="ident">GbmSurface</span><span class="op">&lt;</span><span class="ident">LegacyDrmSurface</span><span class="op">&lt;</span><span class="ident">File</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>();
     }
 }
 </pre></div>

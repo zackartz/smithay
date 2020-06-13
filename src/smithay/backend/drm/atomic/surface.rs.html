@@ -1080,6 +1080,17 @@
 <span id="1080">1080</span>
 <span id="1081">1081</span>
 <span id="1082">1082</span>
+<span id="1083">1083</span>
+<span id="1084">1084</span>
+<span id="1085">1085</span>
+<span id="1086">1086</span>
+<span id="1087">1087</span>
+<span id="1088">1088</span>
+<span id="1089">1089</span>
+<span id="1090">1090</span>
+<span id="1091">1091</span>
+<span id="1092">1092</span>
+<span id="1093">1093</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">buffer</span>::<span class="ident">Buffer</span>;
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::<span class="ident">atomic</span>::<span class="ident">AtomicModeReq</span>;
@@ -1089,11 +1100,9 @@
 };
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">Device</span> <span class="kw">as</span> <span class="ident">BasicDevice</span>;
 
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">Cell</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashSet</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">os</span>::<span class="ident">unix</span>::<span class="ident">io</span>::{<span class="ident">AsRawFd</span>, <span class="ident">RawFd</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::<span class="ident">Rc</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">atomic</span>::<span class="ident">Ordering</span>, <span class="ident">RwLock</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">atomic</span>::<span class="ident">Ordering</span>, <span class="ident">Arc</span>, <span class="ident">Mutex</span>, <span class="ident">RwLock</span>};
 
 <span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">ResultExt</span> <span class="kw">as</span> <span class="ident">FailureResultExt</span>;
 
@@ -1103,9 +1112,9 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CursorState</span> {
-    <span class="kw">pub</span> <span class="ident">position</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">hotspot</span>: <span class="ident">Cell</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">framebuffer</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">framebuffer</span>::<span class="ident">Handle</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">position</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">u32</span>)<span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">hotspot</span>: (<span class="ident">u32</span>, <span class="ident">u32</span>),
+    <span class="kw">pub</span> <span class="ident">framebuffer</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">framebuffer</span>::<span class="ident">Handle</span><span class="op">&gt;</span>,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">Clone</span>)]</span>
@@ -1122,14 +1131,14 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="kw">struct</span> <span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">dev</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">dev</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>,
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">cursor</span>: <span class="ident">CursorState</span>,
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">cursor</span>: <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">CursorState</span><span class="op">&gt;</span>,
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">planes</span>: <span class="ident">Planes</span>,
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">state</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">pending</span>: <span class="ident">RwLock</span><span class="op">&lt;</span><span class="ident">State</span><span class="op">&gt;</span>,
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">test_buffer</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">DumbBuffer</span>, <span class="ident">framebuffer</span>::<span class="ident">Handle</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">test_buffer</span>: <span class="ident">Mutex</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">DumbBuffer</span>, <span class="ident">framebuffer</span>::<span class="ident">Handle</span>)<span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">AsRawFd</span> <span class="kw">for</span> <span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
@@ -1143,7 +1152,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">dev</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">dev</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Dev</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
         <span class="ident">crtc</span>: <span class="ident">crtc</span>::<span class="ident">Handle</span>,
         <span class="ident">mode</span>: <span class="ident">Mode</span>,
         <span class="ident">connectors</span>: <span class="kw-2">&amp;</span>[<span class="ident">connector</span>::<span class="ident">Handle</span>],
@@ -1250,16 +1259,16 @@
         <span class="kw">let</span> <span class="ident">surface</span> <span class="op">=</span> <span class="ident">AtomicDrmSurfaceInternal</span> {
             <span class="ident">dev</span>,
             <span class="ident">crtc</span>,
-            <span class="ident">cursor</span>: <span class="ident">CursorState</span> {
-                <span class="ident">position</span>: <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>),
-                <span class="ident">framebuffer</span>: <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>),
-                <span class="ident">hotspot</span>: <span class="ident">Cell</span>::<span class="ident">new</span>((<span class="number">0</span>, <span class="number">0</span>)),
-            },
+            <span class="ident">cursor</span>: <span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">CursorState</span> {
+                <span class="ident">position</span>: <span class="prelude-val">None</span>,
+                <span class="ident">framebuffer</span>: <span class="prelude-val">None</span>,
+                <span class="ident">hotspot</span>: (<span class="number">0</span>, <span class="number">0</span>),
+            }),
             <span class="ident">planes</span>: <span class="ident">Planes</span> { <span class="ident">primary</span>, <span class="ident">cursor</span> },
             <span class="ident">state</span>: <span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">state</span>),
             <span class="ident">pending</span>: <span class="ident">RwLock</span>::<span class="ident">new</span>(<span class="ident">pending</span>),
             <span class="ident">logger</span>,
-            <span class="ident">test_buffer</span>: <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>),
+            <span class="ident">test_buffer</span>: <span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>),
         };
 
         <span class="prelude-val">Ok</span>(<span class="ident">surface</span>)
@@ -1285,10 +1294,13 @@
                 <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
                 <span class="ident">source</span>,
             })<span class="question-mark">?</span>;
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">old_db</span>, <span class="ident">old_fb</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">test_buffer</span>.<span class="ident">replace</span>(<span class="prelude-val">Some</span>((<span class="ident">db</span>, <span class="ident">fb</span>))) {
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test_buffer</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">test_buffer</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>();
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">old_db</span>, <span class="ident">old_fb</span>)) <span class="op">=</span> <span class="ident">test_buffer</span>.<span class="ident">take</span>() {
             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">destroy_framebuffer</span>(<span class="ident">old_fb</span>);
             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">destroy_dumb_buffer</span>(<span class="ident">old_db</span>);
         };
+        <span class="kw-2">*</span><span class="ident">test_buffer</span> <span class="op">=</span> <span class="prelude-val">Some</span>((<span class="ident">db</span>, <span class="ident">fb</span>));
 
         <span class="prelude-val">Ok</span>(<span class="ident">fb</span>)
     }
@@ -1296,7 +1308,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">db</span>, <span class="ident">fb</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">test_buffer</span>.<span class="ident">take</span>() {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">db</span>, <span class="ident">fb</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">test_buffer</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">take</span>() {
             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">destroy_framebuffer</span>(<span class="ident">fb</span>);
             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">destroy_dumb_buffer</span>(<span class="ident">db</span>);
         }
@@ -1696,7 +1708,7 @@
         }
 
         <span class="macro">trace</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;New cursor position ({},{}) pending&quot;</span>, <span class="ident">x</span>, <span class="ident">y</span>);
-        <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">position</span>.<span class="ident">set</span>(<span class="prelude-val">Some</span>((<span class="ident">x</span>, <span class="ident">y</span>)));
+        <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">position</span> <span class="op">=</span> <span class="prelude-val">Some</span>((<span class="ident">x</span>, <span class="ident">y</span>));
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -1711,21 +1723,20 @@
 
         <span class="macro">trace</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Setting the new imported cursor&quot;</span>);
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">fb</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">get</span>().<span class="ident">take</span>() {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cursor</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>();
+
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">fb</span>) <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">take</span>() {
             <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">destroy_framebuffer</span>(<span class="ident">fb</span>);
         }
 
-        <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">set</span>(<span class="prelude-val">Some</span>(
-            <span class="self">self</span>.<span class="ident">add_planar_framebuffer</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>; <span class="number">4</span>], <span class="number">0</span>)
-                .<span class="ident">compat</span>()
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
-                    <span class="ident">errmsg</span>: <span class="string">&quot;Failed to import cursor&quot;</span>,
-                    <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
-                    <span class="ident">source</span>,
-                })<span class="question-mark">?</span>,
-        ));
-
-        <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">hotspot</span>.<span class="ident">set</span>(<span class="ident">hotspot</span>);
+        <span class="ident">cursor</span>.<span class="ident">framebuffer</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">add_planar_framebuffer</span>(<span class="ident">buffer</span>, <span class="kw-2">&amp;</span>[<span class="number">0</span>; <span class="number">4</span>], <span class="number">0</span>).<span class="ident">compat</span>().<span class="ident">map_err</span>(
+            <span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
+                <span class="ident">errmsg</span>: <span class="string">&quot;Failed to import cursor&quot;</span>,
+                <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
+                <span class="ident">source</span>,
+            },
+        )<span class="question-mark">?</span>);
+        <span class="ident">cursor</span>.<span class="ident">hotspot</span> <span class="op">=</span> <span class="ident">hotspot</span>;
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -1911,19 +1922,17 @@
             );
         }
 
-        <span class="kw">let</span> <span class="ident">cursor_pos</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">position</span>.<span class="ident">get</span>();
-        <span class="kw">let</span> <span class="ident">cursor_fb</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">get</span>();
-
         <span class="comment">// if there is a cursor, we add the cursor plane to the request as well.</span>
         <span class="comment">// this synchronizes cursor movement with rendering, which reduces flickering.</span>
-        <span class="kw">if</span> <span class="kw">let</span> (<span class="prelude-val">Some</span>(<span class="ident">pos</span>), <span class="prelude-val">Some</span>(<span class="ident">fb</span>)) <span class="op">=</span> (<span class="ident">cursor_pos</span>, <span class="ident">cursor_fb</span>) {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cursor</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>();
+        <span class="kw">if</span> <span class="kw">let</span> (<span class="prelude-val">Some</span>(<span class="ident">pos</span>), <span class="prelude-val">Some</span>(<span class="ident">fb</span>)) <span class="op">=</span> (<span class="ident">cursor</span>.<span class="ident">position</span>, <span class="ident">cursor</span>.<span class="ident">framebuffer</span>) {
             <span class="kw">match</span> <span class="self">self</span>.<span class="ident">get_framebuffer</span>(<span class="ident">fb</span>).<span class="ident">compat</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">Error</span>::<span class="ident">Access</span> {
                 <span class="ident">errmsg</span>: <span class="string">&quot;Error getting cursor fb&quot;</span>,
                 <span class="ident">dev</span>: <span class="self">self</span>.<span class="ident">dev_path</span>(),
                 <span class="ident">source</span>,
             }) {
                 <span class="prelude-val">Ok</span>(<span class="ident">cursor_info</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">let</span> <span class="ident">hotspot</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">hotspot</span>.<span class="ident">get</span>();
+                    <span class="kw">let</span> <span class="ident">hotspot</span> <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">hotspot</span>;
 
                     <span class="comment">// again like the primary plane we need to set crtc and framebuffer.</span>
                     <span class="ident">req</span>.<span class="ident">add_property</span>(
@@ -1981,7 +1990,7 @@
                 }
                 <span class="prelude-val">Err</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="macro">warn</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Cursor FB invalid: {}. Skipping.&quot;</span>, <span class="ident">err</span>);
-                    <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">set</span>(<span class="prelude-val">None</span>);
+                    <span class="ident">cursor</span>.<span class="ident">framebuffer</span> <span class="op">=</span> <span class="prelude-val">None</span>;
                 }
             }
         }
@@ -2080,7 +2089,7 @@
 
 <span class="doccomment">/// Open raw crtc utilizing atomic mode-setting</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AtomicDrmSurface</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">drm</span>) <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 );
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">AsRawFd</span> <span class="kw">for</span> <span class="ident">AtomicDrmSurface</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
@@ -2161,6 +2170,19 @@
 
     <span class="kw">fn</span> <span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">framebuffer</span>: <span class="ident">framebuffer</span>::<span class="ident">Handle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="ident">RawSurface</span>::<span class="ident">page_flip</span>(<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="number">0</span>, <span class="ident">framebuffer</span>)
+    }
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="kw">mod</span> <span class="ident">test</span> {
+    <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">AtomicDrmSurface</span>;
+    <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fs</span>::<span class="ident">File</span>;
+
+    <span class="kw">fn</span> <span class="ident">is_send</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Send</span><span class="op">&gt;</span>() {}
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">surface_is_send</span>() {
+        <span class="ident">is_send</span>::<span class="op">&lt;</span><span class="ident">AtomicDrmSurface</span><span class="op">&lt;</span><span class="ident">File</span><span class="op">&gt;</span><span class="op">&gt;</span>();
     }
 }
 </pre></div>

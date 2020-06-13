@@ -159,6 +159,15 @@
 <span id="159">159</span>
 <span id="160">160</span>
 <span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! EGL surface related structs</span>
 
@@ -166,22 +175,26 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">egl</span>::<span class="ident">display</span>::<span class="ident">EGLDisplayHandle</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">backend</span>::<span class="ident">graphics</span>::<span class="ident">PixelFormat</span>;
 <span class="kw">use</span> <span class="ident">nix</span>::<span class="ident">libc</span>::<span class="ident">c_int</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">cell</span>::<span class="ident">Cell</span>,
-    <span class="ident">ops</span>::{<span class="ident">Deref</span>, <span class="ident">DerefMut</span>},
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::{<span class="ident">Deref</span>, <span class="ident">DerefMut</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{
+    <span class="ident">atomic</span>::{<span class="ident">AtomicPtr</span>, <span class="ident">Ordering</span>},
+    <span class="ident">Arc</span>,
 };
 
 <span class="doccomment">/// EGL surface of a given EGL context for rendering</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EGLSurface</span><span class="op">&lt;</span><span class="ident">N</span>: <span class="ident">native</span>::<span class="ident">NativeSurface</span><span class="op">&gt;</span> {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">display</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">EGLDisplayHandle</span><span class="op">&gt;</span>,
     <span class="ident">native</span>: <span class="ident">N</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">surface</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLSurface</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">surface</span>: <span class="ident">AtomicPtr</span><span class="op">&lt;</span><span class="ident">nix</span>::<span class="ident">libc</span>::<span class="ident">c_void</span><span class="op">&gt;</span>,
     <span class="ident">config_id</span>: <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLConfig</span>,
     <span class="ident">pixel_format</span>: <span class="ident">PixelFormat</span>,
     <span class="ident">surface_attributes</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">c_int</span><span class="op">&gt;</span>,
     <span class="ident">logger</span>: ::<span class="ident">slog</span>::<span class="ident">Logger</span>,
 }
+<span class="comment">// safe because EGLConfig can be moved between threads</span>
+<span class="comment">// and the other types are thread-safe</span>
+<span class="kw">unsafe</span> <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">N</span>: <span class="ident">native</span>::<span class="ident">NativeSurface</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">Send</span> <span class="kw">for</span> <span class="ident">EGLSurface</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span> {}
+<span class="kw">unsafe</span> <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">N</span>: <span class="ident">native</span>::<span class="ident">NativeSurface</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">Sync</span> <span class="kw">for</span> <span class="ident">EGLSurface</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span> {}
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">N</span>: <span class="ident">native</span>::<span class="ident">NativeSurface</span><span class="op">&gt;</span> <span class="ident">Deref</span> <span class="kw">for</span> <span class="ident">EGLSurface</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">N</span>;
@@ -242,7 +255,7 @@
         <span class="prelude-val">Ok</span>(<span class="ident">EGLSurface</span> {
             <span class="ident">display</span>,
             <span class="ident">native</span>,
-            <span class="ident">surface</span>: <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="ident">surface</span>),
+            <span class="ident">surface</span>: <span class="ident">AtomicPtr</span>::<span class="ident">new</span>(<span class="ident">surface</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="kw">_</span>),
             <span class="ident">config_id</span>: <span class="ident">config</span>,
             <span class="ident">pixel_format</span>,
             <span class="ident">surface_attributes</span>,
@@ -252,7 +265,7 @@
 
     <span class="doccomment">/// Swaps buffers at the end of a frame.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">swap_buffers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SwapBuffersError</span><span class="op">&lt;</span><span class="ident">N</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">surface</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">get</span>();
+        <span class="kw">let</span> <span class="ident">surface</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>);
 
         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">surface</span>.<span class="ident">is_null</span>() {
             <span class="self">self</span>.<span class="ident">native</span>.<span class="ident">swap_buffers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">display</span>, <span class="ident">surface</span>)
@@ -268,21 +281,25 @@
         };
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">native</span>.<span class="ident">needs_recreation</span>() <span class="op">|</span><span class="op">|</span> <span class="ident">surface</span>.<span class="ident">is_null</span>() <span class="op">|</span><span class="op">|</span> <span class="ident">is_bad_surface</span> {
-            <span class="kw">if</span> <span class="op">!</span><span class="ident">surface</span>.<span class="ident">is_null</span>() {
+            <span class="kw">let</span> <span class="ident">previous</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">compare_and_swap</span>(
+                <span class="ident">surface</span>,
+                <span class="kw">unsafe</span> {
+                    <span class="self">self</span>.<span class="ident">native</span>
+                        .<span class="ident">create</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">display</span>, <span class="self">self</span>.<span class="ident">config_id</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">surface_attributes</span>)
+                        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">err</span> {
+                            <span class="ident">SurfaceCreationError</span>::<span class="ident">EGLSurfaceCreationFailed</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                                <span class="ident">SwapBuffersError</span>::<span class="ident">EGLCreateWindowSurface</span>(<span class="ident">err</span>)
+                            }
+                            <span class="ident">SurfaceCreationError</span>::<span class="ident">NativeSurfaceCreationFailed</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                                <span class="ident">SwapBuffersError</span>::<span class="ident">Underlying</span>(<span class="ident">err</span>)
+                            }
+                        })<span class="question-mark">?</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="kw">_</span>
+                },
+                <span class="ident">Ordering</span>::<span class="ident">SeqCst</span>,
+            );
+            <span class="kw">if</span> <span class="ident">previous</span> <span class="op">=</span><span class="op">=</span> <span class="ident">surface</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="op">!</span><span class="ident">surface</span>.<span class="ident">is_null</span>() {
                 <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">DestroySurface</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>, <span class="ident">surface</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>) };
             }
-            <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">set</span>(<span class="kw">unsafe</span> {
-                <span class="self">self</span>.<span class="ident">native</span>
-                    .<span class="ident">create</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">display</span>, <span class="self">self</span>.<span class="ident">config_id</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">surface_attributes</span>)
-                    .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">err</span> {
-                        <span class="ident">SurfaceCreationError</span>::<span class="ident">EGLSurfaceCreationFailed</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                            <span class="ident">SwapBuffersError</span>::<span class="ident">EGLCreateWindowSurface</span>(<span class="ident">err</span>)
-                        }
-                        <span class="ident">SurfaceCreationError</span>::<span class="ident">NativeSurfaceCreationFailed</span>(<span class="ident">err</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                            <span class="ident">SwapBuffersError</span>::<span class="ident">Underlying</span>(<span class="ident">err</span>)
-                        }
-                    })<span class="question-mark">?</span>
-            });
 
             <span class="comment">// if a recreation is pending anyway, ignore page-flip errors.</span>
             <span class="comment">// lets see if we still fail after the next commit.</span>
@@ -297,9 +314,10 @@
 
     <span class="doccomment">/// Returns true if the OpenGL surface is the current one in the thread.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_current</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="kw">let</span> <span class="ident">surface</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>);
         <span class="kw">unsafe</span> {
-            <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetCurrentSurface</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">DRAW</span> <span class="kw">as</span> <span class="kw">_</span>) <span class="op">=</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">get</span>() <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>
-                <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetCurrentSurface</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">READ</span> <span class="kw">as</span> <span class="kw">_</span>) <span class="op">=</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">get</span>() <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>
+            <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetCurrentSurface</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">DRAW</span> <span class="kw">as</span> <span class="kw">_</span>) <span class="op">=</span><span class="op">=</span> <span class="ident">surface</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>
+                <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">GetCurrentSurface</span>(<span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">READ</span> <span class="kw">as</span> <span class="kw">_</span>) <span class="op">=</span><span class="op">=</span> <span class="ident">surface</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>
         }
     }
 
@@ -317,7 +335,7 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">N</span>: <span class="ident">native</span>::<span class="ident">NativeSurface</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">EGLSurface</span><span class="op">&lt;</span><span class="ident">N</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="kw">unsafe</span> {
-            <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">DestroySurface</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>, <span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">get</span>() <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>);
+            <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">DestroySurface</span>(<span class="kw-2">*</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">display</span>, <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">surface</span>.<span class="ident">get_mut</span>() <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>);
         }
     }
 }

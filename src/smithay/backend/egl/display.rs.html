@@ -609,6 +609,9 @@
 <span id="609">609</span>
 <span id="610">610</span>
 <span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Type safe native types for safe egl initialisation</span>
 
@@ -644,6 +647,9 @@
     <span class="doccomment">/// ffi EGLDisplay ptr</span>
     <span class="kw">pub</span> <span class="ident">handle</span>: <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLDisplay</span>,
 }
+<span class="comment">// EGLDisplay has an internal Mutex</span>
+<span class="kw">unsafe</span> <span class="kw">impl</span> <span class="ident">Send</span> <span class="kw">for</span> <span class="ident">EGLDisplayHandle</span> {}
+<span class="kw">unsafe</span> <span class="kw">impl</span> <span class="ident">Sync</span> <span class="kw">for</span> <span class="ident">EGLDisplayHandle</span> {}
 
 <span class="kw">impl</span> <span class="ident">Deref</span> <span class="kw">for</span> <span class="ident">EGLDisplayHandle</span> {
     <span class="kw">type</span> <span class="ident">Target</span> <span class="op">=</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">types</span>::<span class="ident">EGLDisplay</span>;
