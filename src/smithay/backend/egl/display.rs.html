@@ -611,7 +611,6 @@
 <span id="611">611</span>
 <span id="612">612</span>
 <span id="613">613</span>
-<span id="614">614</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Type safe native types for safe egl initialisation</span>
 
@@ -1090,7 +1089,7 @@
     <span class="doccomment">/// to render it another way.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">egl_buffer_contents</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">buffer</span>: <span class="ident">WlBuffer</span>,
+        <span class="ident">buffer</span>: <span class="kw-2">&amp;</span><span class="ident">WlBuffer</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">EGLImages</span>, <span class="ident">BufferAccessError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">format</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="kw">let</span> <span class="ident">query</span> <span class="op">=</span> <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> {
@@ -1101,9 +1100,9 @@
                 <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">format</span>,
             )
         })
-        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">BufferAccessError</span>::<span class="ident">NotManaged</span>(<span class="ident">buffer</span>.<span class="ident">clone</span>(), <span class="ident">source</span>))<span class="question-mark">?</span>;
+        .<span class="ident">map_err</span>(<span class="ident">BufferAccessError</span>::<span class="ident">NotManaged</span>)<span class="question-mark">?</span>;
         <span class="kw">if</span> <span class="ident">query</span> <span class="op">=</span><span class="op">=</span> <span class="ident">ffi</span>::<span class="ident">egl</span>::<span class="ident">FALSE</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BufferAccessError</span>::<span class="ident">NotManaged</span>(<span class="ident">buffer</span>, <span class="ident">EGLError</span>::<span class="ident">BadParameter</span>));
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">BufferAccessError</span>::<span class="ident">NotManaged</span>(<span class="ident">EGLError</span>::<span class="ident">BadParameter</span>));
         }
 
         <span class="kw">let</span> <span class="ident">format</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">format</span> {
@@ -1125,7 +1124,7 @@
                 <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">width</span>,
             )
         })
-        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">BufferAccessError</span>::<span class="ident">NotManaged</span>(<span class="ident">buffer</span>.<span class="ident">clone</span>(), <span class="ident">source</span>))<span class="question-mark">?</span>;
+        .<span class="ident">map_err</span>(<span class="ident">BufferAccessError</span>::<span class="ident">NotManaged</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">height</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> {
@@ -1136,7 +1135,7 @@
                 <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">height</span>,
             )
         })
-        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">BufferAccessError</span>::<span class="ident">NotManaged</span>(<span class="ident">buffer</span>.<span class="ident">clone</span>(), <span class="ident">source</span>))<span class="question-mark">?</span>;
+        .<span class="ident">map_err</span>(<span class="ident">BufferAccessError</span>::<span class="ident">NotManaged</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">inverted</span>: <span class="ident">i32</span> <span class="op">=</span> <span class="number">0</span>;
         <span class="ident">wrap_egl_call</span>(<span class="op">|</span><span class="op">|</span> <span class="kw">unsafe</span> {
@@ -1147,7 +1146,7 @@
                 <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">inverted</span>,
             )
         })
-        .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">source</span><span class="op">|</span> <span class="ident">BufferAccessError</span>::<span class="ident">NotManaged</span>(<span class="ident">buffer</span>.<span class="ident">clone</span>(), <span class="ident">source</span>))<span class="question-mark">?</span>;
+        .<span class="ident">map_err</span>(<span class="ident">BufferAccessError</span>::<span class="ident">NotManaged</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">images</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">format</span>.<span class="ident">num_planes</span>());
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">format</span>.<span class="ident">num_planes</span>() {
@@ -1177,7 +1176,6 @@
             <span class="ident">y_inverted</span>: <span class="ident">inverted</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span>,
             <span class="ident">format</span>,
             <span class="ident">images</span>,
-            <span class="ident">buffer</span>,
             <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;renderer_gl&quot;</span>)]</span>
             <span class="ident">gl</span>: <span class="self">self</span>.<span class="ident">gl</span>.<span class="ident">clone</span>(),
         })

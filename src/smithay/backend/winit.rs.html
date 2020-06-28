@@ -875,6 +875,12 @@
 <span id="875">875</span>
 <span id="876">876</span>
 <span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
+<span id="880">880</span>
+<span id="881">881</span>
+<span id="882">882</span>
+<span id="883">883</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Implementation of backend traits for types provided by `winit`</span>
 
@@ -1148,6 +1154,12 @@
         <span class="comment">// Cannot log this one, as `CursorFormat` is not `Debug` and should not be</span>
         <span class="macro">debug</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">logger</span>, <span class="string">&quot;Changing cursor representation&quot;</span>);
         <span class="self">self</span>.<span class="ident">window</span>.<span class="ident">window</span>().<span class="ident">set_cursor_icon</span>(<span class="kw-2">*</span><span class="ident">cursor</span>);
+        <span class="self">self</span>.<span class="ident">window</span>.<span class="ident">window</span>().<span class="ident">set_cursor_visible</span>(<span class="bool-val">true</span>);
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">fn</span> <span class="ident">clear_cursor_representation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">std</span>::<span class="ident">result</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(), ()<span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">window</span>.<span class="ident">window</span>().<span class="ident">set_cursor_visible</span>(<span class="bool-val">false</span>);
         <span class="prelude-val">Ok</span>(())
     }
 }

@@ -430,6 +430,27 @@
 <span id="430">430</span>
 <span id="431">431</span>
 <span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">super</span>::<span class="kw">super</span>::{<span class="ident">RawSurface</span>, <span class="ident">Surface</span>};
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">Error</span>;
@@ -738,6 +759,23 @@
         <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>() <span class="op">=</span> (<span class="ident">cursor</span>, <span class="ident">hotspot</span>);
         <span class="prelude-val">Ok</span>(())
     }
+
+    <span class="kw">fn</span> <span class="ident">clear_cursor_representation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>() <span class="op">=</span> (
+            <span class="self">self</span>.<span class="ident">dev</span>
+                .<span class="ident">lock</span>()
+                .<span class="ident">unwrap</span>()
+                .<span class="ident">create_buffer_object</span>(
+                    <span class="number">1</span>,
+                    <span class="number">1</span>,
+                    <span class="ident">GbmFormat</span>::<span class="ident">ARGB8888</span>,
+                    <span class="ident">BufferObjectFlags</span>::<span class="ident">CURSOR</span> <span class="op">|</span> <span class="ident">BufferObjectFlags</span>::<span class="ident">WRITE</span>,
+                )
+                .<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">BufferCreationFailed</span>)<span class="question-mark">?</span>,
+            (<span class="number">0</span>, <span class="number">0</span>),
+        );
+        <span class="self">self</span>.<span class="ident">crtc</span>.<span class="ident">clear_cursor_representation</span>().<span class="ident">map_err</span>(<span class="ident">Error</span>::<span class="ident">Underlying</span>)
+    }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">RawSurface</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">GbmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span> {
@@ -847,6 +885,10 @@
         <span class="ident">hotspot</span>: (<span class="ident">u32</span>, <span class="ident">u32</span>),
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">set_cursor_representation</span>(<span class="ident">buffer</span>, <span class="ident">hotspot</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">clear_cursor_representation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">clear_cursor_representation</span>()
     }
 }
 

@@ -18,6 +18,22 @@
 <span id="18">18</span>
 <span id="19">19</span>
 <span id="20">20</span>
+<span id="21">21</span>
+<span id="22">22</span>
+<span id="23">23</span>
+<span id="24">24</span>
+<span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">/// A rectangle defined by its top-left corner and dimensions</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Default</span>)]</span>
@@ -37,6 +53,22 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">point</span>: (<span class="ident">i32</span>, <span class="ident">i32</span>)) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="kw">let</span> (<span class="ident">x</span>, <span class="ident">y</span>) <span class="op">=</span> <span class="ident">point</span>;
         (<span class="ident">x</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">x</span>) <span class="kw-2">&amp;</span><span class="op">&amp;</span> (<span class="ident">x</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">x</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">width</span>) <span class="kw-2">&amp;</span><span class="op">&amp;</span> (<span class="ident">y</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">y</span>) <span class="kw-2">&amp;</span><span class="op">&amp;</span> (<span class="ident">y</span> <span class="op">&lt;</span> <span class="self">self</span>.<span class="ident">y</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">height</span>)
+    }
+
+    <span class="doccomment">/// Checks whether a given rectangle overlaps with this one</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">overlaps</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">Rectangle</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="comment">// if the rectangle is not outside of the other</span>
+        <span class="comment">// they must overlap</span>
+        <span class="op">!</span>(
+            <span class="comment">// self is left of other</span>
+            <span class="self">self</span>.<span class="ident">x</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">width</span> <span class="op">&lt;</span> <span class="ident">other</span>.<span class="ident">x</span>
+            <span class="comment">// self is right of other</span>
+            <span class="op">|</span><span class="op">|</span>  <span class="self">self</span>.<span class="ident">x</span> <span class="op">&gt;</span> <span class="ident">other</span>.<span class="ident">x</span> <span class="op">+</span> <span class="ident">other</span>.<span class="ident">width</span>
+            <span class="comment">// self is above of other</span>
+            <span class="op">|</span><span class="op">|</span>  <span class="self">self</span>.<span class="ident">y</span> <span class="op">+</span> <span class="self">self</span>.<span class="ident">height</span> <span class="op">&lt;</span> <span class="ident">other</span>.<span class="ident">y</span>
+            <span class="comment">// self is below of other</span>
+            <span class="op">|</span><span class="op">|</span>  <span class="self">self</span>.<span class="ident">y</span> <span class="op">&gt;</span> <span class="ident">other</span>.<span class="ident">y</span> <span class="op">+</span> <span class="ident">other</span>.<span class="ident">height</span>
+        )
     }
 }
 </pre></div>

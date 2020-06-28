@@ -1091,6 +1091,19 @@
 <span id="1091">1091</span>
 <span id="1092">1092</span>
 <span id="1093">1093</span>
+<span id="1094">1094</span>
+<span id="1095">1095</span>
+<span id="1096">1096</span>
+<span id="1097">1097</span>
+<span id="1098">1098</span>
+<span id="1099">1099</span>
+<span id="1100">1100</span>
+<span id="1101">1101</span>
+<span id="1102">1102</span>
+<span id="1103">1103</span>
+<span id="1104">1104</span>
+<span id="1105">1105</span>
+<span id="1106">1106</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">buffer</span>::<span class="ident">Buffer</span>;
 <span class="kw">use</span> <span class="ident">drm</span>::<span class="ident">control</span>::<span class="ident">atomic</span>::<span class="ident">AtomicModeReq</span>;
@@ -1740,6 +1753,15 @@
 
         <span class="prelude-val">Ok</span>(())
     }
+
+    <span class="kw">fn</span> <span class="ident">clear_cursor_representation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cursor</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cursor</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>();
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">fb</span>) <span class="op">=</span> <span class="ident">cursor</span>.<span class="ident">framebuffer</span>.<span class="ident">take</span>() {
+            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">destroy_framebuffer</span>(<span class="ident">fb</span>);
+        }
+
+        <span class="self">self</span>.<span class="ident">clear_plane</span>(<span class="self">self</span>.<span class="ident">planes</span>.<span class="ident">cursor</span>)
+    }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">A</span>: <span class="ident">AsRawFd</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">AtomicDrmSurfaceInternal</span><span class="op">&lt;</span><span class="ident">A</span><span class="op">&gt;</span> {
@@ -2115,6 +2137,10 @@
         <span class="ident">hotspot</span>: (<span class="ident">u32</span>, <span class="ident">u32</span>),
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">set_cursor_representation</span>(<span class="ident">buffer</span>, <span class="ident">hotspot</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">clear_cursor_representation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="self">Self</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">clear_cursor_representation</span>()
     }
 }
 
