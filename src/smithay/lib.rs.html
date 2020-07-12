@@ -38,12 +38,29 @@
 <span id="38">38</span>
 <span id="39">39</span>
 <span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">missing_docs</span>, <span class="ident">rust_2018_idioms</span>)]</span>
 <span class="doccomment">//! **Smithay: the Wayland compositor smithy**</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Most entry points in the modules can take an optional [`slog::Logger`](::slog::Logger) as argument</span>
-<span class="doccomment">//! that will be used as a drain for logging. If `None` is provided, they&#39;ll log to `slog-stdlog`.</span>
+<span class="doccomment">//! that will be used as a drain for logging. If `None` is provided, the behavior depends on</span>
+<span class="doccomment">//! whether the `slog-stdlog` is enabled. If yes, the module will log to the global logger of the</span>
+<span class="doccomment">//! `log` crate. If not, the logs will discarded. This cargo feature is part of the default set of</span>
+<span class="doccomment">//! features of Smithay.</span>
 
 <span class="comment">// `error_chain!` can recurse deeply</span>
 <span class="attribute">#![<span class="ident">recursion_limit</span> <span class="op">=</span> <span class="string">&quot;1024&quot;</span>]</span>
@@ -70,7 +87,8 @@
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">reexports</span>;
 
-<span class="kw">fn</span> <span class="ident">slog_or_stdlog</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>(<span class="ident">logger</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">slog</span>::<span class="ident">Logger</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;slog-stdlog&quot;</span>)]</span>
+<span class="kw">fn</span> <span class="ident">slog_or_fallback</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>(<span class="ident">logger</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">slog</span>::<span class="ident">Logger</span>
 <span class="kw">where</span>
     <span class="ident">L</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>::<span class="ident">slog</span>::<span class="ident">Logger</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 {
@@ -78,6 +96,16 @@
     <span class="ident">logger</span>
         .<span class="ident">into</span>()
         .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> ::<span class="ident">slog</span>::<span class="ident">Logger</span>::<span class="ident">root</span>(::<span class="ident">slog_stdlog</span>::<span class="ident">StdLog</span>.<span class="ident">fuse</span>(), <span class="macro">o</span><span class="macro">!</span>()))
+}
+
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;slog-stdlog&quot;</span>))]</span>
+<span class="kw">fn</span> <span class="ident">slog_or_fallback</span><span class="op">&lt;</span><span class="ident">L</span><span class="op">&gt;</span>(<span class="ident">logger</span>: <span class="ident">L</span>) <span class="op">-</span><span class="op">&gt;</span> ::<span class="ident">slog</span>::<span class="ident">Logger</span>
+<span class="kw">where</span>
+    <span class="ident">L</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>::<span class="ident">slog</span>::<span class="ident">Logger</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+{
+    <span class="ident">logger</span>
+        .<span class="ident">into</span>()
+        .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> ::<span class="ident">slog</span>::<span class="ident">Logger</span>::<span class="ident">root</span>(::<span class="ident">slog</span>::<span class="ident">Discard</span>, <span class="macro">o</span><span class="macro">!</span>()))
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "smithay";</script><script src="../../aliases.js"></script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>

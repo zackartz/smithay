@@ -319,6 +319,7 @@
 <span id="319">319</span>
 <span id="320">320</span>
 <span id="321">321</span>
+<span id="322">322</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Explicit buffer synchronization per wayland surface</span>
 <span class="doccomment">//!</span>
@@ -528,7 +529,8 @@
     <span class="ident">L</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>::<span class="ident">slog</span>::<span class="ident">Logger</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">R</span>: <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">let</span> <span class="ident">_log</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">slog_or_stdlog</span>(<span class="ident">logger</span>).<span class="ident">new</span>(<span class="macro">o</span><span class="macro">!</span>(<span class="string">&quot;smithay_module&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="string">&quot;wayland_explicit_synchronization&quot;</span>));
+    <span class="kw">let</span> <span class="ident">_log</span> <span class="op">=</span>
+        <span class="kw">crate</span>::<span class="ident">slog_or_fallback</span>(<span class="ident">logger</span>).<span class="ident">new</span>(<span class="macro">o</span><span class="macro">!</span>(<span class="string">&quot;smithay_module&quot;</span> <span class="op">=</span><span class="op">&gt;</span> <span class="string">&quot;wayland_explicit_synchronization&quot;</span>));
 
     <span class="ident">display</span>.<span class="ident">create_global</span>::<span class="op">&lt;</span><span class="ident">ZwpLinuxExplicitSynchronizationV1</span>, <span class="kw">_</span><span class="op">&gt;</span>(
         <span class="number">2</span>,
