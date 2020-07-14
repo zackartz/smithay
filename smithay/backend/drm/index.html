@@ -62,20 +62,20 @@ egl-support is then provided by Mesa's software renderer <code>llvmpipe</code>.<
 It is currenly only supported by nvidias proprietary driver, which is also not accelerated by gbm, although other
 manufacturers could in theory implement the standard, just like nvidia could implement gbm-support in their driver.
 Ongoing discussions about these api's may result in another (but hopefully unified) api in the future.</p>
-<h1 id="implementations-1" class="section-header"><a href="#implementations-1">Implementations</a></h1>
+<h1 id="implementations-2" class="section-header"><a href="#implementations-2">Implementations</a></h1>
 <p>Smithay provided these different functionalities as wrappers around many <code>Device</code> and <code>Surface</code> implementations.</p>
 <p>At the low-level we have:</p>
 <ul>
-<li><a href="atomic::AtomicDrmDevice"><code>AtomicDrmDevice</code></a> (and <a href="atomic::AtomicDrmSurface"><code>AtomicDrmSurface</code></a>), which implement the traits directly using the modern atomic drm-api.</li>
-<li><a href="legacy::LegacyDrmDevice"><code>LegacyDrmDevice</code></a> (and <a href="legacy::LegacyDrmSurface"><code>LegacyDrmSurface</code></a>), which implement the traits directly using the outdated drm-api.</li>
+<li><a href="../../../smithay/backend/drm/atomic/struct.AtomicDrmDevice.html"><code>AtomicDrmDevice</code></a> (and <a href="../../../smithay/backend/drm/atomic/struct.AtomicDrmSurface.html"><code>AtomicDrmSurface</code></a>), which implement the traits directly using the modern atomic drm-api.</li>
+<li><a href="../../../smithay/backend/drm/legacy/struct.LegacyDrmDevice.html"><code>LegacyDrmDevice</code></a> (and <a href="../../../smithay/backend/drm/legacy/struct.LegacyDrmSurface.html"><code>LegacyDrmSurface</code></a>), which implement the traits directly using the outdated drm-api.</li>
 </ul>
 <p>Both of these also implement <code>RawDevice</code> and <code>RawSurface</code>.</p>
 <p>On top of that the following wrappers add buffer allocation apis:</p>
 <ul>
-<li><a href="gbm::GbmDevice"><code>GbmDevice</code></a> (and <a href="gbm::Surface"><code>GbmSurface</code></a>), which replace the direct rendering capabilities of any underlying <code>RawSurface</code> with an egl-specific <code>page_flip</code> function.</li>
-<li><a href="eglstream::EglStreamDevice"><code>EglStreamDevice</code></a> (and <a href="eglstream::EglStreamSurface"><code>EglStreamSurface</code></a>), which replace the direct rendering capabilities of any underlying <code>RawSurface</code> with functionality to create EGLStreams.</li>
+<li><a href="../../../smithay/backend/drm/gbm/struct.GbmDevice.html"><code>GbmDevice</code></a> (and <a href="../../../smithay/backend/drm/trait.Surface.html"><code>GbmSurface</code></a>), which replace the direct rendering capabilities of any underlying <code>RawSurface</code> with an egl-specific <code>page_flip</code> function.</li>
+<li><a href="../../../smithay/backend/drm/eglstream/struct.EglStreamDevice.html"><code>EglStreamDevice</code></a> (and <a href="../../../smithay/backend/drm/eglstream/struct.EglStreamSurface.html"><code>EglStreamSurface</code></a>), which replace the direct rendering capabilities of any underlying <code>RawSurface</code> with functionality to create EGLStreams.</li>
 </ul>
-<p>On top of that the <a href="egl::EglDevice"><code>EglDevice</code></a> (and <a href="egl::EglSurface"><code>EglSurface</code></a>) replace the manual buffer management
+<p>On top of that the <a href="../../../smithay/backend/drm/egl/struct.EglDevice.html"><code>EglDevice</code></a> (and <a href="../../../smithay/backend/drm/egl/struct.EglSurface.html"><code>EglSurface</code></a>) replace the manual buffer management
 with an implementation of smithays <a href="::backend::graphics::gl::GLGraphicsBackend"><code>GLGraphicsBackend</code></a> to initialize the OpenGL-API for rendering.</p>
 <p>Additionally the <a href="fallback::FallbackDevice"><code>FallbackDevice</code></a> provides an easy wrapper to automatically pick an appropriate device.
 E.g. it can initialize an <code>AtomicDrmDevice</code> or fallback to a <code>LegacyDrmDevice</code> with the atomic api is not supported by the graphics card.
@@ -110,28 +110,28 @@ is received or input is registered, etc. Because a flip may fail (which will res
 a robust rescheduling implementation for missed frames or intentionally skipped flips should be
 in place.</p>
 </div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
-<table><tr class='module-item'><td><a class="mod" href="atomic/index.html" title='smithay::backend::drm::atomic mod'>atomic</a></td><td class='docblock-short'><p><a href="RawDevice"><code>RawDevice</code></a> and <a href="RawSurface"><code>RawSurface</code></a>
+<table><tr class='module-item'><td><a class="mod" href="atomic/index.html" title='smithay::backend::drm::atomic mod'>atomic</a></td><td class='docblock-short'><p><a href="../../../smithay/backend/drm/trait.RawDevice.html"><code>RawDevice</code></a> and <a href="RawSurface"><code>RawSurface</code></a>
 implementations using the atomic mode-setting infrastructure.</p>
 </td></tr><tr class='module-item'><td><a class="mod" href="common/index.html" title='smithay::backend::drm::common mod'>common</a></td><td class='docblock-short'><p>Module for common/shared types of the various <a href="::backend::drm::Device"><code>Device</code></a>
 and <a href="::backend::drm::Surface"><code>Surface</code></a> implementations of the <code>backend::drm</code> module.</p>
-</td></tr><tr class='module-item'><td><a class="mod" href="egl/index.html" title='smithay::backend::drm::egl mod'>egl</a></td><td class='docblock-short'><p><a href="Device"><code>Device</code></a> and <a href="Surface"><code>Surface</code></a>
+</td></tr><tr class='module-item'><td><a class="mod" href="egl/index.html" title='smithay::backend::drm::egl mod'>egl</a></td><td class='docblock-short'><p><a href="../../../smithay/backend/drm/trait.Device.html"><code>Device</code></a> and <a href="../../../smithay/backend/drm/trait.Surface.html"><code>Surface</code></a>
 implementations using egl contexts and surfaces for efficient rendering.</p>
-</td></tr><tr class='module-item'><td><a class="mod" href="eglstream/index.html" title='smithay::backend::drm::eglstream mod'>eglstream</a></td><td class='docblock-short'><p><a href="Device"><code>Device</code></a> and <a href="Surface"><code>Surface</code></a> implementations using
+</td></tr><tr class='module-item'><td><a class="mod" href="eglstream/index.html" title='smithay::backend::drm::eglstream mod'>eglstream</a></td><td class='docblock-short'><p><a href="../../../smithay/backend/drm/trait.Device.html"><code>Device</code></a> and <a href="../../../smithay/backend/drm/trait.Surface.html"><code>Surface</code></a> implementations using
 the proposed EGLStream api for efficient rendering.
 Currently this api is only implemented by the proprietary <code>nvidia</code> driver.</p>
-</td></tr><tr class='module-item'><td><a class="mod" href="gbm/index.html" title='smithay::backend::drm::gbm mod'>gbm</a></td><td class='docblock-short'><p><a href="Device"><code>Device</code></a> and <a href="Surface"><code>Surface</code></a>
+</td></tr><tr class='module-item'><td><a class="mod" href="gbm/index.html" title='smithay::backend::drm::gbm mod'>gbm</a></td><td class='docblock-short'><p><a href="../../../smithay/backend/drm/trait.Device.html"><code>Device</code></a> and <a href="../../../smithay/backend/drm/trait.Surface.html"><code>Surface</code></a>
 implementations using gbm buffers for efficient rendering.</p>
-</td></tr><tr class='module-item'><td><a class="mod" href="legacy/index.html" title='smithay::backend::drm::legacy mod'>legacy</a></td><td class='docblock-short'><p><a href="RawDevice"><code>RawDevice</code></a> and <a href="RawSurface"><code>RawSurface</code></a>
+</td></tr><tr class='module-item'><td><a class="mod" href="legacy/index.html" title='smithay::backend::drm::legacy mod'>legacy</a></td><td class='docblock-short'><p><a href="../../../smithay/backend/drm/trait.RawDevice.html"><code>RawDevice</code></a> and <a href="RawSurface"><code>RawSurface</code></a>
 implementations using the legacy mode-setting infrastructure.</p>
 </td></tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
 <table><tr class='module-item'><td><a class="trait" href="trait.DevPath.html" title='smithay::backend::drm::DevPath trait'>DevPath</a></td><td class='docblock-short'><p>Trait representing open devices that <em>may</em> return a <code>Path</code></p>
 </td></tr><tr class='module-item'><td><a class="trait" href="trait.Device.html" title='smithay::backend::drm::Device trait'>Device</a></td><td class='docblock-short'><p>An open drm device</p>
-</td></tr><tr class='module-item'><td><a class="trait" href="trait.DeviceHandler.html" title='smithay::backend::drm::DeviceHandler trait'>DeviceHandler</a></td><td class='docblock-short'><p>Trait to receive events of a bound [<code>Device</code>]</p>
-</td></tr><tr class='module-item'><td><a class="trait" href="trait.RawDevice.html" title='smithay::backend::drm::RawDevice trait'>RawDevice</a></td><td class='docblock-short'><p>Marker trait for [<code>Device</code>]s able to provide [<code>RawSurface</code>]s</p>
+</td></tr><tr class='module-item'><td><a class="trait" href="trait.DeviceHandler.html" title='smithay::backend::drm::DeviceHandler trait'>DeviceHandler</a></td><td class='docblock-short'><p>Trait to receive events of a bound <a href="../../../smithay/backend/drm/trait.Device.html" title="`Device`"><code>Device</code></a></p>
+</td></tr><tr class='module-item'><td><a class="trait" href="trait.RawDevice.html" title='smithay::backend::drm::RawDevice trait'>RawDevice</a></td><td class='docblock-short'><p>Marker trait for <a href="../../../smithay/backend/drm/trait.Device.html" title="`Device`"><code>Device</code></a>s able to provide <a href="../../../smithay/backend/drm/trait.RawSurface.html" title="`RawSurface`"><code>RawSurface</code></a>s</p>
 </td></tr><tr class='module-item'><td><a class="trait" href="trait.RawSurface.html" title='smithay::backend::drm::RawSurface trait'>RawSurface</a></td><td class='docblock-short'><p>An open bare crtc without any rendering abstractions</p>
 </td></tr><tr class='module-item'><td><a class="trait" href="trait.Surface.html" title='smithay::backend::drm::Surface trait'>Surface</a></td><td class='docblock-short'><p>An open crtc that can be used for rendering</p>
 </td></tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
 <table><tr class='module-item'><td><a class="fn" href="fn.device_bind.html" title='smithay::backend::drm::device_bind fn'>device_bind</a></td><td class='docblock-short'><p>Bind a <code>Device</code> to an <a href="calloop::EventLoop"><code>EventLoop</code></a>,</p>
 </td></tr></table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
 <table><tr class='module-item'><td><a class="type" href="type.DrmSource.html" title='smithay::backend::drm::DrmSource type'>DrmSource</a></td><td class='docblock-short'><p>calloop source associated with a Device</p>
-</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "smithay";</script><script src="../../../aliases.js"></script><script src="../../../main.js"></script><script defer src="../../../search-index.js"></script></body></html>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../../";window.currentCrate = "smithay";</script><script src="../../../main.js"></script><script defer src="../../../search-index.js"></script></body></html>
