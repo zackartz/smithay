@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Interface","A physical interface type."],["State","The state of a connector."]],"struct":[["Handle","A handle to a connector"],["Info","Information about a connector"]]});

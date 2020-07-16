@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["format","Color formats using standard FourCC."]],"struct":[["Handle","A handle to a GEM buffer."],["Name","The name of a GEM buffer."]],"trait":[["Buffer","Common functionality of all regular buffers."],["PlanarBuffer","Planar buffers are buffers where each channel/plane is in its own buffer."]]});

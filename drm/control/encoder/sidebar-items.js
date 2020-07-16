@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Kind","The type of encoder."]],"struct":[["Handle","A handle to an encoder"],["Info","Information about an encoder"]]});

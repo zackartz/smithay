@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Handle","A handle to an framebuffer"],["Info","Information about a framebuffer"]]});

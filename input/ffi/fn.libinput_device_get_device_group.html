@@ -1,0 +1,46 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `libinput_device_get_device_group` fn in crate `input`."><meta name="keywords" content="rust, rustlang, rust-lang, libinput_device_get_device_group"><title>input::ffi::libinput_device_get_device_group - Rust</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc fn"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../input/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a><div class="sidebar-elems"><p class='location'><a href='../index.html'>input</a>::<wbr><a href='index.html'>ffi</a></p><script>window.sidebarCurrent = {name: 'libinput_device_get_device_group', ty: 'fn', relpath: ''};</script><script defer src="sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span></span><span class='in-band'>Function <a href='../index.html'>input</a>::<wbr><a href='index.html'>ffi</a>::<wbr><a class="fn" href=''>libinput_device_get_device_group</a></span></h1><pre class='rust fn'>pub unsafe extern &quot;C&quot; fn libinput_device_get_device_group(<br>&nbsp;&nbsp;&nbsp;&nbsp;device: <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../../input/ffi/struct.libinput_device.html" title="struct input::ffi::libinput_device">libinput_device</a><br>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.pointer.html">*mut </a><a class="struct" href="../../input/ffi/struct.libinput_device_group.html" title="struct input::ffi::libinput_device_group">libinput_device_group</a></pre><div class='docblock'><p>@ingroup device</p>
+<p>Get the device group this device is assigned to. Some physical
+devices like graphics tablets are represented by multiple kernel
+devices and thus by multiple struct @ref libinput_device.</p>
+<p>libinput assigns these devices to the same @ref libinput_device_group
+allowing the caller to identify such devices and adjust configuration
+settings accordingly. For example, setting a tablet to left-handed often
+means turning it upside down. A touch device on the same tablet would
+need to be turned upside down too to work correctly.</p>
+<p>All devices are part of a device group though for most devices the group
+will be a singleton. A device is assigned to a device group on @ref
+LIBINPUT_EVENT_DEVICE_ADDED and removed from that group on @ref
+LIBINPUT_EVENT_DEVICE_REMOVED. It is up to the caller to track how many
+devices are in each device group.</p>
+<p>@dot
+digraph groups_libinput {
+rankdir=&quot;TB&quot;;
+node [
+shape=&quot;box&quot;;
+]</p>
+<p>mouse [ label=&quot;mouse&quot;; URL=&quot;\ref libinput_device&quot;];
+kbd [ label=&quot;keyboard&quot;; URL=&quot;\ref libinput_device&quot;];</p>
+<p>pen [ label=&quot;tablet pen&quot;; URL=&quot;\ref libinput_device&quot;];
+touch [ label=&quot;tablet touch&quot;; URL=&quot;\ref libinput_device&quot;];
+pad [ label=&quot;tablet pad&quot;; URL=&quot;\ref libinput_device&quot;];</p>
+<p>group1 [ label=&quot;group 1&quot;; URL=&quot;\ref libinput_device_group&quot;];
+group2 [ label=&quot;group 2&quot;; URL=&quot;\ref libinput_device_group&quot;];
+group3 [ label=&quot;group 3&quot;; URL=&quot;\ref libinput_device_group&quot;];</p>
+<p>mouse -&gt; group1
+kbd -&gt; group2</p>
+<p>pen -&gt; group3;
+touch -&gt; group3;
+pad -&gt; group3;
+}
+@enddot</p>
+<p>Device groups do not get re-used once the last device in the group was
+removed, i.e. unplugging and re-plugging a physical device with grouped
+devices will return a different device group after every unplug.</p>
+<p>The returned device group is not refcounted and may become invalid after
+the next call to libinput. Use libinput_device_group_ref() and
+libinput_device_group_unref() to continue using the handle outside of the
+immediate scope.</p>
+<p>Device groups are assigned based on the <b>LIBINPUT_DEVICE_GROUP</b> udev
+property, see @ref udev_config.</p>
+<p>@return The device group this device belongs to </p>
+</div></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "input";</script><script src="../../main.js"></script><script defer src="../../search-index.js"></script></body></html>

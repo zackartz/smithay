@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["DumbBuffer","Slow, but generic `Buffer` implementation"],["DumbMapping","Mapping of a dumbbuffer"]]});
