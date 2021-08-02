@@ -74,16 +74,13 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use wayland_protocols::unstable::xdg_shell::v6::server::zxdg_surface_v6;
-use wayland_protocols::xdg_shell::server::xdg_surface;
 use wayland_protocols::{
-    unstable::xdg_shell::v6::server::{zxdg_popup_v6, zxdg_shell_v6, zxdg_toplevel_v6},
-    xdg_shell::server::{xdg_popup, xdg_positioner, xdg_toplevel, xdg_wm_base},
+    unstable::xdg_shell::v6::server::{zxdg_popup_v6, zxdg_shell_v6, zxdg_surface_v6, zxdg_toplevel_v6},
+    xdg_shell::server::{xdg_popup, xdg_positioner, xdg_surface, xdg_toplevel, xdg_wm_base},
 };
-use wayland_server::DispatchData;
 use wayland_server::{
     protocol::{wl_output, wl_seat, wl_surface},
-    Display, Filter, Global, UserDataMap,
+    DispatchData, Display, Filter, Global, UserDataMap,
 };
 
 use super::PingError;
@@ -743,6 +740,17 @@ impl ShellState {
     pub fn popup_surfaces(&self) -> &[PopupSurface] {
         &self.known_popups[..]
     }
+
+    /// Returns a reference to a higher level toplevel surface using a raw XdgToplevel from wayland-protocols.
+    pub fn toplevel_with_xdg(&self, toplevel: &xdg_toplevel::XdgToplevel) -> Option<&ToplevelSurface> {
+        self.known_toplevels.iter().find(|surface| {
+            if let ToplevelKind::Xdg(ref inner) = surface.shell_surface {
+                inner == toplevel
+            } else {
+                false
+            }
+        })
+    }
 }
 
 /*
@@ -1031,6 +1039,26 @@ impl ToplevelSurface {
         .unwrap();
     }
 
+    /// Returns true if this surface was configured.
+    ///
+    /// Also returns `false` if the surface is already destroyed.
+    pub fn is_configured(&self) -> bool {
+        if !self.alive() {
+            return false;
+        }
+
+        compositor::with_states(&self.wl_surface, |states| {
+            states
+                .data_map
+                .get::<Mutex<XdgToplevelSurfaceRoleAttributes>>()
+                .unwrap()
+                .lock()
+                .unwrap()
+                .configured
+        })
+        .unwrap()
+    }
+
     /// Make sure this surface was configured
     ///
     /// Returns `true` if it was, if not, returns `false` and raise
@@ -1040,19 +1068,8 @@ impl ToplevelSurface {
     /// `xdg_shell` mandates that a client acks a configure before committing
     /// anything.
     pub fn ensure_configured(&self) -> bool {
-        if !self.alive() {
-            return false;
-        }
-        let configured = compositor::with_states(&self.wl_surface, |states| {
-            states
-                .data_map
-                .get::<Mutex<XdgToplevelSurfaceRoleAttributes>>()
-                .unwrap()
-                .lock()
-                .unwrap()
-                .configured
-        })
-        .unwrap();
+        let configured = self.is_configured();
+
         if !configured {
             match self.shell_surface {
                 ToplevelKind::Xdg(ref s) => {
@@ -1079,6 +1096,7 @@ impl ToplevelSurface {
                 }
             }
         }
+
         configured
     }
 
