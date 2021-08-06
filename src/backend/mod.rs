@@ -62,6 +62,10 @@
 //! a Wayland or X11 client. This is generally quite helpful for development and debugging.
 //! That backend is both a renderer and an input provider, and is accessible in the [`winit`]
 //! module, gated by the `backend_winit` cargo feature.
+//!
+//! ## X11 backend
+//!
+//! TODO
 
 pub mod allocator;
 pub mod input;
@@ -80,6 +84,9 @@ pub mod udev;
 
 #[cfg(feature = "backend_winit")]
 pub mod winit;
+
+#[cfg(feature = "backend_x11")]
+pub mod x11;
 
 /// Error that can happen when swapping buffers.
 #[derive(Debug, thiserror::Error)]
