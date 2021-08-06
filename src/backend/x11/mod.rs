@@ -182,6 +182,14 @@ impl PointerMotionAbsoluteEvent<X11InputBackend> for X11MouseMovedEvent {
 #[derive(Debug)]
 pub struct X11InputBackend {
     x11: Rc<RefCell<X11Backend>>,
+    window: Window,
+}
+
+impl X11InputBackend {
+    /// Returns the XID of the window this input backend is bound to.
+    pub fn window(&self) -> u32 {
+        self.window
+    }
 }
 
 impl InputBackend for X11InputBackend {
@@ -267,6 +275,14 @@ impl InputBackend for X11InputBackend {
 #[derive(Debug)]
 pub struct X11GraphicsBackend {
     x11: Rc<RefCell<X11Backend>>,
+    window: Window,
+}
+
+impl X11GraphicsBackend {
+    /// Returns the XID of the window this graphics backend presents to.
+    pub fn window(&self) -> u32 {
+        self.window
+    }
 }
 
 /// Shared data between the X11 input and graphical backends.
