@@ -5,35 +5,156 @@
 //!
 
 mod buffer;
+mod window;
 
+use self::window::{Atoms, WindowInner};
 use super::input::{
-    ButtonState, Device, InputBackend, KeyState, KeyboardKeyEvent, MouseButton, PointerAxisEvent,
-    PointerButtonEvent, PointerMotionAbsoluteEvent, UnusedEvent,
+    Axis, AxisSource, ButtonState, Device, InputBackend, KeyState, KeyboardKeyEvent, MouseButton,
+    PointerAxisEvent, PointerButtonEvent, PointerMotionAbsoluteEvent, UnusedEvent,
 };
 use crate::backend::input::InputEvent;
 use crate::backend::input::{DeviceCapability, Event as BackendEvent};
-use slog::Logger;
-use std::{cell::RefCell, rc::Rc};
+use slog::{info, o, Logger};
+use std::sync::Arc;
+use std::sync::Weak;
 use x11rb::connection::Connection;
-use x11rb::errors::{ConnectError, ConnectionError};
+use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol as x11;
-use x11rb::protocol::xproto::{AtomEnum, CreateWindowAux, EventMask, PropMode, Screen, Window, WindowClass};
-use x11rb::rust_connection::ReplyError;
-use x11rb::wrapper::ConnectionExt as _;
+use x11rb::x11_utils::X11Error as ImplError;
 use x11rb::xcb_ffi::XCBConnection;
 
+/// An error emitted by the X11 backend.
 #[derive(Debug, thiserror::Error)]
 pub enum X11Error {
-    #[error("Connection to the X server failed")]
+    /// Connecting to the X server failed.
+    #[error("Connecting to the X server failed")]
     ConnectionFailed(ConnectError),
 
-    #[error("An X error occurred during the connection")]
+    /// An error occured with the connection to the X server.
+    #[error("An error occured with the connection to the X server.")]
     ConnectionError(ConnectionError),
 
-    #[error("An X protocol error packet was returned")]
-    Protocol(x11rb::x11_utils::X11Error),
+    /// An X11 error packet was encountered.
+    #[error("An X11 error packet was encountered.")]
+    Protocol(ImplError),
+
+    /// The window was destroyed.
+    #[error("The window was destroyed")]
+    WindowDestroyed,
 }
 
+impl From<ConnectError> for X11Error {
+    fn from(e: ConnectError) -> Self {
+        X11Error::ConnectionFailed(e)
+    }
+}
+
+impl From<ConnectionError> for X11Error {
+    fn from(e: ConnectionError) -> Self {
+        X11Error::ConnectionError(e)
+    }
+}
+
+impl From<ImplError> for X11Error {
+    fn from(e: ImplError) -> Self {
+        X11Error::Protocol(e)
+    }
+}
+
+impl From<ReplyError> for X11Error {
+    fn from(e: ReplyError) -> Self {
+        match e {
+            ReplyError::ConnectionError(e) => e.into(),
+            ReplyError::X11Error(e) => e.into(),
+        }
+    }
+}
+
+/// Properties defining information about the Window created by the X11 backend.
+// TODO:
+// - Rendering? I guess we allow binding buffers for this?
+#[derive(Debug, Clone, Copy)]
+#[allow(missing_docs)] // Self explanatory fields
+pub struct WindowProperties<'a> {
+    pub width: u16,
+    pub height: u16,
+    pub title: &'a str,
+}
+
+impl Default for WindowProperties<'_> {
+    fn default() -> Self {
+        WindowProperties {
+            width: 1280,
+            height: 800,
+            title: "Smithay",
+        }
+    }
+}
+
+/// An X11 window.
+#[derive(Debug)]
+pub struct Window(Weak<WindowInner>);
+
+impl Window {
+    /// Sets the title of the window.
+    pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
+        if let Some(inner) = self.0.upgrade() {
+            inner.set_title(title)
+        } else {
+            Err(X11Error::WindowDestroyed)
+        }
+    }
+
+    /// Returns the XID of the window.
+    ///
+    /// Returns `None` if the window has been destroyed.
+    pub fn id(&self) -> Option<u32> {
+        self.0.upgrade().map(|w| w.inner)
+    }
+
+    // TODO: Window size?
+}
+
+/// An abstraction representing a connection to the X11 server.
+#[derive(Debug)]
+pub struct X11Backend {
+    log: Logger,
+    connection: Arc<XCBConnection>,
+    window: Arc<WindowInner>,
+}
+
+impl X11Backend {
+    /// Initializes the X11 backend, connecting to the X server and creating the window the compositor may output to.
+    pub fn init<L>(properties: WindowProperties<'_>, logger: L) -> Result<X11Backend, X11Error>
+    where
+        L: Into<Option<slog::Logger>>,
+    {
+        let log = crate::slog_or_fallback(logger).new(o!("smithay_module" => "backend_x11"));
+
+        info!(log, "Connecting to the X server");
+        let (connection, screen_number) = XCBConnection::connect(None)?;
+        let connection = Arc::new(connection);
+        info!(log, "Connected to screen {}", screen_number);
+
+        let screen = &connection.setup().roots[screen_number];
+        let atoms = Atoms::new(connection.clone())?;
+        let window = Arc::new(WindowInner::new(connection.clone(), screen, atoms, properties)?);
+        info!(log, "Window created");
+
+        Ok(X11Backend {
+            log,
+            connection: connection,
+            window,
+        })
+    }
+
+    /// Returns a handle to the X11 window this input backend handles inputs for.
+    pub fn window(&self) -> Window {
+        Window(Arc::downgrade(&self.window))
+    }
+}
+
+/// Virtual input device used by the backend to associate input events.
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct X11VirtualDevice;
 
@@ -62,6 +183,9 @@ impl Device for X11VirtualDevice {
     }
 }
 
+/// X11-Backend internal event wrapping `X11`'s types into a [`KeyboardKeyEvent`].
+#[allow(missing_docs)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct X11KeyboardInputEvent {
     time: u32,
     key: u32,
@@ -69,7 +193,7 @@ pub struct X11KeyboardInputEvent {
     state: KeyState,
 }
 
-impl BackendEvent<X11InputBackend> for X11KeyboardInputEvent {
+impl BackendEvent<X11Backend> for X11KeyboardInputEvent {
     fn time(&self) -> u32 {
         self.time
     }
@@ -79,7 +203,7 @@ impl BackendEvent<X11InputBackend> for X11KeyboardInputEvent {
     }
 }
 
-impl KeyboardKeyEvent<X11InputBackend> for X11KeyboardInputEvent {
+impl KeyboardKeyEvent<X11Backend> for X11KeyboardInputEvent {
     fn key_code(&self) -> u32 {
         self.key
     }
@@ -93,11 +217,14 @@ impl KeyboardKeyEvent<X11InputBackend> for X11KeyboardInputEvent {
     }
 }
 
+/// X11-Backend internal event wrapping `X11`'s types into a [`PointerAxisEvent`]
+#[allow(missing_docs)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct X11MouseWheelEvent {
     time: u32,
 }
 
-impl BackendEvent<X11InputBackend> for X11MouseWheelEvent {
+impl BackendEvent<X11Backend> for X11MouseWheelEvent {
     fn time(&self) -> u32 {
         self.time
     }
@@ -107,27 +234,30 @@ impl BackendEvent<X11InputBackend> for X11MouseWheelEvent {
     }
 }
 
-impl PointerAxisEvent<X11InputBackend> for X11MouseWheelEvent {
-    fn amount(&self, axis: super::input::Axis) -> Option<f64> {
+impl PointerAxisEvent<X11Backend> for X11MouseWheelEvent {
+    fn amount(&self, _axis: Axis) -> Option<f64> {
         todo!()
     }
 
-    fn amount_discrete(&self, axis: super::input::Axis) -> Option<f64> {
+    fn amount_discrete(&self, _axis: Axis) -> Option<f64> {
         todo!()
     }
 
-    fn source(&self) -> super::input::AxisSource {
+    fn source(&self) -> AxisSource {
         todo!()
     }
 }
 
+/// X11-Backend internal event wrapping `X11`'s types into a [`PointerButtonEvent`]
+#[allow(missing_docs)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct X11MouseInputEvent {
     time: u32,
     button: MouseButton,
     state: ButtonState,
 }
 
-impl BackendEvent<X11InputBackend> for X11MouseInputEvent {
+impl BackendEvent<X11Backend> for X11MouseInputEvent {
     fn time(&self) -> u32 {
         self.time
     }
@@ -137,7 +267,7 @@ impl BackendEvent<X11InputBackend> for X11MouseInputEvent {
     }
 }
 
-impl PointerButtonEvent<X11InputBackend> for X11MouseInputEvent {
+impl PointerButtonEvent<X11Backend> for X11MouseInputEvent {
     fn button(&self) -> MouseButton {
         self.button
     }
@@ -147,11 +277,14 @@ impl PointerButtonEvent<X11InputBackend> for X11MouseInputEvent {
     }
 }
 
+/// X11-Backend internal event wrapping `X11`'s types into a [`PointerMotionAbsoluteEvent`]
+#[allow(missing_docs)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct X11MouseMovedEvent {
     time: u32,
 }
 
-impl BackendEvent<X11InputBackend> for X11MouseMovedEvent {
+impl BackendEvent<X11Backend> for X11MouseMovedEvent {
     fn time(&self) -> u32 {
         self.time
     }
@@ -161,7 +294,7 @@ impl BackendEvent<X11InputBackend> for X11MouseMovedEvent {
     }
 }
 
-impl PointerMotionAbsoluteEvent<X11InputBackend> for X11MouseMovedEvent {
+impl PointerMotionAbsoluteEvent<X11Backend> for X11MouseMovedEvent {
     fn x(&self) -> f64 {
         todo!()
     }
@@ -170,29 +303,16 @@ impl PointerMotionAbsoluteEvent<X11InputBackend> for X11MouseMovedEvent {
         todo!()
     }
 
-    fn x_transformed(&self, width: i32) -> f64 {
+    fn x_transformed(&self, _width: i32) -> f64 {
         todo!()
     }
 
-    fn y_transformed(&self, height: i32) -> f64 {
+    fn y_transformed(&self, _height: i32) -> f64 {
         todo!()
     }
 }
 
-#[derive(Debug)]
-pub struct X11InputBackend {
-    x11: Rc<RefCell<X11Backend>>,
-    window: Window,
-}
-
-impl X11InputBackend {
-    /// Returns the XID of the window this input backend is bound to.
-    pub fn window(&self) -> u32 {
-        self.window
-    }
-}
-
-impl InputBackend for X11InputBackend {
+impl InputBackend for X11Backend {
     type EventError = X11Error;
 
     type Device = X11VirtualDevice;
@@ -220,9 +340,7 @@ impl InputBackend for X11InputBackend {
     where
         F: FnMut(super::input::InputEvent<Self>),
     {
-        let x11 = self.x11.borrow();
-
-        while let Some(event) = x11.connection.poll_for_event().expect("TODO: Error") {
+        while let Some(event) = self.connection.poll_for_event().expect("TODO: Error") {
             match event {
                 x11::Event::Error(_) => todo!("Handle error"),
                 x11::Event::ButtonPress(_) => todo!("Handle button press"),
@@ -234,12 +352,12 @@ impl InputBackend for X11InputBackend {
                 // TODO: Is it correct to directly cast the details of the event in? Or do we need to preprocess with xkbcommon
                 x11::Event::KeyPress(event) => {
                     // Only handle key events if the event occurred in our own window.
-                    if event.event == x11.window {
+                    if event.event == self.window.inner {
                         callback(InputEvent::Keyboard {
                             event: X11KeyboardInputEvent {
                                 time: event.time,
                                 key: event.detail as u32,
-                                count: 1,
+                                count: 1, // TODO: Counter
                                 state: KeyState::Pressed,
                             },
                         })
@@ -248,12 +366,12 @@ impl InputBackend for X11InputBackend {
 
                 x11::Event::KeyRelease(event) => {
                     // Only handle key events if the event occurred in our own window.
-                    if event.event == x11.window {
+                    if event.event == self.window.inner {
                         callback(InputEvent::Keyboard {
                             event: X11KeyboardInputEvent {
                                 time: event.time,
                                 key: event.detail as u32,
-                                count: 1,
+                                count: 1, // TODO: Counter
                                 state: KeyState::Released,
                             },
                         })
@@ -269,171 +387,5 @@ impl InputBackend for X11InputBackend {
         }
 
         todo!()
-    }
-}
-
-#[derive(Debug)]
-pub struct X11GraphicsBackend {
-    x11: Rc<RefCell<X11Backend>>,
-    window: Window,
-}
-
-impl X11GraphicsBackend {
-    /// Returns the XID of the window this graphics backend presents to.
-    pub fn window(&self) -> u32 {
-        self.window
-    }
-}
-
-/// Shared data between the X11 input and graphical backends.
-#[derive(Debug)]
-struct X11Backend {
-    log: Logger,
-    // The connection to the X server.
-    connection: XCBConnection,
-    /// The window used to display the compositor.
-    window: Window,
-}
-
-impl X11Backend {
-    fn new(log: Logger) -> Result<X11Backend, X11Error> {
-        use x11rb::protocol::xproto::ConnectionExt;
-
-        // Connect to the X server and reserve an ID for our window.
-        let (connection, screen_number) = XCBConnection::connect(None)?;
-        let window = connection.generate_id().expect("TODO: Error");
-        let screen = &connection.setup().roots[screen_number];
-
-        // Stagger intern requests and checking the reply in each cookie as not to block during each request.
-        let wm_protocols = connection.intern_atom(false, b"WM_PROTOCOLS")?;
-        let wm_delete_window = connection.intern_atom(false, b"WM_DELETE_WINDOW")?;
-        let net_wm_name = connection.intern_atom(false, b"_NET_WM_NAME")?;
-        let utf8_string = connection.intern_atom(false, b"UTF8_STRING")?;
-        let wm_protocols = wm_protocols.reply().unwrap().atom;
-        let wm_delete_window = wm_delete_window.reply().unwrap().atom;
-        let net_wm_name = net_wm_name.reply().unwrap().atom;
-        let utf8_string = utf8_string.reply().unwrap().atom;
-
-        create_window(
-            &connection,
-            screen,
-            window,
-            1280,
-            800,
-            wm_protocols,
-            wm_delete_window,
-            net_wm_name,
-            utf8_string,
-        )?;
-
-        Ok(X11Backend {
-            log,
-            connection,
-            window,
-        })
-    }
-}
-
-fn create_window(
-    connection: &XCBConnection,
-    screen: &Screen,
-    window: Window,
-    height: u16,
-    width: u16,
-    wm_protocols: u32,
-    wm_delete_window: u32,
-    net_wm_name: u32,
-    utf8_string: u32,
-) -> Result<(), X11Error> {
-    use x11rb::protocol::xproto::ConnectionExt;
-
-    let window_aux = CreateWindowAux::new()
-        .event_mask(EventMask::EXPOSURE | EventMask::STRUCTURE_NOTIFY | EventMask::NO_EVENT)
-        .background_pixel(screen.black_pixel);
-
-    let cookie = connection.create_window(
-        screen.root_depth,
-        window,
-        screen.root,
-        0,
-        0,
-        width,
-        height,
-        0,
-        WindowClass::INPUT_OUTPUT,
-        0,
-        &window_aux,
-    )?;
-
-    let title = "Smithay";
-
-    // _NET_WM_NAME should be preferred by window managers, but set both in case.
-    connection.change_property8(
-        PropMode::REPLACE,
-        window,
-        AtomEnum::WM_NAME,
-        AtomEnum::STRING,
-        title.as_bytes(),
-    )?;
-
-    connection.change_property8(
-        PropMode::REPLACE,
-        window,
-        net_wm_name,
-        utf8_string,
-        title.as_bytes(),
-    )?;
-
-    // Enable WM_DELETE_WINDOW so our client is not disconnected upon our toplevel window being destroyed.
-    connection.change_property32(
-        PropMode::REPLACE,
-        window,
-        wm_protocols,
-        AtomEnum::ATOM,
-        &[wm_delete_window],
-    )?;
-
-    // WM_CLASS is in the format of `instance\0class\0`
-    let mut class = Vec::new();
-    class.extend_from_slice(title.as_bytes());
-    class.extend_from_slice(b"\0wayland_compositor\0");
-
-    connection.change_property8(
-        PropMode::REPLACE,
-        window,
-        AtomEnum::WM_CLASS,
-        AtomEnum::STRING,
-        &class[..],
-    )?;
-
-    cookie.check()?;
-
-    Ok(())
-}
-
-impl From<ConnectError> for X11Error {
-    fn from(e: ConnectError) -> Self {
-        X11Error::ConnectionFailed(e)
-    }
-}
-
-impl From<ConnectionError> for X11Error {
-    fn from(e: ConnectionError) -> Self {
-        X11Error::ConnectionError(e)
-    }
-}
-
-impl From<x11rb::x11_utils::X11Error> for X11Error {
-    fn from(e: x11rb::x11_utils::X11Error) -> Self {
-        X11Error::Protocol(e)
-    }
-}
-
-impl From<ReplyError> for X11Error {
-    fn from(e: ReplyError) -> Self {
-        match e {
-            ReplyError::ConnectionError(e) => e.into(),
-            ReplyError::X11Error(e) => e.into(),
-        }
     }
 }
