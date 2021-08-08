@@ -346,8 +346,10 @@ impl InputBackend for X11Backend {
                 x11::Event::Error(_) => (), // todo!("Handle error"),
                 x11::Event::ButtonPress(event) => {
                     if event.event == self.window.inner {
-                        // X11 decided to associate scroll wheel with a button, 4, 5, 6 and 7 for up, down, left and right.
-                        // For scrolling, a press event is emitted and an release is them immediately followed for scrolling.
+                        // X11 decided to associate scroll wheel with a button, 4, 5, 6 and 7 for
+                        // up, down, left and right. For scrolling, a press event is emitted and a
+                        // release is them immediately followed for scrolling. This means we can
+                        // ignore release for scrolling.
 
                         match event.detail {
                             1..=3 => {
