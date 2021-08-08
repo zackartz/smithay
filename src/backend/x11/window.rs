@@ -102,6 +102,10 @@ impl WindowInner {
         // Block until window creation is complete.
         cookie.check()?;
         window.set_title(properties.title)?;
+
+        // Finally map the window
+        connection.map_window(window.inner)?;
+
         // Flush requests to server so window is displayed.
         connection.flush()?;
 

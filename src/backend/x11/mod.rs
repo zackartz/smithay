@@ -342,10 +342,10 @@ impl InputBackend for X11Backend {
     {
         while let Some(event) = self.connection.poll_for_event().expect("TODO: Error") {
             match event {
-                x11::Event::Error(_) => todo!("Handle error"),
-                x11::Event::ButtonPress(_) => todo!("Handle button press"),
-                x11::Event::ButtonRelease(_) => todo!("Handle button release"),
-                x11::Event::Expose(_) => todo!("Handle expose"),
+                x11::Event::Error(_) => (), // todo!("Handle error"),
+                x11::Event::ButtonPress(_) => (), // todo!("Handle button press"),
+                x11::Event::ButtonRelease(_) => (), // todo!("Handle button release"),
+                x11::Event::Expose(_) => (), // todo!("Handle expose"),
 
                 // TODO: Client message to handle WM_DELETE_WINDOW
 
@@ -378,14 +378,14 @@ impl InputBackend for X11Backend {
                     }
                 }
 
-                x11::Event::ResizeRequest(_) => todo!("Handle resize"),
-                x11::Event::UnmapNotify(_) => todo!("Handle shutdown"),
+                x11::Event::ResizeRequest(_) => (), // todo!("Handle resize"),
+                x11::Event::UnmapNotify(_) => (), // todo!("Handle shutdown"),
 
                 // TODO: Where are cursors handled?
                 _ => (),
             }
         }
 
-        todo!()
+        Ok(())
     }
 }

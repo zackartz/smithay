@@ -25,5 +25,7 @@ pub mod window_map;
 pub mod winit;
 #[cfg(feature = "xwayland")]
 pub mod xwayland;
+#[cfg(feature = "x11")]
+pub mod x11;
 
 pub use state::AnvilState;
