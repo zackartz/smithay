@@ -65,6 +65,8 @@ impl WindowInner {
             | EventMask::STRUCTURE_NOTIFY
             | EventMask::KEY_PRESS // Key press and release
             | EventMask::KEY_RELEASE
+            | EventMask::BUTTON_PRESS // Mouse button press and release
+            | EventMask::BUTTON_RELEASE
             | EventMask::NO_EVENT,
             )
             .background_pixel(screen.black_pixel);

@@ -15,12 +15,12 @@ use super::input::{
 use crate::backend::input::InputEvent;
 use crate::backend::input::{DeviceCapability, Event as BackendEvent};
 use slog::{info, o, Logger};
-use x11rb::protocol::xproto::ConnectionExt;
 use std::sync::Arc;
 use std::sync::Weak;
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol as x11;
+use x11rb::protocol::xproto::ConnectionExt;
 use x11rb::x11_utils::X11Error as ImplError;
 use x11rb::xcb_ffi::XCBConnection;
 
@@ -343,10 +343,88 @@ impl InputBackend for X11Backend {
     {
         while let Some(event) = self.connection.poll_for_event().expect("TODO: Error") {
             match event {
-                x11::Event::Error(_) => (),         // todo!("Handle error"),
-                x11::Event::ButtonPress(_) => (),   // todo!("Handle button press"),
-                x11::Event::ButtonRelease(_) => (), // todo!("Handle button release"),
-                x11::Event::Expose(_) => (),        // todo!("Handle expose"),
+                x11::Event::Error(_) => (), // todo!("Handle error"),
+                x11::Event::ButtonPress(event) => {
+                    if event.event == self.window.inner {
+                        // X11 decided to associate scroll wheel with a button, 4, 5, 6 and 7 for up, down, left and right.
+                        // For scrolling, a press event is emitted and an release is them immediately followed for scrolling.
+
+                        match event.detail {
+                            1..=3 => {
+                                // Clicking a button.
+                                callback(InputEvent::PointerButton {
+                                    event: X11MouseInputEvent {
+                                        time: event.time,
+                                        button: match event.detail {
+                                            1 => MouseButton::Left,
+
+                                            2 => MouseButton::Middle,
+
+                                            3 => MouseButton::Right,
+
+                                            _ => unreachable!(),
+                                        },
+                                        state: ButtonState::Pressed,
+                                    },
+                                })
+                            }
+
+                            4..=7 => {
+                                // Scrolling
+                                // TODO: Event details.
+                                callback(InputEvent::PointerAxis {
+                                    event: X11MouseWheelEvent { time: event.time },
+                                })
+                            }
+
+                            // Unknown button?
+                            _ => callback(InputEvent::PointerButton {
+                                event: X11MouseInputEvent {
+                                    time: event.time,
+                                    button: MouseButton::Other(event.detail),
+                                    state: ButtonState::Pressed,
+                                },
+                            }),
+                        }
+                    }
+                } // todo!("Handle button press"),
+                x11::Event::ButtonRelease(event) => {
+                    if event.event == self.window.inner {
+                        match event.detail {
+                            1..=3 => {
+                                // Releasing a button.
+                                callback(InputEvent::PointerButton {
+                                    event: X11MouseInputEvent {
+                                        time: event.time,
+                                        button: match event.detail {
+                                            1 => MouseButton::Left,
+
+                                            2 => MouseButton::Middle,
+
+                                            3 => MouseButton::Right,
+
+                                            _ => unreachable!(),
+                                        },
+                                        state: ButtonState::Released,
+                                    },
+                                })
+                            }
+
+                            // We may ignore the release tick for scrolling, as the X server will
+                            // always emit this immediately after press.
+                            4..=7 => (),
+
+                            _ => callback(InputEvent::PointerButton {
+                                event: X11MouseInputEvent {
+                                    time: event.time,
+                                    button: MouseButton::Other(event.detail),
+                                    state: ButtonState::Released,
+                                },
+                            }),
+                        }
+                    }
+                } // todo!("Handle button release"),
+                x11::Event::Expose(_) => (), // todo!("Handle expose"),
 
                 // TODO: Is it correct to directly cast the details of the event in? Or do we need to preprocess with xkbcommon
                 x11::Event::KeyPress(event) => {
