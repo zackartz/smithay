@@ -14,10 +14,10 @@ use x11rb::{
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Atoms {
-    wm_protocols: Atom,
-    wm_delete_window: Atom,
-    net_wm_name: Atom,
-    utf8_string: Atom,
+    pub wm_protocols: Atom,
+    pub wm_delete_window: Atom,
+    pub net_wm_name: Atom,
+    pub utf8_string: Atom,
 }
 
 impl Atoms {
@@ -45,7 +45,7 @@ impl Atoms {
 pub(crate) struct WindowInner {
     connection: Arc<XCBConnection>,
     pub inner: x11::Window,
-    atoms: Atoms,
+    pub atoms: Atoms,
 }
 
 impl WindowInner {

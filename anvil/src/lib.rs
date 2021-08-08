@@ -23,9 +23,9 @@ pub mod udev;
 pub mod window_map;
 #[cfg(feature = "winit")]
 pub mod winit;
-#[cfg(feature = "xwayland")]
-pub mod xwayland;
 #[cfg(feature = "x11")]
 pub mod x11;
+#[cfg(feature = "xwayland")]
+pub mod xwayland;
 
 pub use state::AnvilState;

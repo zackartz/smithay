@@ -15,6 +15,7 @@ use super::input::{
 use crate::backend::input::InputEvent;
 use crate::backend::input::{DeviceCapability, Event as BackendEvent};
 use slog::{info, o, Logger};
+use x11rb::protocol::xproto::ConnectionExt;
 use std::sync::Arc;
 use std::sync::Weak;
 use x11rb::connection::Connection;
@@ -342,12 +343,10 @@ impl InputBackend for X11Backend {
     {
         while let Some(event) = self.connection.poll_for_event().expect("TODO: Error") {
             match event {
-                x11::Event::Error(_) => (), // todo!("Handle error"),
-                x11::Event::ButtonPress(_) => (), // todo!("Handle button press"),
+                x11::Event::Error(_) => (),         // todo!("Handle error"),
+                x11::Event::ButtonPress(_) => (),   // todo!("Handle button press"),
                 x11::Event::ButtonRelease(_) => (), // todo!("Handle button release"),
-                x11::Event::Expose(_) => (), // todo!("Handle expose"),
-
-                // TODO: Client message to handle WM_DELETE_WINDOW
+                x11::Event::Expose(_) => (),        // todo!("Handle expose"),
 
                 // TODO: Is it correct to directly cast the details of the event in? Or do we need to preprocess with xkbcommon
                 x11::Event::KeyPress(event) => {
@@ -379,7 +378,19 @@ impl InputBackend for X11Backend {
                 }
 
                 x11::Event::ResizeRequest(_) => (), // todo!("Handle resize"),
-                x11::Event::UnmapNotify(_) => (), // todo!("Handle shutdown"),
+                x11::Event::UnmapNotify(_) => (),   // todo!("Handle shutdown"),
+
+                x11::Event::ClientMessage(event) => {
+                    // Were we told to destroy the window?
+
+                    // TODO: May be worth changing this to "close requested" and let the compositor impl choose what to do?
+                    if event.data.as_data32()[0] == self.window.atoms.wm_delete_window
+                        && event.window == self.window.inner
+                    {
+                        self.connection.unmap_window(self.window.inner)?;
+                        return Err(X11Error::WindowDestroyed);
+                    }
+                }
 
                 // TODO: Where are cursors handled?
                 _ => (),

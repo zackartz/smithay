@@ -1,9 +1,15 @@
 use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
-use smithay::{backend::{input::InputBackend, x11::{WindowProperties, X11Backend}}, reexports::{calloop::EventLoop, wayland_server::Display}};
+use smithay::{
+    backend::{
+        input::InputBackend,
+        x11::{WindowProperties, X11Backend},
+    },
+    reexports::{calloop::EventLoop, wayland_server::Display},
+};
 
-use crate::{AnvilState, state::Backend};
+use crate::{state::Backend, AnvilState};
 
 struct X11Data;
 
@@ -17,11 +23,15 @@ pub fn run_x11(log: Logger) {
     let mut event_loop = EventLoop::try_new().unwrap();
     let display = Rc::new(RefCell::new(Display::new()));
 
-    let mut backend = X11Backend::init(WindowProperties {
-        width: 1280,
-        height: 800,
-        title: "Anvil",
-    }, log.clone()).expect("Failed to initialize X11 backend");
+    let mut backend = X11Backend::init(
+        WindowProperties {
+            width: 1280,
+            height: 800,
+            title: "Anvil",
+        },
+        log.clone(),
+    )
+    .expect("Failed to initialize X11 backend");
 
     // TODO: Renderer?
     let data = X11Data;
@@ -38,7 +48,9 @@ pub fn run_x11(log: Logger) {
 
     while state.running.load(Ordering::SeqCst) {
         if backend
-            .dispatch_new_events(|event| println!("{:?}", event) /*state.process_input_event(event)*/)
+            .dispatch_new_events(
+                |event| println!("{:?}", event), /*state.process_input_event(event)*/
+            )
             .is_err()
         {
             state.running.store(false, Ordering::SeqCst);

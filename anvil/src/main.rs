@@ -6,7 +6,7 @@ static POSSIBLE_BACKENDS: &[&str] = &[
     #[cfg(feature = "udev")]
     "--tty-udev : Run anvil as a tty udev client (requires root if without logind).",
     #[cfg(feature = "x11")]
-    "--x11 : Run anvil directly as an X11 client."
+    "--x11 : Run anvil directly as an X11 client.",
 ];
 
 fn main() {
