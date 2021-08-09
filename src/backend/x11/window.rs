@@ -61,12 +61,14 @@ impl WindowInner {
         // Next specify auxillary window properties
         let window_aux = CreateWindowAux::new()
             .event_mask(
-                EventMask::EXPOSURE // To draw to the window
+                EventMask::EXPOSURE // Be told when the window is exposed
             | EventMask::STRUCTURE_NOTIFY
             | EventMask::KEY_PRESS // Key press and release
             | EventMask::KEY_RELEASE
             | EventMask::BUTTON_PRESS // Mouse button press and release
             | EventMask::BUTTON_RELEASE
+            | EventMask::POINTER_MOTION // Mouse movement
+            | EventMask::RESIZE_REDIRECT // Handling resizes
             | EventMask::NO_EVENT,
             )
             .background_pixel(screen.black_pixel);

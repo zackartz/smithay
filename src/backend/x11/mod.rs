@@ -351,7 +351,7 @@ impl InputBackend for X11Backend {
     {
         while let Some(event) = self.connection.poll_for_event().expect("TODO: Error") {
             match event {
-                x11::Event::Error(_) => (), // todo!("Handle error"),
+                x11::Event::Error(_) => (),
 
                 x11::Event::ButtonPress(event) => {
                     if event.event == self.window.inner {
@@ -401,7 +401,7 @@ impl InputBackend for X11Backend {
                                             // Down | Left
                                             5 | 6 => -1.0,
 
-                                            _ => unreachable!()
+                                            _ => unreachable!(),
                                         },
                                     },
                                 })
@@ -456,7 +456,7 @@ impl InputBackend for X11Backend {
                     }
                 }
 
-                x11::Event::Expose(_) => (), // todo!("Handle expose"),
+                x11::Event::Expose(_) => (),
 
                 // TODO: Is it correct to directly cast the details of the event in? Or do we need to preprocess with xkbcommon
                 x11::Event::KeyPress(event) => {
@@ -487,10 +487,24 @@ impl InputBackend for X11Backend {
                     }
                 }
 
-                x11::Event::ResizeRequest(_) => (), // todo!("Handle resize"),
+                x11::Event::MotionNotify(event) => {
+                    // Only handle key events if the event occurred in our own window.
+                    if event.event == self.window.inner {
+                        // TODO: Fill in extra details.
+                        let _ = event.event_x;
+                        let _ = event.event_y;
 
-                // TODO: Is this fired after the client message stuff?
-                x11::Event::UnmapNotify(_) => (), // todo!("Handle shutdown"),
+                        callback(InputEvent::PointerMotionAbsolute {
+                            event: X11MouseMovedEvent { time: event.time },
+                        })
+
+                        // Use event_x/y since those are relative the the window receiving events.
+                    }
+                }
+
+                x11::Event::ResizeRequest(_) => {
+                    println!("Resizing");
+                }
 
                 x11::Event::ClientMessage(event) => {
                     // Were we told to destroy the window?
