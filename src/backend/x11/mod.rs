@@ -352,10 +352,11 @@ impl InputBackend for X11Backend {
         while let Some(event) = self.connection.poll_for_event().expect("TODO: Error") {
             match event {
                 x11::Event::Error(_) => (), // todo!("Handle error"),
+
                 x11::Event::ButtonPress(event) => {
                     if event.event == self.window.inner {
                         // X11 decided to associate scroll wheel with a button, 4, 5, 6 and 7 for
-                        // up, down, left and right. For scrolling, a press event is emitted and a
+                        // up, down, right and left. For scrolling, a press event is emitted and a
                         // release is them immediately followed for scrolling. This means we can
                         // ignore release for scrolling.
 
@@ -416,7 +417,8 @@ impl InputBackend for X11Backend {
                             }),
                         }
                     }
-                } // todo!("Handle button press"),
+                }
+
                 x11::Event::ButtonRelease(event) => {
                     if event.event == self.window.inner {
                         match event.detail {
@@ -452,7 +454,8 @@ impl InputBackend for X11Backend {
                             }),
                         }
                     }
-                } // todo!("Handle button release"),
+                }
+
                 x11::Event::Expose(_) => (), // todo!("Handle expose"),
 
                 // TODO: Is it correct to directly cast the details of the event in? Or do we need to preprocess with xkbcommon
@@ -485,6 +488,7 @@ impl InputBackend for X11Backend {
                 }
 
                 x11::Event::ResizeRequest(_) => (), // todo!("Handle resize"),
+
                 // TODO: Is this fired after the client message stuff?
                 x11::Event::UnmapNotify(_) => (), // todo!("Handle shutdown"),
 
