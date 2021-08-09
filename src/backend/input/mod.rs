@@ -150,7 +150,7 @@ impl<B: InputBackend> PointerButtonEvent<B> for UnusedEvent {
 }
 
 /// Axis when scrolling
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Axis {
     /// Vertical axis
     Vertical,

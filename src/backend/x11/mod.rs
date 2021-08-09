@@ -220,9 +220,11 @@ impl KeyboardKeyEvent<X11Backend> for X11KeyboardInputEvent {
 
 /// X11-Backend internal event wrapping `X11`'s types into a [`PointerAxisEvent`]
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct X11MouseWheelEvent {
     time: u32,
+    axis: Axis,
+    amount: f64,
 }
 
 impl BackendEvent<X11Backend> for X11MouseWheelEvent {
@@ -237,15 +239,21 @@ impl BackendEvent<X11Backend> for X11MouseWheelEvent {
 
 impl PointerAxisEvent<X11Backend> for X11MouseWheelEvent {
     fn amount(&self, _axis: Axis) -> Option<f64> {
-        todo!()
+        None
     }
 
-    fn amount_discrete(&self, _axis: Axis) -> Option<f64> {
-        todo!()
+    fn amount_discrete(&self, axis: Axis) -> Option<f64> {
+        // TODO: Is this proper?
+        if self.axis == axis {
+            Some(self.amount)
+        } else {
+            None
+        }
     }
 
     fn source(&self) -> AxisSource {
-        todo!()
+        // X11 seems to act within the scope of individual rachets of a scroll wheel.
+        AxisSource::Wheel
     }
 }
 
@@ -373,9 +381,28 @@ impl InputBackend for X11Backend {
 
                             4..=7 => {
                                 // Scrolling
-                                // TODO: Event details.
                                 callback(InputEvent::PointerAxis {
-                                    event: X11MouseWheelEvent { time: event.time },
+                                    event: X11MouseWheelEvent {
+                                        time: event.time,
+                                        axis: match event.detail {
+                                            // Up | Down
+                                            4 | 5 => Axis::Vertical,
+
+                                            // Right | Left
+                                            6 | 7 => Axis::Horizontal,
+
+                                            _ => unreachable!(),
+                                        },
+                                        amount: match event.detail {
+                                            // Up | Right
+                                            4 | 7 => 1.0,
+
+                                            // Down | Left
+                                            5 | 6 => -1.0,
+
+                                            _ => unreachable!()
+                                        },
+                                    },
                                 })
                             }
 
@@ -458,7 +485,8 @@ impl InputBackend for X11Backend {
                 }
 
                 x11::Event::ResizeRequest(_) => (), // todo!("Handle resize"),
-                x11::Event::UnmapNotify(_) => (),   // todo!("Handle shutdown"),
+                // TODO: Is this fired after the client message stuff?
+                x11::Event::UnmapNotify(_) => (), // todo!("Handle shutdown"),
 
                 x11::Event::ClientMessage(event) => {
                     // Were we told to destroy the window?
