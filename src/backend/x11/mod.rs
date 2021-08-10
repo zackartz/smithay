@@ -31,8 +31,8 @@ pub enum X11Error {
     #[error("Connecting to the X server failed")]
     ConnectionFailed(ConnectError),
 
-    /// An error occured with the connection to the X server.
-    #[error("An error occured with the connection to the X server.")]
+    /// An error occurred with the connection to the X server.
+    #[error("An error occurred with the connection to the X server.")]
     ConnectionError(ConnectionError),
 
     /// An X11 error packet was encountered.
@@ -522,6 +522,9 @@ impl InputBackend for X11Backend {
                 _ => (),
             }
         }
+
+        // Flush events to the server
+        self.connection.flush()?;
 
         Ok(())
     }
