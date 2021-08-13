@@ -56,9 +56,7 @@ impl WindowInner {
         properties: WindowProperties<'_>,
     ) -> Result<WindowInner, X11Error> {
         // Generate the xid for the window
-        let window = connection.generate_id().expect("TODO: Error");
-
-        // Next specify auxillary window properties
+        let window = connection.generate_id()?;
         let window_aux = CreateWindowAux::new()
             .event_mask(
                 EventMask::EXPOSURE // Be told when the window is exposed
@@ -105,7 +103,7 @@ impl WindowInner {
 
         // Block until window creation is complete.
         cookie.check()?;
-        window.set_title(properties.title)?;
+        window.set_title(properties.title);
 
         // Finally map the window
         connection.map_window(window.inner)?;
@@ -116,24 +114,22 @@ impl WindowInner {
         Ok(window)
     }
 
-    pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
+    pub fn set_title(&self, title: &str) {
         // _NET_WM_NAME should be preferred by window managers, but set both in case.
-        self.connection.change_property8(
+        let _ = self.connection.change_property8(
             PropMode::REPLACE,
             self.inner,
             AtomEnum::WM_NAME,
             AtomEnum::STRING,
             title.as_bytes(),
-        )?;
+        );
 
-        self.connection.change_property8(
+        let _ = self.connection.change_property8(
             PropMode::REPLACE,
             self.inner,
             self.atoms.net_wm_name,
             self.atoms.utf8_string,
             title.as_bytes(),
-        )?;
-
-        Ok(())
+        );
     }
 }

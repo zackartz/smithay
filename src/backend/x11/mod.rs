@@ -15,7 +15,7 @@ use super::input::{
 use crate::backend::input::InputEvent;
 use crate::backend::input::{DeviceCapability, Event as BackendEvent};
 use slog::{info, o, Logger};
-use x11rb::rust_connection::RustConnection;
+use x11rb::rust_connection::{ReplyOrIdError, RustConnection};
 use std::rc::Rc;
 use std::rc::Weak;
 use x11rb::connection::Connection;
@@ -71,6 +71,12 @@ impl From<ReplyError> for X11Error {
     }
 }
 
+impl From<ReplyOrIdError> for X11Error {
+    fn from(_: ReplyOrIdError) -> Self {
+        todo!()
+    }
+}
+
 /// Properties defining information about the Window created by the X11 backend.
 // TODO:
 // - Rendering? I guess we allow binding buffers for this?
@@ -98,11 +104,9 @@ pub struct Window(Weak<WindowInner>);
 
 impl Window {
     /// Sets the title of the window.
-    pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
+    pub fn set_title(&self, title: &str) {
         if let Some(inner) = self.0.upgrade() {
-            inner.set_title(title)
-        } else {
-            Err(X11Error::WindowDestroyed)
+            inner.set_title(title);
         }
     }
 
