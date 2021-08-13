@@ -4,13 +4,11 @@ use super::{WindowProperties, X11Error};
 use std::rc::Rc;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::ConnectionExt as _;
+use x11rb::protocol::xproto::{
+    self as x11, Atom, AtomEnum, CreateWindowAux, EventMask, PropMode, Screen, WindowClass,
+};
 use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt;
-use x11rb::{
-    protocol::xproto::{
-        self as x11, Atom, AtomEnum, CreateWindowAux, EventMask, PropMode, Screen, WindowClass,
-    },
-};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Atoms {

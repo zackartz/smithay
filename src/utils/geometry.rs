@@ -180,6 +180,38 @@ floating_point_coordinate_impl! {
     f64
 }
 
+impl Coordinate for u16 {
+    #[inline]
+    fn downscale(self, scale: Self) -> Self {
+        self / scale
+    }
+
+    #[inline]
+    fn upscale(self, scale: Self) -> Self {
+        self.saturating_mul(scale)
+    }
+
+    #[inline]
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+
+    #[inline]
+    fn from_f64(v: f64) -> Self {
+        v as u16
+    }
+
+    #[inline]
+    fn non_negative(self) -> bool {
+        self >= 0
+    }
+
+    #[inline]
+    fn abs(self) -> Self {
+        self.abs()
+    }
+}
+
 /*
  * Point
  */
