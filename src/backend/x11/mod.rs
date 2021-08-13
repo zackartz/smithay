@@ -120,6 +120,20 @@ impl Window {
     // TODO: Window size?
 }
 
+/// An event emitted by the X11 backend.
+#[derive(Debug)]
+pub enum X11Event {
+    /// The window has received an Expose request, indicating the window is ready to accept new
+    /// content to present.
+    Expose,
+
+    /// The window was resized.
+    Resized(u16, u16),
+
+    /// The window was requested to be closed.
+    CloseRequested,
+}
+
 /// An abstraction representing a connection to the X11 server.
 #[derive(Debug)]
 pub struct X11Backend {
@@ -130,9 +144,10 @@ pub struct X11Backend {
 
 impl X11Backend {
     /// Initializes the X11 backend, connecting to the X server and creating the window the compositor may output to.
-    pub fn init<L>(properties: WindowProperties<'_>, logger: L) -> Result<X11Backend, X11Error>
+    pub fn init<Data, F, L>(properties: WindowProperties<'_>, _callback: F, logger: L) -> Result<X11Backend, X11Error>
     where
         L: Into<Option<slog::Logger>>,
+        F: FnMut(Window, X11Event, &mut Data) + 'static,
     {
         let log = crate::slog_or_fallback(logger).new(o!("smithay_module" => "backend_x11"));
 
