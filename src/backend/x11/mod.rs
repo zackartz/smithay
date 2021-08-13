@@ -16,8 +16,8 @@ use crate::backend::input::InputEvent;
 use crate::backend::input::{DeviceCapability, Event as BackendEvent};
 use slog::{info, o, Logger};
 use x11rb::rust_connection::RustConnection;
-use std::sync::Arc;
-use std::sync::Weak;
+use std::rc::Rc;
+use std::rc::Weak;
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol as x11;
@@ -120,8 +120,8 @@ impl Window {
 #[derive(Debug)]
 pub struct X11Backend {
     log: Logger,
-    connection: Arc<RustConnection>,
-    window: Arc<WindowInner>,
+    connection: Rc<RustConnection>,
+    window: Rc<WindowInner>,
 }
 
 impl X11Backend {
@@ -134,12 +134,12 @@ impl X11Backend {
 
         info!(log, "Connecting to the X server");
         let (connection, screen_number) = RustConnection::connect(None)?;
-        let connection = Arc::new(connection);
+        let connection = Rc::new(connection);
         info!(log, "Connected to screen {}", screen_number);
 
         let screen = &connection.setup().roots[screen_number];
         let atoms = Atoms::new(connection.clone())?;
-        let window = Arc::new(WindowInner::new(connection.clone(), screen, atoms, properties)?);
+        let window = Rc::new(WindowInner::new(connection.clone(), screen, atoms, properties)?);
         info!(log, "Window created");
 
         Ok(X11Backend {
@@ -151,7 +151,7 @@ impl X11Backend {
 
     /// Returns a handle to the X11 window this input backend handles inputs for.
     pub fn window(&self) -> Window {
-        Window(Arc::downgrade(&self.window))
+        Window(Rc::downgrade(&self.window))
     }
 }
 
