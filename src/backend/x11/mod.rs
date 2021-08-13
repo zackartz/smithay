@@ -15,6 +15,7 @@ use super::input::{
 use crate::backend::input::InputEvent;
 use crate::backend::input::{DeviceCapability, Event as BackendEvent};
 use slog::{info, o, Logger};
+use x11rb::rust_connection::RustConnection;
 use std::sync::Arc;
 use std::sync::Weak;
 use x11rb::connection::Connection;
@@ -22,7 +23,6 @@ use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol as x11;
 use x11rb::protocol::xproto::ConnectionExt;
 use x11rb::x11_utils::X11Error as ImplError;
-use x11rb::xcb_ffi::XCBConnection;
 
 /// An error emitted by the X11 backend.
 #[derive(Debug, thiserror::Error)]
@@ -120,7 +120,7 @@ impl Window {
 #[derive(Debug)]
 pub struct X11Backend {
     log: Logger,
-    connection: Arc<XCBConnection>,
+    connection: Arc<RustConnection>,
     window: Arc<WindowInner>,
 }
 
@@ -133,7 +133,7 @@ impl X11Backend {
         let log = crate::slog_or_fallback(logger).new(o!("smithay_module" => "backend_x11"));
 
         info!(log, "Connecting to the X server");
-        let (connection, screen_number) = XCBConnection::connect(None)?;
+        let (connection, screen_number) = RustConnection::connect(None)?;
         let connection = Arc::new(connection);
         info!(log, "Connected to screen {}", screen_number);
 
@@ -144,7 +144,7 @@ impl X11Backend {
 
         Ok(X11Backend {
             log,
-            connection: connection,
+            connection,
             window,
         })
     }

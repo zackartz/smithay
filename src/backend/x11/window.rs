@@ -4,12 +4,12 @@ use super::{WindowProperties, X11Error};
 use std::sync::Arc;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::ConnectionExt as _;
+use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt;
 use x11rb::{
     protocol::xproto::{
         self as x11, Atom, AtomEnum, CreateWindowAux, EventMask, PropMode, Screen, WindowClass,
     },
-    xcb_ffi::XCBConnection,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -21,7 +21,7 @@ pub(crate) struct Atoms {
 }
 
 impl Atoms {
-    pub fn new(connection: Arc<XCBConnection>) -> Result<Atoms, X11Error> {
+    pub fn new(connection: Arc<RustConnection>) -> Result<Atoms, X11Error> {
         // Stagger intern requests and checking the reply in each cookie as not to block during each request.
         let wm_protocols = connection.intern_atom(false, b"WM_PROTOCOLS")?;
         let wm_delete_window = connection.intern_atom(false, b"WM_DELETE_WINDOW")?;
@@ -43,14 +43,14 @@ impl Atoms {
 
 #[derive(Debug)]
 pub(crate) struct WindowInner {
-    connection: Arc<XCBConnection>,
+    connection: Arc<RustConnection>,
     pub inner: x11::Window,
     pub atoms: Atoms,
 }
 
 impl WindowInner {
     pub fn new(
-        connection: Arc<XCBConnection>,
+        connection: Arc<RustConnection>,
         screen: &Screen,
         atoms: Atoms,
         properties: WindowProperties<'_>,
