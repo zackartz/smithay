@@ -141,8 +141,10 @@ impl Window {
 /// An event emitted by the X11 backend.
 #[derive(Debug)]
 pub enum X11Event {
-    /// The window has received an Expose request, indicating the window is ready to accept new
-    /// content to present.
+    /// The X server has sent an expose event, requiring the compositor to redraw the window.
+    ///
+    /// This is only called when redrawing is required, otherwise you should schedule drawing to
+    /// the window yourself.
     Expose,
 
     /// The window was resized.
@@ -261,7 +263,8 @@ impl<Data> X11Backend<Data> {
                         }
 
                         x11::Event::Expose(expose) => {
-                            if expose.window == window.inner {
+                            // TODO: We would ideally use this to determine damage and render more efficiently that way.
+                            if expose.window == window.inner && expose.count == 0 {
                                 (&mut callback.borrow_mut())(
                                     &Window(Rc::downgrade(&window)),
                                     X11Event::Expose,

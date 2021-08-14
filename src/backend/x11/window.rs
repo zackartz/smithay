@@ -41,7 +41,7 @@ impl Atoms {
 
 #[derive(Debug)]
 pub(crate) struct WindowInner {
-    connection: Rc<RustConnection>,
+    pub connection: Rc<RustConnection>,
     pub inner: x11::Window,
     pub atoms: Atoms,
 }
