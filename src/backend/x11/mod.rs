@@ -8,7 +8,7 @@ mod buffer;
 mod event_source;
 mod window;
 
-use self::window::{Atoms, WindowInner};
+use self::window::WindowInner;
 use super::input::{
     Axis, AxisSource, ButtonState, Device, InputBackend, KeyState, KeyboardKeyEvent, MouseButton,
     PointerAxisEvent, PointerButtonEvent, PointerMotionAbsoluteEvent, UnusedEvent,
@@ -18,7 +18,7 @@ use crate::backend::input::{DeviceCapability, Event as BackendEvent};
 use crate::backend::x11::event_source::X11Source;
 use crate::utils::{Logical, Size};
 use calloop::{LoopHandle, RegistrationToken};
-use slog::{info, o, Logger};
+use slog::{Logger, error, info, o};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::rc::Weak;
@@ -188,12 +188,12 @@ impl<Data> X11Backend<Data> {
         info!(log, "Connected to screen {}", screen_number);
 
         let screen = &connection.setup().roots[screen_number];
-        let atoms = Atoms::new(connection.clone())?;
-        let window = Rc::new(WindowInner::new(connection.clone(), screen, atoms, properties)?);
+        let window = Rc::new(WindowInner::new(connection.clone(), screen, properties)?);
         let event_source = X11Source::new(connection.clone());
         let queued_input_events = Rc::new(RefCell::new(vec![]));
 
         // Clones to move into the source's callback
+        let callback_log = log.clone();
         let callback_connection = connection.clone();
         let callback_window = window.clone();
         let callback_queued_input_events = queued_input_events.clone();
@@ -253,7 +253,7 @@ impl<Data> X11Backend<Data> {
 
                         x11::Event::ClientMessage(client_message) => {
                             // Were we told to destroy the window?
-                            if client_message.data.as_data32()[0] == window.atoms.wm_delete_window
+                            if client_message.data.as_data32()[0] == window.atoms.WM_DELETE_WINDOW
                                 && client_message.window == window.inner
                             {
                                 (&mut callback.borrow_mut())(
@@ -275,8 +275,9 @@ impl<Data> X11Backend<Data> {
                             }
                         }
 
-                        // TODO: What to do with errors?
-                        x11::Event::Error(_) => (),
+                        x11::Event::Error(e) => {
+                            error!(callback_log, "X11 error: {:?}", e);
+                        },
 
                         _ => (),
                     }

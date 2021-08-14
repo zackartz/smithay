@@ -5,7 +5,6 @@
 use super::X11Error;
 use x11rb::connection::Connection;
 use x11rb::utils::RawFdContainer;
-use x11rb::wrapper::ConnectionExt as _;
 use x11rb::{protocol::dri3::ConnectionExt, rust_connection::RustConnection};
 
 use crate::backend::allocator::dmabuf::Dmabuf;

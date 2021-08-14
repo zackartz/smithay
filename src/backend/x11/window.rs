@@ -140,7 +140,7 @@ impl WindowInner {
         );
 
         // Set WM_CLASS
-        let raw = Vec::new();
+        let mut raw = Vec::new();
         raw.extend_from_slice(title.as_bytes());
         raw.extend_from_slice(b"\n");
         raw.extend_from_slice(title.as_bytes());
