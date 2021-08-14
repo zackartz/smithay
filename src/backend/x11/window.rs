@@ -3,7 +3,7 @@
 use super::{WindowProperties, X11Error};
 use std::rc::Rc;
 use x11rb::connection::Connection;
-use x11rb::protocol::xproto::ConnectionExt as _;
+use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
 use x11rb::protocol::xproto::{
     self as x11, Atom, AtomEnum, CreateWindowAux, EventMask, PropMode, Screen, WindowClass,
 };
@@ -43,6 +43,7 @@ impl Atoms {
 pub(crate) struct WindowInner {
     pub connection: Rc<RustConnection>,
     pub inner: x11::Window,
+    root: x11::Window,
     pub atoms: Atoms,
 }
 
@@ -66,8 +67,7 @@ impl WindowInner {
             | EventMask::POINTER_MOTION // Mouse movement
             | EventMask::RESIZE_REDIRECT // Handling resizes
             | EventMask::NO_EVENT,
-            )
-            .background_pixel(screen.black_pixel);
+            );
 
         let cookie = connection.create_window(
             screen.root_depth,
@@ -87,6 +87,7 @@ impl WindowInner {
         let window = WindowInner {
             connection: connection.clone(),
             inner: window,
+            root: screen.root,
             atoms,
         };
 
@@ -117,7 +118,25 @@ impl WindowInner {
     }
 
     pub fn unmap(&self) {
+        // ICCCM - Changing Window State
+        //
+        // Normal -> Withdrawn - The client should unmap the window and follow it with a synthetic
+        // UnmapNotify event as described later in this section. 
         let _ = self.connection.unmap_window(self.inner);
+
+        // Send a synthetic UnmapNotify event to make the ICCCM happy
+        let _ = self.connection.send_event(
+            false,
+            self.inner,
+            EventMask::STRUCTURE_NOTIFY | EventMask::SUBSTRUCTURE_NOTIFY,
+            UnmapNotifyEvent {
+                response_type: x11rb::protocol::xproto::UNMAP_NOTIFY_EVENT,
+                sequence: 0,
+                event: self.root,
+                window: self.inner,
+                from_configure: false,
+            },
+        );
     }
 
     pub fn set_title(&self, title: &str) {
