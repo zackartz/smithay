@@ -1,7 +1,13 @@
 use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
-use smithay::{backend::{input::InputBackend, x11::{WindowProperties, X11Backend, X11Event}}, reexports::{calloop::EventLoop, wayland_server::Display}};
+use smithay::{
+    backend::{
+        input::InputBackend,
+        x11::{WindowProperties, X11Backend, X11Event},
+    },
+    reexports::{calloop::EventLoop, wayland_server::Display},
+};
 
 use crate::{state::Backend, AnvilState};
 
@@ -34,10 +40,8 @@ pub fn run_x11(log: Logger) {
                 X11Event::CloseRequested => {
                     data.running.store(false, Ordering::SeqCst);
                     window.unmap();
-                },
+                }
             }
-
-            println!("{:?}", event);
         },
         log.clone(),
     )

@@ -446,9 +446,11 @@ impl<Data> PointerButtonEvent<X11Backend<Data>> for X11MouseInputEvent {
 
 /// X11-Backend internal event wrapping `X11`'s types into a [`PointerMotionAbsoluteEvent`]
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct X11MouseMovedEvent {
     time: u32,
+    x: f64,
+    y: f64,
 }
 
 impl<Data> BackendEvent<X11Backend<Data>> for X11MouseMovedEvent {
@@ -463,11 +465,11 @@ impl<Data> BackendEvent<X11Backend<Data>> for X11MouseMovedEvent {
 
 impl<Data> PointerMotionAbsoluteEvent<X11Backend<Data>> for X11MouseMovedEvent {
     fn x(&self) -> f64 {
-        todo!()
+        self.x
     }
 
     fn y(&self) -> f64 {
-        todo!()
+        self.y
     }
 
     fn x_transformed(&self, _width: i32) -> f64 {
@@ -643,15 +645,17 @@ impl<Data> InputBackend for X11Backend<Data> {
                 x11::Event::MotionNotify(event) => {
                     // Only handle key events if the event occurred in our own window.
                     if event.event == self.window.inner {
-                        // TODO: Fill in extra details.
-                        let _ = event.event_x;
-                        let _ = event.event_y;
+                        // Use event_x/y since those are relative the the window receiving events.
+                        let x = event.event_x as f64;
+                        let y = event.event_y as f64;
 
                         callback(InputEvent::PointerMotionAbsolute {
-                            event: X11MouseMovedEvent { time: event.time },
+                            event: X11MouseMovedEvent {
+                                time: event.time,
+                                x,
+                                y,
+                            },
                         })
-
-                        // Use event_x/y since those are relative the the window receiving events.
                     }
                 }
 
