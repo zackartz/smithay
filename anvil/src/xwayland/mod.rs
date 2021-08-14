@@ -237,7 +237,7 @@ pub fn commit_hook(surface: &WlSurface) {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct X11Surface {
     surface: WlSurface,
 }

@@ -114,6 +114,20 @@ impl Window {
         }
     }
 
+    /// Maps the window, making it visible.
+    pub fn map(&self) {
+        if let Some(inner) = self.0.upgrade() {
+            inner.map();
+        }
+    }
+
+    /// Unmaps the window, making it invisible.
+    pub fn unmap(&self) {
+        if let Some(inner) = self.0.upgrade() {
+            inner.unmap();
+        }
+    }
+
     /// Returns the XID of the window.
     ///
     /// Returns `None` if the window has been destroyed.
@@ -178,7 +192,6 @@ impl<Data> X11Backend<Data> {
         // Clones to move into the source's callback
         let callback_connection = connection.clone();
         let callback_window = window.clone();
-        let callback_callback = callback.clone();
         let callback_queued_input_events = queued_input_events.clone();
 
         let source_registration = loop_handle
@@ -186,7 +199,6 @@ impl<Data> X11Backend<Data> {
                 let connection = callback_connection.clone();
                 let window = callback_window.clone();
                 let queued_input_events = callback_queued_input_events.clone();
-                let callback = callback_callback.clone();
 
                 for event in events {
                     match event {

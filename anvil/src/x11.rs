@@ -1,16 +1,11 @@
 use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
-use smithay::{
-    backend::{
-        input::InputBackend,
-        x11::{WindowProperties, X11Backend},
-    },
-    reexports::{calloop::EventLoop, wayland_server::Display},
-};
+use smithay::{backend::{input::InputBackend, x11::{WindowProperties, X11Backend, X11Event}}, reexports::{calloop::EventLoop, wayland_server::Display}};
 
 use crate::{state::Backend, AnvilState};
 
+#[derive(Debug)]
 struct X11Data;
 
 impl Backend for X11Data {
@@ -23,11 +18,26 @@ pub fn run_x11(log: Logger) {
     let mut event_loop = EventLoop::try_new().unwrap();
     let display = Rc::new(RefCell::new(Display::new()));
 
+    let window_properties = WindowProperties {
+        width: 1280,
+        height: 800,
+        title: "Anvil",
+    };
+
     let mut backend = X11Backend::init(
-        WindowProperties {
-            width: 1280,
-            height: 800,
-            title: "Anvil",
+        event_loop.handle(),
+        window_properties,
+        move |window, event, data: &mut AnvilState<X11Data>| {
+            match event {
+                X11Event::Expose => (),
+                X11Event::Resized(_) => (),
+                X11Event::CloseRequested => {
+                    data.running.store(false, Ordering::SeqCst);
+                    window.unmap();
+                },
+            }
+
+            println!("{:?}", event);
         },
         log.clone(),
     )

@@ -112,6 +112,14 @@ impl WindowInner {
         Ok(window)
     }
 
+    pub fn map(&self) {
+        let _ = self.connection.map_window(self.inner);
+    }
+
+    pub fn unmap(&self) {
+        let _ = self.connection.unmap_window(self.inner);
+    }
+
     pub fn set_title(&self, title: &str) {
         // _NET_WM_NAME should be preferred by window managers, but set both in case.
         let _ = self.connection.change_property8(
@@ -129,5 +137,11 @@ impl WindowInner {
             self.atoms.utf8_string,
             title.as_bytes(),
         );
+    }
+}
+
+impl Drop for WindowInner {
+    fn drop(&mut self) {
+        let _ = self.connection.destroy_window(self.inner);
     }
 }

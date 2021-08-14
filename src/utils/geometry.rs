@@ -203,12 +203,12 @@ impl Coordinate for u16 {
 
     #[inline]
     fn non_negative(self) -> bool {
-        self >= 0
+        true
     }
 
     #[inline]
     fn abs(self) -> Self {
-        self.abs()
+        self
     }
 }
 
