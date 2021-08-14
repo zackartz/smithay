@@ -22,6 +22,7 @@ use slog::{info, o, Logger};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::rc::Weak;
+use std::sync::atomic::{AtomicU32, Ordering};
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol as x11;
@@ -163,6 +164,7 @@ pub struct X11Backend<Data> {
     connection: Rc<RustConnection>,
     window: Rc<WindowInner>,
     queued_input_events: Rc<RefCell<Vec<x11::Event>>>,
+    key_counter: Rc<AtomicU32>,
 }
 
 impl<Data> X11Backend<Data> {
@@ -294,6 +296,7 @@ impl<Data> X11Backend<Data> {
             connection,
             window,
             queued_input_events,
+            key_counter: Rc::new(AtomicU32::new(0)),
         })
     }
 
@@ -504,6 +507,7 @@ impl<Data> InputBackend for X11Backend<Data> {
     where
         F: FnMut(super::input::InputEvent<Self>),
     {
+        let key_counter = self.key_counter.clone();
         let mut queued_events = self.queued_input_events.borrow_mut();
 
         queued_events.drain(..).for_each(|event| {
@@ -613,21 +617,27 @@ impl<Data> InputBackend for X11Backend<Data> {
                         event: X11KeyboardInputEvent {
                             time: event.time,
                             key: event.detail as u32,
-                            count: 1, // TODO: Counter
+                            // Fetch add returns previous value
+                            count: key_counter.fetch_add(1, Ordering::SeqCst) + 1,
                             state: KeyState::Pressed,
                         },
                     })
                 }
 
                 x11::Event::KeyRelease(event) => {
+                    // atomic u32 has no checked_sub, so load and store to do the same.
+                    let mut key_counter = self.key_counter.load(Ordering::SeqCst);
+                    key_counter = key_counter.checked_sub(1).unwrap_or(0);
+                    self.key_counter.store(key_counter, Ordering::SeqCst);
+
                     callback(InputEvent::Keyboard {
                         event: X11KeyboardInputEvent {
                             time: event.time,
                             key: event.detail as u32,
-                            count: 1, // TODO: Counter
+                            count: key_counter,
                             state: KeyState::Released,
                         },
-                    })
+                    });
                 }
 
                 x11::Event::MotionNotify(event) => {
