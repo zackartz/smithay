@@ -17,7 +17,7 @@ use crate::backend::input::InputEvent;
 use crate::backend::input::{DeviceCapability, Event as BackendEvent};
 use crate::backend::x11::event_source::X11Source;
 use crate::utils::{Logical, Size};
-use calloop::LoopHandle;
+use calloop::{LoopHandle, RegistrationToken};
 use slog::{info, o, Logger};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -140,24 +140,26 @@ pub enum X11Event {
 
 /// An abstraction representing a connection to the X11 server.
 #[derive(Debug)]
-pub struct X11Backend {
+pub struct X11Backend<Data> {
     log: Logger,
+    loop_handle: LoopHandle<'static, Data>,
+    source_registration: Option<RegistrationToken>,
     connection: Rc<RustConnection>,
     window: Rc<WindowInner>,
     queued_input_events: Rc<RefCell<Vec<x11::Event>>>,
 }
 
-impl X11Backend {
+impl<Data> X11Backend<Data> {
     /// Initializes the X11 backend, connecting to the X server and creating the window the compositor may output to.
-    pub fn init<Data, F, L>(
+    pub fn init<F, L>(
         loop_handle: LoopHandle<'static, Data>,
         properties: WindowProperties<'_>,
         callback: F,
         logger: L,
-    ) -> Result<X11Backend, X11Error>
+    ) -> Result<X11Backend<Data>, X11Error>
     where
         L: Into<Option<slog::Logger>>,
-        F: FnMut(Window, X11Event, &mut Data) + 'static,
+        F: FnMut(&Window, X11Event, &mut Data) + 'static,
     {
         let log = crate::slog_or_fallback(logger).new(o!("smithay_module" => "backend_x11"));
         let callback = Rc::new(RefCell::new(callback));
@@ -179,7 +181,7 @@ impl X11Backend {
         let callback_callback = callback.clone();
         let callback_queued_input_events = queued_input_events.clone();
 
-        loop_handle
+        let source_registration = loop_handle
             .insert_source(event_source, move |events, _, data| {
                 let connection = callback_connection.clone();
                 let window = callback_window.clone();
@@ -226,7 +228,7 @@ impl X11Backend {
                                 let size = (resized.width, resized.height).into();
 
                                 (&mut callback.borrow_mut())(
-                                    Window(Rc::downgrade(&window)),
+                                    &Window(Rc::downgrade(&window)),
                                     X11Event::Resized(size),
                                     data,
                                 );
@@ -239,7 +241,7 @@ impl X11Backend {
                                 && client_message.window == window.inner
                             {
                                 (&mut callback.borrow_mut())(
-                                    Window(Rc::downgrade(&window)),
+                                    &Window(Rc::downgrade(&window)),
                                     X11Event::CloseRequested,
                                     data,
                                 );
@@ -249,7 +251,7 @@ impl X11Backend {
                         x11::Event::Expose(expose) => {
                             if expose.window == window.inner {
                                 (&mut callback.borrow_mut())(
-                                    Window(Rc::downgrade(&window)),
+                                    &Window(Rc::downgrade(&window)),
                                     X11Event::Expose,
                                     data,
                                 );
@@ -272,6 +274,8 @@ impl X11Backend {
 
         Ok(X11Backend {
             log,
+            loop_handle,
+            source_registration: Some(source_registration),
             connection,
             window,
             queued_input_events,
@@ -281,6 +285,13 @@ impl X11Backend {
     /// Returns a handle to the X11 window this input backend handles inputs for.
     pub fn window(&self) -> Window {
         Window(Rc::downgrade(&self.window))
+    }
+}
+
+impl<Data> Drop for X11Backend<Data> {
+    fn drop(&mut self) {
+        // Registration token is always present, could avoid this if it were `Clone`.
+        self.loop_handle.remove(self.source_registration.take().unwrap());
     }
 }
 
@@ -323,7 +334,7 @@ pub struct X11KeyboardInputEvent {
     state: KeyState,
 }
 
-impl BackendEvent<X11Backend> for X11KeyboardInputEvent {
+impl<Data> BackendEvent<X11Backend<Data>> for X11KeyboardInputEvent {
     fn time(&self) -> u32 {
         self.time
     }
@@ -333,7 +344,7 @@ impl BackendEvent<X11Backend> for X11KeyboardInputEvent {
     }
 }
 
-impl KeyboardKeyEvent<X11Backend> for X11KeyboardInputEvent {
+impl<Data> KeyboardKeyEvent<X11Backend<Data>> for X11KeyboardInputEvent {
     fn key_code(&self) -> u32 {
         self.key
     }
@@ -356,7 +367,7 @@ pub struct X11MouseWheelEvent {
     amount: f64,
 }
 
-impl BackendEvent<X11Backend> for X11MouseWheelEvent {
+impl<Data> BackendEvent<X11Backend<Data>> for X11MouseWheelEvent {
     fn time(&self) -> u32 {
         self.time
     }
@@ -366,7 +377,7 @@ impl BackendEvent<X11Backend> for X11MouseWheelEvent {
     }
 }
 
-impl PointerAxisEvent<X11Backend> for X11MouseWheelEvent {
+impl<Data> PointerAxisEvent<X11Backend<Data>> for X11MouseWheelEvent {
     fn amount(&self, _axis: Axis) -> Option<f64> {
         None
     }
@@ -395,7 +406,7 @@ pub struct X11MouseInputEvent {
     state: ButtonState,
 }
 
-impl BackendEvent<X11Backend> for X11MouseInputEvent {
+impl<Data> BackendEvent<X11Backend<Data>> for X11MouseInputEvent {
     fn time(&self) -> u32 {
         self.time
     }
@@ -405,7 +416,7 @@ impl BackendEvent<X11Backend> for X11MouseInputEvent {
     }
 }
 
-impl PointerButtonEvent<X11Backend> for X11MouseInputEvent {
+impl<Data> PointerButtonEvent<X11Backend<Data>> for X11MouseInputEvent {
     fn button(&self) -> MouseButton {
         self.button
     }
@@ -422,7 +433,7 @@ pub struct X11MouseMovedEvent {
     time: u32,
 }
 
-impl BackendEvent<X11Backend> for X11MouseMovedEvent {
+impl<Data> BackendEvent<X11Backend<Data>> for X11MouseMovedEvent {
     fn time(&self) -> u32 {
         self.time
     }
@@ -432,7 +443,7 @@ impl BackendEvent<X11Backend> for X11MouseMovedEvent {
     }
 }
 
-impl PointerMotionAbsoluteEvent<X11Backend> for X11MouseMovedEvent {
+impl<Data> PointerMotionAbsoluteEvent<X11Backend<Data>> for X11MouseMovedEvent {
     fn x(&self) -> f64 {
         todo!()
     }
@@ -450,7 +461,7 @@ impl PointerMotionAbsoluteEvent<X11Backend> for X11MouseMovedEvent {
     }
 }
 
-impl InputBackend for X11Backend {
+impl<Data> InputBackend for X11Backend<Data> {
     type EventError = X11Error;
 
     type Device = X11VirtualDevice;
