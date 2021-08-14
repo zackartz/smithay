@@ -5,7 +5,7 @@ use std::rc::Rc;
 use x11rb::atom_manager;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    self as x11, Atom, AtomEnum, CreateWindowAux, EventMask, PropMode, Screen, WindowClass,
+    self as x11, AtomEnum, CreateWindowAux, EventMask, PropMode, Screen, WindowClass,
 };
 use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
 use x11rb::rust_connection::RustConnection;
@@ -137,6 +137,21 @@ impl WindowInner {
             self.atoms._NET_WM_NAME,
             self.atoms.UTF8_STRING,
             title.as_bytes(),
+        );
+
+        // Set WM_CLASS
+        let raw = Vec::new();
+        raw.extend_from_slice(title.as_bytes());
+        raw.extend_from_slice(b"\n");
+        raw.extend_from_slice(title.as_bytes());
+        raw.push(b'\n');
+
+        let _ = self.connection.change_property8(
+            PropMode::REPLACE,
+            self.inner,
+            self.atoms.WM_CLASS,
+            AtomEnum::STRING,
+            &raw[..]
         );
     }
 }
