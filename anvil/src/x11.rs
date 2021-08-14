@@ -33,14 +33,12 @@ pub fn run_x11(log: Logger) {
     let mut backend = X11Backend::init(
         event_loop.handle(),
         window_properties,
-        move |window, event, data: &mut AnvilState<X11Data>| {
-            match event {
-                X11Event::Expose => (),
-                X11Event::Resized(_) => (),
-                X11Event::CloseRequested => {
-                    data.running.store(false, Ordering::SeqCst);
-                    window.unmap();
-                }
+        move |window, event, data: &mut AnvilState<X11Data>| match event {
+            X11Event::Expose => (),
+            X11Event::Resized(_) => (),
+            X11Event::CloseRequested => {
+                data.running.store(false, Ordering::SeqCst);
+                window.unmap();
             }
         },
         log.clone(),

@@ -2,40 +2,22 @@
 
 use super::{WindowProperties, X11Error};
 use std::rc::Rc;
+use x11rb::atom_manager;
 use x11rb::connection::Connection;
-use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
 use x11rb::protocol::xproto::{
     self as x11, Atom, AtomEnum, CreateWindowAux, EventMask, PropMode, Screen, WindowClass,
 };
+use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
 use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt;
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Atoms {
-    pub wm_protocols: Atom,
-    pub wm_delete_window: Atom,
-    pub net_wm_name: Atom,
-    pub utf8_string: Atom,
-}
-
-impl Atoms {
-    pub fn new(connection: Rc<RustConnection>) -> Result<Atoms, X11Error> {
-        // Stagger intern requests and checking the reply in each cookie as not to block during each request.
-        let wm_protocols = connection.intern_atom(false, b"WM_PROTOCOLS")?;
-        let wm_delete_window = connection.intern_atom(false, b"WM_DELETE_WINDOW")?;
-        let net_wm_name = connection.intern_atom(false, b"_NET_WM_NAME")?;
-        let utf8_string = connection.intern_atom(false, b"UTF8_STRING")?;
-        let wm_protocols = wm_protocols.reply().unwrap().atom;
-        let wm_delete_window = wm_delete_window.reply().unwrap().atom;
-        let net_wm_name = net_wm_name.reply().unwrap().atom;
-        let utf8_string = utf8_string.reply().unwrap().atom;
-
-        Ok(Atoms {
-            wm_protocols,
-            wm_delete_window,
-            net_wm_name,
-            utf8_string,
-        })
+atom_manager! {
+    pub Atoms: AtomCollectionCookie {
+        WM_PROTOCOLS,
+        WM_DELETE_WINDOW,
+        WM_CLASS,
+        _NET_WM_NAME,
+        UTF8_STRING,
     }
 }
 
@@ -51,14 +33,14 @@ impl WindowInner {
     pub fn new(
         connection: Rc<RustConnection>,
         screen: &Screen,
-        atoms: Atoms,
         properties: WindowProperties<'_>,
     ) -> Result<WindowInner, X11Error> {
+        let atoms = Atoms::new(&*connection)?.reply()?;
+
         // Generate the xid for the window
         let window = connection.generate_id()?;
-        let window_aux = CreateWindowAux::new()
-            .event_mask(
-                EventMask::EXPOSURE // Be told when the window is exposed
+        let window_aux = CreateWindowAux::new().event_mask(
+            EventMask::EXPOSURE // Be told when the window is exposed
             | EventMask::STRUCTURE_NOTIFY
             | EventMask::KEY_PRESS // Key press and release
             | EventMask::KEY_RELEASE
@@ -67,7 +49,7 @@ impl WindowInner {
             | EventMask::POINTER_MOTION // Mouse movement
             | EventMask::RESIZE_REDIRECT // Handling resizes
             | EventMask::NO_EVENT,
-            );
+        );
 
         let cookie = connection.create_window(
             screen.root_depth,
@@ -95,9 +77,9 @@ impl WindowInner {
         connection.change_property32(
             PropMode::REPLACE,
             window.inner,
-            atoms.wm_protocols,
+            atoms.WM_PROTOCOLS,
             AtomEnum::ATOM,
-            &[atoms.wm_delete_window],
+            &[atoms.WM_DELETE_WINDOW],
         )?;
 
         // Block until window creation is complete.
@@ -121,7 +103,7 @@ impl WindowInner {
         // ICCCM - Changing Window State
         //
         // Normal -> Withdrawn - The client should unmap the window and follow it with a synthetic
-        // UnmapNotify event as described later in this section. 
+        // UnmapNotify event as described later in this section.
         let _ = self.connection.unmap_window(self.inner);
 
         // Send a synthetic UnmapNotify event to make the ICCCM happy
@@ -152,8 +134,8 @@ impl WindowInner {
         let _ = self.connection.change_property8(
             PropMode::REPLACE,
             self.inner,
-            self.atoms.net_wm_name,
-            self.atoms.utf8_string,
+            self.atoms._NET_WM_NAME,
+            self.atoms.UTF8_STRING,
             title.as_bytes(),
         );
     }
