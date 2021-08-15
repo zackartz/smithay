@@ -521,6 +521,9 @@ impl<Data> InputBackend for X11Backend<Data> {
                     // release is them immediately followed for scrolling. This means we can
                     // ignore release for scrolling.
 
+                    // Ideally we would use `ButtonIndex` from XCB, however it does not cover 6 and 7
+                    // for horizontal scroll and does not work nicely in match statements, so we
+                    // use magic constants here.
                     match event.detail {
                         1..=3 => {
                             // Clicking a button.
