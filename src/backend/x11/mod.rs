@@ -619,8 +619,10 @@ impl<Data> InputBackend for X11Backend<Data> {
                     callback(InputEvent::Keyboard {
                         event: X11KeyboardInputEvent {
                             time: event.time,
-                            key: event.detail as u32,
-                            // Fetch add returns previous value
+                            // It seems as if X11's keycodes are +8 relative to the libinput
+                            // keycodes that are expected, so subtract 8 from each keycode
+                            // to be correct.
+                            key: event.detail as u32 - 8 ,
                             count: key_counter.fetch_add(1, Ordering::SeqCst) + 1,
                             state: KeyState::Pressed,
                         },
@@ -636,7 +638,10 @@ impl<Data> InputBackend for X11Backend<Data> {
                     callback(InputEvent::Keyboard {
                         event: X11KeyboardInputEvent {
                             time: event.time,
-                            key: event.detail as u32,
+                            // It seems as if X11's keycodes are +8 relative to the libinput
+                            // keycodes that are expected, so subtract 8 from each keycode
+                            // to be correct.
+                            key: event.detail as u32 - 8 ,
                             count: key_counter,
                             state: KeyState::Released,
                         },
