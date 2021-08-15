@@ -69,15 +69,13 @@ impl From<ImplError> for X11Error {
 
 impl From<ReplyError> for X11Error {
     fn from(e: ReplyError) -> Self {
-        match e {
-            ReplyError::ConnectionError(e) => e.into(),
-            ReplyError::X11Error(e) => e.into(),
-        }
+        let e = ReplyOrIdError::from(e);
+        e.into()
     }
 }
 
 impl From<ReplyOrIdError> for X11Error {
-    fn from(_: ReplyOrIdError) -> Self {
+    fn from(_e: ReplyOrIdError) -> Self {
         todo!()
     }
 }
@@ -167,6 +165,8 @@ pub struct X11Backend<Data> {
     key_counter: Rc<AtomicU32>,
 }
 
+// TODO: Rework processing and reading of events to occur inside `process_new_events`. See EventSource::process_events, making the X11Backend itself an EventSource.
+// See libinput backend.
 impl<Data> X11Backend<Data> {
     /// Initializes the X11 backend, connecting to the X server and creating the window the compositor may output to.
     pub fn init<F, L>(
@@ -219,7 +219,6 @@ impl<Data> X11Backend<Data> {
                             }
                         }
 
-                        // TODO: Is it correct to directly cast the details of the event in? Or do we need to preprocess with xkbcommon
                         x11::Event::KeyPress(key_press) => {
                             if key_press.event == window.inner {
                                 queued_input_events.borrow_mut().push(event);
@@ -286,7 +285,7 @@ impl<Data> X11Backend<Data> {
                 // Now flush requests to the clients.
                 Ok(connection.flush()?)
             })
-            .expect("TODO");
+            .expect("Failed to initialize X11 event source");
 
         info!(log, "Window created");
 
