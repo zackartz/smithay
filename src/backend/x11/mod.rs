@@ -530,6 +530,7 @@ impl<Data> InputBackend for X11Backend<Data> {
                                     button: match event.detail {
                                         1 => MouseButton::Left,
 
+                                        // Confusion: XCB docs for ButtonIndex and what plasma does don't match?
                                         2 => MouseButton::Middle,
 
                                         3 => MouseButton::Right,
