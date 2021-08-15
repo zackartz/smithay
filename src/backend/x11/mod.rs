@@ -618,7 +618,6 @@ impl<Data> InputBackend for X11Backend<Data> {
                     }
                 }
 
-                // TODO: Is it correct to directly cast the details of the event in? Or do we need to preprocess with xkbcommon
                 x11::Event::KeyPress(event) => {
                     callback(InputEvent::Keyboard {
                         event: X11KeyboardInputEvent {
