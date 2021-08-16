@@ -170,8 +170,6 @@ pub struct X11Backend {
     token: Token,
 }
 
-// TODO: Rework processing and reading of events to occur inside `process_new_events`. See EventSource::process_events, making the X11Backend itself an EventSource.
-// See libinput backend.
 impl X11Backend {
     /// Initializes the X11 backend, connecting to the X server and creating the window the compositor may output to.
     pub fn new<F, L>(properties: WindowProperties<'_>, logger: L) -> Result<X11Backend, X11Error>
@@ -465,7 +463,7 @@ impl EventSource for X11Backend {
         _poll: &mut calloop::Poll,
         _factory: &mut calloop::TokenFactory,
     ) -> std::io::Result<()> {
-        todo!()
+        Ok(())
     }
 
     fn reregister(
@@ -473,11 +471,11 @@ impl EventSource for X11Backend {
         _poll: &mut calloop::Poll,
         _token_factory: &mut calloop::TokenFactory,
     ) -> std::io::Result<()> {
-        todo!()
+        Ok(())
     }
 
     fn unregister(&mut self, _poll: &mut calloop::Poll) -> std::io::Result<()> {
-        todo!()
+        Ok(())
     }
 }
 
