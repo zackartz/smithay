@@ -17,8 +17,9 @@ use crate::backend::input::InputEvent;
 use crate::backend::input::{DeviceCapability, Event as BackendEvent};
 use crate::backend::x11::event_source::X11Source;
 use crate::utils::{Logical, Size};
-use calloop::{EventSource, PostAction, Token};
+use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use slog::{error, info, o, Logger};
+use std::io;
 use std::rc::Rc;
 use std::rc::Weak;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -172,7 +173,7 @@ pub struct X11Backend {
 
 impl X11Backend {
     /// Initializes the X11 backend, connecting to the X server and creating the window the compositor may output to.
-    pub fn new<F, L>(properties: WindowProperties<'_>, logger: L) -> Result<X11Backend, X11Error>
+    pub fn new<L>(properties: WindowProperties<'_>, logger: L) -> Result<X11Backend, X11Error>
     where
         L: Into<Option<slog::Logger>>,
     {
@@ -214,10 +215,10 @@ impl EventSource for X11Backend {
 
     fn process_events<F>(
         &mut self,
-        readiness: calloop::Readiness,
-        token: calloop::Token,
+        readiness: Readiness,
+        token: Token,
         mut callback: F,
-    ) -> std::io::Result<calloop::PostAction>
+    ) -> std::io::Result<PostAction>
     where
         F: FnMut(Self::Event, &mut Self::Metadata) -> Self::Ret,
     {
@@ -460,22 +461,22 @@ impl EventSource for X11Backend {
 
     fn register(
         &mut self,
-        _poll: &mut calloop::Poll,
-        _factory: &mut calloop::TokenFactory,
-    ) -> std::io::Result<()> {
-        Ok(())
+        poll: &mut Poll,
+        token_factory: &mut TokenFactory,
+    ) -> io::Result<()> {
+        self.source.register(poll, token_factory)
     }
 
     fn reregister(
         &mut self,
-        _poll: &mut calloop::Poll,
-        _token_factory: &mut calloop::TokenFactory,
-    ) -> std::io::Result<()> {
-        Ok(())
+        poll: &mut Poll,
+        token_factory: &mut TokenFactory,
+    ) -> io::Result<()> {
+        self.source.reregister(poll, token_factory)
     }
 
-    fn unregister(&mut self, _poll: &mut calloop::Poll) -> std::io::Result<()> {
-        Ok(())
+    fn unregister(&mut self, poll: &mut Poll) -> io::Result<()> {
+        self.source.unregister(poll)
     }
 }
 

@@ -30,17 +30,8 @@ pub fn run_x11(log: Logger) {
         title: "Anvil",
     };
 
-    let mut backend = X11Backend::new(
-        event_loop.handle(),
+    let backend = X11Backend::new(
         window_properties,
-        move |window, event, data: &mut AnvilState<X11Data>| match event {
-            X11Event::Expose => (),
-            X11Event::Resized(_) => (),
-            X11Event::CloseRequested => {
-                data.running.store(false, Ordering::SeqCst);
-                window.unmap();
-            }
-        },
         log.clone(),
     )
     .expect("Failed to initialize X11 backend");
@@ -49,6 +40,14 @@ pub fn run_x11(log: Logger) {
     let data = X11Data;
 
     let mut state = AnvilState::init(display.clone(), event_loop.handle(), data, log.clone(), true);
+
+    event_loop.handle().insert_source(backend, |event, _window, state| {
+        if let X11Event::CloseRequested = event {
+            state.running.store(false, Ordering::SeqCst);
+        }
+
+        println!("{:?}", event);
+    }).expect("Failed to insert X11 Backend into event loop");
 
     let start_time = std::time::Instant::now();
     let mut cursor_visible = true;
@@ -59,16 +58,6 @@ pub fn run_x11(log: Logger) {
     info!(log, "Initialization completed, starting the main loop.");
 
     while state.running.load(Ordering::SeqCst) {
-        if backend
-            .dispatch_new_events(
-                |event| println!("{:?}", event), /*state.process_input_event(event)*/
-            )
-            .is_err()
-        {
-            state.running.store(false, Ordering::SeqCst);
-            break;
-        }
-
         // // drawing logic
         // {
         //     let mut renderer = renderer.borrow_mut();
