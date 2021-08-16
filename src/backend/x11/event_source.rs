@@ -13,6 +13,7 @@ use calloop::{
 
 use super::X11Error;
 
+#[derive(Debug)]
 pub struct X11Source {
     connection: Rc<RustConnection>,
     generic: Generic<Fd>,

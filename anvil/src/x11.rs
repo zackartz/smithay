@@ -30,7 +30,7 @@ pub fn run_x11(log: Logger) {
         title: "Anvil",
     };
 
-    let mut backend = X11Backend::init(
+    let mut backend = X11Backend::new(
         event_loop.handle(),
         window_properties,
         move |window, event, data: &mut AnvilState<X11Data>| match event {

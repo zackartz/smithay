@@ -10,8 +10,8 @@ use x11rb::protocol::xproto::ConnectionExt as _;
 use x11rb::utils::RawFdContainer;
 use x11rb::{protocol::dri3::ConnectionExt as _, rust_connection::RustConnection};
 
-use crate::backend::allocator::Buffer;
 use crate::backend::allocator::dmabuf::Dmabuf;
+use crate::backend::allocator::Buffer;
 
 // Plan here is to support dmabufs via the dri3 extensions, xcb_dri3_pixmap_from_buffer.
 // Shm can also be supported easily, through xcb_shm_create_pixmap.
@@ -28,6 +28,7 @@ impl Drop for Pixmap {
     }
 }
 
+#[allow(dead_code)]
 pub fn new_dma_pixbuf(
     dmabuf: Dmabuf,
     connection: Rc<RustConnection>,
@@ -47,8 +48,8 @@ pub fn new_dma_pixbuf(
             window,
             width,
             height,
-            dmabuf.strides().nth(0).unwrap(),
-            dmabuf.offsets().nth(0).unwrap(),
+            dmabuf.strides().next().unwrap(),
+            dmabuf.offsets().next().unwrap(),
             dmabuf.strides().nth(1).unwrap(),
             dmabuf.offsets().nth(1).unwrap(),
             dmabuf.strides().nth(2).unwrap(),
@@ -59,9 +60,9 @@ pub fn new_dma_pixbuf(
             bpp,
             dmabuf.format().modifier.into(),
             // TODO: Duplicate attributes, as raw fd container takes ownership
-            dmabuf.handles().map(|fd| RawFdContainer::new(fd)).collect(),
+            dmabuf.handles().map(RawFdContainer::new).collect(),
         )?
         .check()?;
 
-    Ok(todo!())
+   todo!()
 }

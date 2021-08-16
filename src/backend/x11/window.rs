@@ -151,7 +151,7 @@ impl WindowInner {
             self.inner,
             self.atoms.WM_CLASS,
             AtomEnum::STRING,
-            &raw[..]
+            &raw[..],
         );
     }
 }
