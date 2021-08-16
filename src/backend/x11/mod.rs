@@ -36,13 +36,9 @@ pub enum X11Error {
     #[error("Connecting to the X server failed")]
     ConnectionFailed(ConnectError),
 
-    /// An error occurred with the connection to the X server.
-    #[error("An error occurred with the connection to the X server.")]
-    ConnectionError(ConnectionError),
-
     /// An X11 error packet was encountered.
     #[error("An X11 error packet was encountered.")]
-    Protocol(ImplError),
+    Protocol(ReplyOrIdError),
 
     /// The window was destroyed.
     #[error("The window was destroyed")]
@@ -57,13 +53,15 @@ impl From<ConnectError> for X11Error {
 
 impl From<ConnectionError> for X11Error {
     fn from(e: ConnectionError) -> Self {
-        X11Error::ConnectionError(e)
+        let e = ReplyOrIdError::from(e);
+        e.into()
     }
 }
 
 impl From<ImplError> for X11Error {
     fn from(e: ImplError) -> Self {
-        X11Error::Protocol(e)
+        let e = ReplyOrIdError::from(e);
+        e.into()
     }
 }
 
@@ -80,7 +78,7 @@ impl From<ReplyOrIdError> for X11Error {
     }
 }
 
-/// Properties defining information about the Window created by the X11 backend.
+/// Properties defining information about the window created by the X11 backend.
 // TODO:
 // - Rendering? I guess we allow binding buffers for this?
 #[derive(Debug, Clone, Copy)]
@@ -168,7 +166,6 @@ pub struct X11Backend {
     connection: Rc<RustConnection>,
     window: Rc<WindowInner>,
     key_counter: Rc<AtomicU32>,
-    token: Token,
 }
 
 impl X11Backend {
@@ -196,7 +193,6 @@ impl X11Backend {
             connection,
             window,
             key_counter: Rc::new(AtomicU32::new(0)),
-            token: Token::invalid(),
         })
     }
 
