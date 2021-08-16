@@ -64,5 +64,5 @@ pub fn new_dma_pixbuf(
         )?
         .check()?;
 
-   todo!()
+    todo!()
 }
