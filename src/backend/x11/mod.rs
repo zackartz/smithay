@@ -73,8 +73,8 @@ impl From<ReplyError> for X11Error {
 }
 
 impl From<ReplyOrIdError> for X11Error {
-    fn from(_e: ReplyOrIdError) -> Self {
-        todo!()
+    fn from(e: ReplyOrIdError) -> Self {
+        X11Error::Protocol(e)
     }
 }
 
@@ -104,6 +104,8 @@ impl Default for WindowProperties<'_> {
 pub struct Window(Weak<WindowInner>);
 
 impl Window {
+    // TODO: Methods which may fail should be Result<_, X11Error>
+
     /// Sets the title of the window.
     pub fn set_title(&self, title: &str) {
         if let Some(inner) = self.0.upgrade() {
@@ -125,14 +127,19 @@ impl Window {
         }
     }
 
+    /// Returns the size of this window.
+    ///
+    /// Returns `None` if the window has been destroyed.
+    pub fn size(&self) -> Option<Size<u16, Logical>> {
+        self.0.upgrade().map(|w| w.size())
+    }
+
     /// Returns the XID of the window.
     ///
     /// Returns `None` if the window has been destroyed.
     pub fn id(&self) -> Option<u32> {
         self.0.upgrade().map(|w| w.inner)
     }
-
-    // TODO: Window size?
 }
 
 /// An event emitted by the X11 backend.
@@ -417,7 +424,8 @@ impl EventSource for X11Backend {
 
                         x11::Event::ResizeRequest(resized) => {
                             if resized.window == window.inner {
-                                let size = (resized.width, resized.height).into();
+                                let size: Size<u16, Logical> = (resized.width, resized.height).into();
+                                window.size.replace(size);
 
                                 (callback)(X11Event::Resized(size), &mut event_window);
                             }

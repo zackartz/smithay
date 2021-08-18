@@ -1,6 +1,9 @@
 //! Utilities for managing an X11 window.
 
+use crate::utils::{Logical, Size};
+
 use super::{WindowProperties, X11Error};
+use std::cell::RefCell;
 use std::rc::Rc;
 use x11rb::atom_manager;
 use x11rb::connection::Connection;
@@ -27,6 +30,7 @@ pub(crate) struct WindowInner {
     pub inner: x11::Window,
     root: x11::Window,
     pub atoms: Atoms,
+    pub size: RefCell<Size<u16, Logical>>,
 }
 
 impl WindowInner {
@@ -71,6 +75,7 @@ impl WindowInner {
             inner: window,
             root: screen.root,
             atoms,
+            size: RefCell::new((properties.width, properties.height).into()),
         };
 
         // Enable WM_DELETE_WINDOW so our client is not disconnected upon our toplevel window being destroyed.
@@ -119,6 +124,10 @@ impl WindowInner {
                 from_configure: false,
             },
         );
+    }
+
+    pub fn size(&self) -> Size<u16, Logical> {
+        *self.size.borrow()
     }
 
     pub fn set_title(&self, title: &str) {
