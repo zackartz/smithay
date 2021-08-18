@@ -415,6 +415,7 @@ impl EventSource for X11Backend {
                                             time: motion_notify.time,
                                             x,
                                             y,
+                                            size: window.size(),
                                         },
                                     }),
                                     &mut event_window,
@@ -622,6 +623,7 @@ pub struct X11MouseMovedEvent {
     time: u32,
     x: f64,
     y: f64,
+    size: Size<u16, Logical>,
 }
 
 impl BackendEvent<X11Input> for X11MouseMovedEvent {
@@ -643,12 +645,12 @@ impl PointerMotionAbsoluteEvent<X11Input> for X11MouseMovedEvent {
         self.y
     }
 
-    fn x_transformed(&self, _width: i32) -> f64 {
-        todo!()
+    fn x_transformed(&self, width: i32) -> f64 {
+        f64::max(self.x * width as f64 / self.size.w as f64, 0.0)
     }
 
-    fn y_transformed(&self, _height: i32) -> f64 {
-        todo!()
+    fn y_transformed(&self, height: i32) -> f64 {
+        f64::max(self.y * height as f64 / self.size.h as f64, 0.0)
     }
 }
 
