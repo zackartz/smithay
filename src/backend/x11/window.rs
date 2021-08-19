@@ -126,7 +126,7 @@ impl WindowInner {
             EventMask::STRUCTURE_NOTIFY | EventMask::SUBSTRUCTURE_NOTIFY,
             UnmapNotifyEvent {
                 response_type: x11rb::protocol::xproto::UNMAP_NOTIFY_EVENT,
-                sequence: 0,
+                sequence: 0, // Ignored by X server
                 event: self.root,
                 window: self.inner,
                 from_configure: false,
@@ -170,10 +170,6 @@ impl WindowInner {
             AtomEnum::STRING,
             &raw[..],
         );
-    }
-
-    pub fn format(&self) {
-        todo!()
     }
 }
 
