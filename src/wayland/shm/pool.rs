@@ -8,7 +8,7 @@ use nix::{
 };
 use std::{
     cell::Cell,
-    os::unix::io::RawFd,
+    os::unix::{io::RawFd, prelude::AsRawFd},
     ptr,
     sync::{Once, RwLock},
 };
@@ -89,6 +89,12 @@ impl Pool {
                 Ok(t)
             }
         })
+    }
+}
+
+impl AsRawFd for Pool {
+    fn as_raw_fd(&self) -> RawFd {
+        self.fd
     }
 }
 

@@ -30,24 +30,23 @@ pub fn run_x11(log: Logger) {
         title: "Anvil",
     };
 
-    let backend = X11Backend::new(
-        window_properties,
-        log.clone(),
-    )
-    .expect("Failed to initialize X11 backend");
+    let backend = X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
 
     // TODO: Renderer?
     let data = X11Data;
 
     let mut state = AnvilState::init(display.clone(), event_loop.handle(), data, log.clone(), true);
 
-    event_loop.handle().insert_source(backend, |event, _window, state| {
-        if let X11Event::CloseRequested = event {
-            state.running.store(false, Ordering::SeqCst);
-        }
+    event_loop
+        .handle()
+        .insert_source(backend, |event, _window, state| {
+            if let X11Event::CloseRequested = event {
+                state.running.store(false, Ordering::SeqCst);
+            }
 
-        println!("{:?}", event);
-    }).expect("Failed to insert X11 Backend into event loop");
+            println!("{:?}", event);
+        })
+        .expect("Failed to insert X11 Backend into event loop");
 
     let start_time = std::time::Instant::now();
     let mut cursor_visible = true;

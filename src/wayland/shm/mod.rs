@@ -74,7 +74,12 @@
 //! If you are already using an handler for this signal, you probably don't want to use this handler.
 
 use self::pool::{Pool, ResizeError};
-use std::{ops::Deref as _, rc::Rc, sync::Arc};
+use std::{
+    ops::Deref as _,
+    os::unix::prelude::{AsRawFd, RawFd},
+    rc::Rc,
+    sync::Arc,
+};
 use wayland_server::{
     protocol::{wl_buffer, wl_shm, wl_shm_pool},
     Display, Filter, Global, Main,
@@ -160,14 +165,15 @@ pub enum BufferAccessError {
 /// EGL buffer for example).
 pub fn with_buffer_contents<F, T>(buffer: &wl_buffer::WlBuffer, f: F) -> Result<T, BufferAccessError>
 where
-    F: FnOnce(&[u8], BufferData) -> T,
+    F: FnOnce(&[u8], BufferData, RawFd) -> T,
 {
     let data = match buffer.as_ref().user_data().get::<InternalBufferData>() {
         Some(d) => d,
         None => return Err(BufferAccessError::NotManaged),
     };
+    let fd: RawFd = data.pool.as_raw_fd();
 
-    match data.pool.with_data_slice(|slice| f(slice, data.data)) {
+    match data.pool.with_data_slice(|slice| f(slice, data.data, fd)) {
         Ok(t) => Ok(t),
         Err(()) => {
             // SIGBUS error occurred

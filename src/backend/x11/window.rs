@@ -8,7 +8,7 @@ use std::rc::Rc;
 use x11rb::atom_manager;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    self as x11, AtomEnum, CreateWindowAux, EventMask, PropMode, Screen, WindowClass,
+    self as x11, AtomEnum, CreateWindowAux, Depth, EventMask, PropMode, Screen, WindowClass,
 };
 use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
 use x11rb::rust_connection::RustConnection;
@@ -31,6 +31,7 @@ pub(crate) struct WindowInner {
     root: x11::Window,
     pub atoms: Atoms,
     pub size: RefCell<Size<u16, Logical>>,
+    pub depth: Depth,
 }
 
 impl WindowInner {
@@ -38,6 +39,8 @@ impl WindowInner {
         connection: Rc<RustConnection>,
         screen: &Screen,
         properties: WindowProperties<'_>,
+        depth: Depth,
+        visual_id: u32,
     ) -> Result<WindowInner, X11Error> {
         let atoms = Atoms::new(&*connection)?.reply()?;
 
@@ -56,7 +59,7 @@ impl WindowInner {
         );
 
         let cookie = connection.create_window(
-            screen.root_depth,
+            screen.root_depth, //depth.depth,
             window,
             screen.root,
             0,
@@ -65,7 +68,7 @@ impl WindowInner {
             properties.height,
             0,
             WindowClass::INPUT_OUTPUT,
-            0,
+            0, // visual_id,
             &window_aux,
         )?;
 
@@ -76,6 +79,7 @@ impl WindowInner {
             root: screen.root,
             atoms,
             size: RefCell::new((properties.width, properties.height).into()),
+            depth,
         };
 
         // Enable WM_DELETE_WINDOW so our client is not disconnected upon our toplevel window being destroyed.
@@ -162,6 +166,10 @@ impl WindowInner {
             AtomEnum::STRING,
             &raw[..],
         );
+    }
+
+    pub fn format(&self) {
+        todo!()
     }
 }
 

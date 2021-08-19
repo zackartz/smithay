@@ -557,7 +557,7 @@ impl ImportShm for Gles2Renderer {
     ) -> Result<Gles2Texture, Gles2Error> {
         use crate::wayland::shm::with_buffer_contents;
 
-        with_buffer_contents(buffer, |slice, data| {
+        with_buffer_contents(buffer, |slice, data, _| {
             self.make_current()?;
 
             let offset = data.offset as i32;

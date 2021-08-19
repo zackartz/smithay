@@ -23,9 +23,11 @@ use std::io;
 use std::rc::Rc;
 use std::rc::Weak;
 use std::sync::atomic::{AtomicU32, Ordering};
+use wayland_server::protocol::wl_shm::Format;
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol as x11;
+use x11rb::protocol::xproto::{Depth, VisualClass};
 use x11rb::rust_connection::{ReplyOrIdError, RustConnection};
 use x11rb::x11_utils::X11Error as ImplError;
 
@@ -161,7 +163,7 @@ pub enum X11Event {
     CloseRequested,
 }
 
-/// Marker struct used to define the `InputBackend` types for the X11 backend.
+/// Marker used to define the `InputBackend` types for the X11 backend.
 #[derive(Debug)]
 pub struct X11Input;
 
@@ -173,7 +175,11 @@ pub struct X11Backend {
     connection: Rc<RustConnection>,
     window: Rc<WindowInner>,
     key_counter: Rc<AtomicU32>,
+    depth: Depth,
+    visual_id: u32,
 }
+
+const SUPPORTED_FORMATS: [Format; 2] = [Format::Argb8888, Format::Xrgb8888];
 
 impl X11Backend {
     /// Initializes the X11 backend, connecting to the X server and creating the window the compositor may output to.
@@ -189,7 +195,33 @@ impl X11Backend {
         info!(log, "Connected to screen {}", screen_number);
 
         let screen = &connection.setup().roots[screen_number];
-        let window = Rc::new(WindowInner::new(connection.clone(), screen, properties)?);
+
+        // We want 32 bit color
+        let depth = screen
+            .allowed_depths
+            .iter()
+            .find(|depth| depth.depth == 32)
+            .cloned()
+            .expect("TODO");
+
+        // Next find a visual using the supported depth
+        let visual_id = depth
+            .visuals
+            .iter()
+            .find(|visual| visual.class == VisualClass::TRUE_COLOR)
+            .expect("TODO")
+            .visual_id;
+
+        // Find a supported format.
+        // TODO
+
+        let window = Rc::new(WindowInner::new(
+            connection.clone(),
+            screen,
+            properties,
+            depth.clone(),
+            visual_id,
+        )?);
         let source = X11Source::new(connection.clone());
 
         info!(log, "Window created");
@@ -200,6 +232,8 @@ impl X11Backend {
             connection,
             window,
             key_counter: Rc::new(AtomicU32::new(0)),
+            depth,
+            visual_id,
         })
     }
 
@@ -464,19 +498,11 @@ impl EventSource for X11Backend {
         Ok(PostAction::Continue)
     }
 
-    fn register(
-        &mut self,
-        poll: &mut Poll,
-        token_factory: &mut TokenFactory,
-    ) -> io::Result<()> {
+    fn register(&mut self, poll: &mut Poll, token_factory: &mut TokenFactory) -> io::Result<()> {
         self.source.register(poll, token_factory)
     }
 
-    fn reregister(
-        &mut self,
-        poll: &mut Poll,
-        token_factory: &mut TokenFactory,
-    ) -> io::Result<()> {
+    fn reregister(&mut self, poll: &mut Poll, token_factory: &mut TokenFactory) -> io::Result<()> {
         self.source.reregister(poll, token_factory)
     }
 
