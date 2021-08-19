@@ -27,7 +27,7 @@ use wayland_server::protocol::wl_shm::Format;
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol as x11;
-use x11rb::protocol::xproto::{Depth, VisualClass};
+use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt, Depth, VisualClass};
 use x11rb::rust_connection::{ReplyOrIdError, RustConnection};
 use x11rb::x11_utils::X11Error as ImplError;
 
@@ -215,12 +215,17 @@ impl X11Backend {
         // Find a supported format.
         // TODO
 
+        // Make a new colormap
+        let colormap = connection.generate_id()?;
+        connection.create_colormap(ColormapAlloc::NONE, colormap, screen.root, visual_id)?;
+
         let window = Rc::new(WindowInner::new(
             connection.clone(),
             screen,
             properties,
             depth.clone(),
             visual_id,
+            colormap,
         )?);
         let source = X11Source::new(connection.clone());
 

@@ -41,6 +41,7 @@ impl WindowInner {
         properties: WindowProperties<'_>,
         depth: Depth,
         visual_id: u32,
+        colormap: u32,
     ) -> Result<WindowInner, X11Error> {
         let atoms = Atoms::new(&*connection)?.reply()?;
 
@@ -56,10 +57,13 @@ impl WindowInner {
             | EventMask::POINTER_MOTION // Mouse movement
             | EventMask::RESIZE_REDIRECT // Handling resizes
             | EventMask::NO_EVENT,
-        );
+        )
+        // Border pixel and color map need to be set if we specify a different depth and visual.
+        .border_pixel(0)
+        .colormap(colormap);
 
         let cookie = connection.create_window(
-            screen.root_depth, //depth.depth,
+            depth.depth,
             window,
             screen.root,
             0,
@@ -68,7 +72,7 @@ impl WindowInner {
             properties.height,
             0,
             WindowClass::INPUT_OUTPUT,
-            0, // visual_id,
+            visual_id,
             &window_aux,
         )?;
 
