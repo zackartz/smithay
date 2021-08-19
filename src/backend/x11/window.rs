@@ -58,7 +58,7 @@ impl WindowInner {
             | EventMask::RESIZE_REDIRECT // Handling resizes
             | EventMask::NO_EVENT,
         )
-        // Border pixel and color map need to be set if we specify a different depth and visual.
+        // Border pixel and color map need to be set if our depth may differ from the root depth.
         .border_pixel(0)
         .colormap(colormap);
 

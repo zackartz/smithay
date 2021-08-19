@@ -215,7 +215,7 @@ impl X11Backend {
         // Find a supported format.
         // TODO
 
-        // Make a new colormap
+        // Make a colormap
         let colormap = connection.generate_id()?;
         connection.create_colormap(ColormapAlloc::NONE, colormap, screen.root, visual_id)?;
 
