@@ -6,16 +6,14 @@
 
 mod buffer;
 mod event_source;
+pub mod input;
 mod window;
 
 use self::window::WindowInner;
-use super::input::{
-    Axis, AxisSource, ButtonState, Device, InputBackend, KeyState, KeyboardKeyEvent, MouseButton,
-    PointerAxisEvent, PointerButtonEvent, PointerMotionAbsoluteEvent, UnusedEvent,
-};
+use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
-use crate::backend::input::{DeviceCapability, Event as BackendEvent};
 use crate::backend::x11::event_source::X11Source;
+use crate::backend::x11::input::*;
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use slog::{error, info, o, Logger};
@@ -23,7 +21,6 @@ use std::io;
 use std::rc::Rc;
 use std::rc::Weak;
 use std::sync::atomic::{AtomicU32, Ordering};
-use wayland_server::protocol::wl_shm::Format;
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol as x11;
@@ -31,9 +28,17 @@ use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt, Depth, VisualClass};
 use x11rb::rust_connection::{ReplyOrIdError, RustConnection};
 use x11rb::x11_utils::X11Error as ImplError;
 
+/// An error that may occur when initializing the backend.
+#[derive(Debug, thiserror::Error)]
+pub enum InitializationError {}
+
 /// An error emitted by the X11 backend.
 #[derive(Debug, thiserror::Error)]
 pub enum X11Error {
+    /// An error that may occur when initializing the backend.
+    #[error("Error while initializing backend")]
+    Initialization(InitializationError),
+
     /// Connecting to the X server failed.
     #[error("Connecting to the X server failed")]
     ConnectionFailed(ConnectError),
@@ -47,6 +52,12 @@ pub enum X11Error {
     WindowDestroyed,
 }
 
+impl From<InitializationError> for X11Error {
+    fn from(e: InitializationError) -> Self {
+        X11Error::Initialization(e)
+    }
+}
+
 impl From<ConnectError> for X11Error {
     fn from(e: ConnectError) -> Self {
         X11Error::ConnectionFailed(e)
@@ -55,22 +66,19 @@ impl From<ConnectError> for X11Error {
 
 impl From<ConnectionError> for X11Error {
     fn from(e: ConnectionError) -> Self {
-        let e = ReplyOrIdError::from(e);
-        e.into()
+        ReplyOrIdError::from(e).into()
     }
 }
 
 impl From<ImplError> for X11Error {
     fn from(e: ImplError) -> Self {
-        let e = ReplyOrIdError::from(e);
-        e.into()
+        ReplyOrIdError::from(e).into()
     }
 }
 
 impl From<ReplyError> for X11Error {
     fn from(e: ReplyError) -> Self {
-        let e = ReplyOrIdError::from(e);
-        e.into()
+        ReplyOrIdError::from(e).into()
     }
 }
 
@@ -81,8 +89,6 @@ impl From<ReplyOrIdError> for X11Error {
 }
 
 /// Properties defining information about the window created by the X11 backend.
-// TODO:
-// - Rendering? I guess we allow binding buffers for this?
 #[derive(Debug, Clone, Copy)]
 #[allow(missing_docs)] // Self explanatory fields
 pub struct WindowProperties<'a> {
@@ -106,41 +112,49 @@ impl Default for WindowProperties<'_> {
 pub struct Window(Weak<WindowInner>);
 
 impl Window {
-    // TODO: Methods which may fail should be Result<_, X11Error>
-
     /// Sets the title of the window.
-    pub fn set_title(&self, title: &str) {
+    pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
         if let Some(inner) = self.0.upgrade() {
-            inner.set_title(title);
+            inner.set_title(title)
+        } else {
+            Err(X11Error::WindowDestroyed)
         }
     }
 
     /// Maps the window, making it visible.
-    pub fn map(&self) {
+    pub fn map(&self) -> Result<(), X11Error> {
         if let Some(inner) = self.0.upgrade() {
-            inner.map();
+            inner.map()
+        } else {
+            Err(X11Error::WindowDestroyed)
         }
     }
 
     /// Unmaps the window, making it invisible.
-    pub fn unmap(&self) {
+    pub fn unmap(&self) -> Result<(), X11Error> {
         if let Some(inner) = self.0.upgrade() {
-            inner.unmap();
+            inner.unmap()
+        } else {
+            Err(X11Error::WindowDestroyed)
         }
     }
 
     /// Returns the size of this window.
-    ///
-    /// Returns `None` if the window has been destroyed.
-    pub fn size(&self) -> Option<Size<u16, Logical>> {
-        self.0.upgrade().map(|w| w.size())
+    pub fn size(&self) -> Result<Size<u16, Logical>, X11Error> {
+        if let Some(inner) = self.0.upgrade() {
+            Ok(inner.size())
+        } else {
+            Err(X11Error::WindowDestroyed)
+        }
     }
 
     /// Returns the XID of the window.
-    ///
-    /// Returns `None` if the window has been destroyed.
-    pub fn id(&self) -> Option<u32> {
-        self.0.upgrade().map(|w| w.inner)
+    pub fn id(&self) -> Result<u32, X11Error> {
+        if let Some(inner) = self.0.upgrade() {
+            Ok(inner.inner)
+        } else {
+            Err(X11Error::WindowDestroyed)
+        }
     }
 }
 
@@ -153,7 +167,7 @@ pub enum X11Event {
     /// the window yourself.
     Expose,
 
-    /// An input event occured.
+    /// An input event occurred.
     Input(InputEvent<X11Input>),
 
     /// The window was resized.
@@ -162,10 +176,6 @@ pub enum X11Event {
     /// The window was requested to be closed.
     CloseRequested,
 }
-
-/// Marker used to define the `InputBackend` types for the X11 backend.
-#[derive(Debug)]
-pub struct X11Input;
 
 /// An abstraction representing a connection to the X11 server.
 #[derive(Debug)]
@@ -178,8 +188,6 @@ pub struct X11Backend {
     depth: Depth,
     visual_id: u32,
 }
-
-const SUPPORTED_FORMATS: [Format; 2] = [Format::Argb8888, Format::Xrgb8888];
 
 impl X11Backend {
     /// Initializes the X11 backend, connecting to the X server and creating the window the compositor may output to.
@@ -513,209 +521,5 @@ impl EventSource for X11Backend {
 
     fn unregister(&mut self, poll: &mut Poll) -> io::Result<()> {
         self.source.unregister(poll)
-    }
-}
-
-/// Virtual input device used by the backend to associate input events.
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub struct X11VirtualDevice;
-
-impl Device for X11VirtualDevice {
-    fn id(&self) -> String {
-        "x11".to_owned()
-    }
-
-    fn name(&self) -> String {
-        "x11 virtual input".to_owned()
-    }
-
-    fn has_capability(&self, capability: super::input::DeviceCapability) -> bool {
-        matches!(
-            capability,
-            DeviceCapability::Keyboard | DeviceCapability::Pointer | DeviceCapability::Touch
-        )
-    }
-
-    fn usb_id(&self) -> Option<(u32, u32)> {
-        None
-    }
-
-    fn syspath(&self) -> Option<std::path::PathBuf> {
-        None
-    }
-}
-
-/// X11-Backend internal event wrapping `X11`'s types into a [`KeyboardKeyEvent`].
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct X11KeyboardInputEvent {
-    time: u32,
-    key: u32,
-    count: u32,
-    state: KeyState,
-}
-
-impl BackendEvent<X11Input> for X11KeyboardInputEvent {
-    fn time(&self) -> u32 {
-        self.time
-    }
-
-    fn device(&self) -> X11VirtualDevice {
-        X11VirtualDevice
-    }
-}
-
-impl KeyboardKeyEvent<X11Input> for X11KeyboardInputEvent {
-    fn key_code(&self) -> u32 {
-        self.key
-    }
-
-    fn state(&self) -> KeyState {
-        self.state
-    }
-
-    fn count(&self) -> u32 {
-        self.count
-    }
-}
-
-/// X11-Backend internal event wrapping `X11`'s types into a [`PointerAxisEvent`]
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct X11MouseWheelEvent {
-    time: u32,
-    axis: Axis,
-    amount: f64,
-}
-
-impl BackendEvent<X11Input> for X11MouseWheelEvent {
-    fn time(&self) -> u32 {
-        self.time
-    }
-
-    fn device(&self) -> X11VirtualDevice {
-        X11VirtualDevice
-    }
-}
-
-impl PointerAxisEvent<X11Input> for X11MouseWheelEvent {
-    fn amount(&self, _axis: Axis) -> Option<f64> {
-        None
-    }
-
-    fn amount_discrete(&self, axis: Axis) -> Option<f64> {
-        // TODO: Is this proper?
-        if self.axis == axis {
-            Some(self.amount)
-        } else {
-            None
-        }
-    }
-
-    fn source(&self) -> AxisSource {
-        // X11 seems to act within the scope of individual rachets of a scroll wheel.
-        AxisSource::Wheel
-    }
-}
-
-/// X11-Backend internal event wrapping `X11`'s types into a [`PointerButtonEvent`]
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct X11MouseInputEvent {
-    time: u32,
-    button: MouseButton,
-    state: ButtonState,
-}
-
-impl BackendEvent<X11Input> for X11MouseInputEvent {
-    fn time(&self) -> u32 {
-        self.time
-    }
-
-    fn device(&self) -> X11VirtualDevice {
-        X11VirtualDevice
-    }
-}
-
-impl PointerButtonEvent<X11Input> for X11MouseInputEvent {
-    fn button(&self) -> MouseButton {
-        self.button
-    }
-
-    fn state(&self) -> ButtonState {
-        self.state
-    }
-}
-
-/// X11-Backend internal event wrapping `X11`'s types into a [`PointerMotionAbsoluteEvent`]
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct X11MouseMovedEvent {
-    time: u32,
-    x: f64,
-    y: f64,
-    size: Size<u16, Logical>,
-}
-
-impl BackendEvent<X11Input> for X11MouseMovedEvent {
-    fn time(&self) -> u32 {
-        self.time
-    }
-
-    fn device(&self) -> X11VirtualDevice {
-        X11VirtualDevice
-    }
-}
-
-impl PointerMotionAbsoluteEvent<X11Input> for X11MouseMovedEvent {
-    fn x(&self) -> f64 {
-        self.x
-    }
-
-    fn y(&self) -> f64 {
-        self.y
-    }
-
-    fn x_transformed(&self, width: i32) -> f64 {
-        f64::max(self.x * width as f64 / self.size.w as f64, 0.0)
-    }
-
-    fn y_transformed(&self, height: i32) -> f64 {
-        f64::max(self.y * height as f64 / self.size.h as f64, 0.0)
-    }
-}
-
-impl InputBackend for X11Input {
-    type EventError = X11Error;
-
-    type Device = X11VirtualDevice;
-    type KeyboardKeyEvent = X11KeyboardInputEvent;
-    type PointerAxisEvent = X11MouseWheelEvent;
-    type PointerButtonEvent = X11MouseInputEvent;
-
-    type PointerMotionEvent = UnusedEvent;
-
-    type PointerMotionAbsoluteEvent = X11MouseMovedEvent;
-
-    type TouchDownEvent = UnusedEvent;
-    type TouchUpEvent = UnusedEvent;
-    type TouchMotionEvent = UnusedEvent;
-    type TouchCancelEvent = UnusedEvent;
-    type TouchFrameEvent = UnusedEvent;
-    type TabletToolAxisEvent = UnusedEvent;
-    type TabletToolProximityEvent = UnusedEvent;
-    type TabletToolTipEvent = UnusedEvent;
-    type TabletToolButtonEvent = UnusedEvent;
-
-    type SpecialEvent = UnusedEvent;
-
-    fn dispatch_new_events<F>(&mut self, _callback: F) -> Result<(), Self::EventError>
-    where
-        F: FnMut(super::input::InputEvent<Self>),
-    {
-        // This dispatch_new_events call is entirely internal, as the X11Input type is private to this module, hence this is never called.
-        //
-        // This implementation does exist to associate the types with the backend.
-        unreachable!();
     }
 }

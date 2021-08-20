@@ -47,8 +47,9 @@ impl WindowInner {
 
         // Generate the xid for the window
         let window = connection.generate_id()?;
-        let window_aux = CreateWindowAux::new().event_mask(
-            EventMask::EXPOSURE // Be told when the window is exposed
+        let window_aux = CreateWindowAux::new()
+            .event_mask(
+                EventMask::EXPOSURE // Be told when the window is exposed
             | EventMask::STRUCTURE_NOTIFY
             | EventMask::KEY_PRESS // Key press and release
             | EventMask::KEY_RELEASE
@@ -57,10 +58,10 @@ impl WindowInner {
             | EventMask::POINTER_MOTION // Mouse movement
             | EventMask::RESIZE_REDIRECT // Handling resizes
             | EventMask::NO_EVENT,
-        )
-        // Border pixel and color map need to be set if our depth may differ from the root depth.
-        .border_pixel(0)
-        .colormap(colormap);
+            )
+            // Border pixel and color map need to be set if our depth may differ from the root depth.
+            .border_pixel(0)
+            .colormap(colormap);
 
         let cookie = connection.create_window(
             depth.depth,
@@ -97,7 +98,7 @@ impl WindowInner {
 
         // Block until window creation is complete.
         cookie.check()?;
-        window.set_title(properties.title);
+        window.set_title(properties.title)?;
 
         // Finally map the window
         connection.map_window(window.inner)?;
@@ -108,19 +109,20 @@ impl WindowInner {
         Ok(window)
     }
 
-    pub fn map(&self) {
-        let _ = self.connection.map_window(self.inner);
+    pub fn map(&self) -> Result<(), X11Error> {
+        self.connection.map_window(self.inner)?;
+        Ok(())
     }
 
-    pub fn unmap(&self) {
+    pub fn unmap(&self) -> Result<(), X11Error> {
         // ICCCM - Changing Window State
         //
         // Normal -> Withdrawn - The client should unmap the window and follow it with a synthetic
         // UnmapNotify event as described later in this section.
-        let _ = self.connection.unmap_window(self.inner);
+        self.connection.unmap_window(self.inner)?;
 
         // Send a synthetic UnmapNotify event to make the ICCCM happy
-        let _ = self.connection.send_event(
+        self.connection.send_event(
             false,
             self.inner,
             EventMask::STRUCTURE_NOTIFY | EventMask::SUBSTRUCTURE_NOTIFY,
@@ -131,30 +133,32 @@ impl WindowInner {
                 window: self.inner,
                 from_configure: false,
             },
-        );
+        )?;
+
+        Ok(())
     }
 
     pub fn size(&self) -> Size<u16, Logical> {
         *self.size.borrow()
     }
 
-    pub fn set_title(&self, title: &str) {
+    pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
         // _NET_WM_NAME should be preferred by window managers, but set both in case.
-        let _ = self.connection.change_property8(
+        self.connection.change_property8(
             PropMode::REPLACE,
             self.inner,
             AtomEnum::WM_NAME,
             AtomEnum::STRING,
             title.as_bytes(),
-        );
+        )?;
 
-        let _ = self.connection.change_property8(
+        self.connection.change_property8(
             PropMode::REPLACE,
             self.inner,
             self.atoms._NET_WM_NAME,
             self.atoms.UTF8_STRING,
             title.as_bytes(),
-        );
+        )?;
 
         // Set WM_CLASS
         let mut raw = Vec::new();
@@ -169,7 +173,9 @@ impl WindowInner {
             self.atoms.WM_CLASS,
             AtomEnum::STRING,
             &raw[..],
-        );
+        )?;
+
+        Ok(())
     }
 }
 
