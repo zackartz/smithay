@@ -5,7 +5,9 @@ use crate::utils::{Logical, Size};
 use super::{Atoms, WindowProperties, X11Error, XConnection};
 use std::sync::{Arc, Mutex};
 use x11rb::connection::Connection;
-use x11rb::protocol::xproto::{self as x11, AtomEnum, CreateGCAux, CreateWindowAux, Depth, EventMask, PropMode, Screen, WindowClass};
+use x11rb::protocol::xproto::{
+    self as x11, AtomEnum, CreateGCAux, CreateWindowAux, Depth, EventMask, PropMode, Screen, WindowClass,
+};
 use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
 use x11rb::wrapper::ConnectionExt;
 

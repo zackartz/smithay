@@ -2,11 +2,19 @@ use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
 use smithay::{
-    backend::x11::{WindowProperties, X11Backend, X11Event},
-    reexports::{calloop::EventLoop, wayland_server::Display},
+    backend::{
+        x11::{WindowProperties, X11Backend, X11Event},
+    },
+    reexports::{
+        calloop::EventLoop,
+        wayland_server::{protocol::wl_output, Display},
+    },
+    wayland::output::{Mode, PhysicalProperties},
 };
 
 use crate::{state::Backend, AnvilState};
+
+pub const OUTPUT_NAME: &str = "x11";
 
 #[derive(Debug)]
 struct X11Data;
@@ -30,15 +38,70 @@ pub fn run_x11(log: Logger) {
     let backend = X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
 
     // TODO: Renderer?
+    // let egl = EGLDisplay::new(&backend, log.clone()).expect("Failed to initialize EGLDisplay");
+    // let context = EGLContext::new(&egl, log.clone()).expect("Failed to create EGL context");
+    // let mut renderer =
+    //     unsafe { Gles2Renderer::new(context, log.clone()) }.expect("Failed to intiialize renderer");
+
+    // #[cfg(feature = "egl")]
+    // {
+    //     if renderer.bind_wl_display(&*display.borrow()).is_ok() {
+    //         info!(log, "EGL hardware-acceleration enabled");
+    //     }
+    // }
+
     let data = X11Data;
 
     let mut state = AnvilState::init(display.clone(), event_loop.handle(), data, log.clone(), true);
 
+    let size = {
+        let s = backend.window().size().unwrap();
+
+        (s.w as i32, s.h as i32).into()
+    };
+
+    let mode = Mode {
+        size,
+        refresh: 60_000,
+    };
+
+    state.output_map.borrow_mut().add(
+        OUTPUT_NAME,
+        PhysicalProperties {
+            size: (0, 0).into(),
+            subpixel: wl_output::Subpixel::Unknown,
+            make: "Smithay".into(),
+            model: "X11".into(),
+        },
+        mode,
+    );
+
     event_loop
         .handle()
         .insert_source(backend, |event, _window, state| {
-            if let X11Event::CloseRequested = event {
-                state.running.store(false, Ordering::SeqCst);
+            match event {
+                X11Event::CloseRequested => {
+                    state.running.store(false, Ordering::SeqCst);
+                }
+
+                X11Event::Resized(size) => {
+                    let size = { (size.w as i32, size.h as i32).into() };
+
+                    state.output_map.borrow_mut().update_mode_by_name(
+                        Mode {
+                            size,
+                            refresh: 60_000,
+                        },
+                        OUTPUT_NAME,
+                    );
+
+                    let output_mut = state.output_map.borrow();
+                    let output = output_mut.find_by_name(OUTPUT_NAME).unwrap();
+
+                    state.window_map.borrow_mut().layers.arange_layers(output);
+                }
+
+                _ => (),
             }
 
             println!("{:?}", event);
@@ -54,10 +117,41 @@ pub fn run_x11(log: Logger) {
     info!(log, "Initialization completed, starting the main loop.");
 
     while state.running.load(Ordering::SeqCst) {
+        let (output_geometry, output_scale) = state
+            .output_map
+            .borrow()
+            .find_by_name(OUTPUT_NAME)
+            .map(|output| (output.geometry(), output.scale()))
+            .unwrap();
+
         // drawing logic
-        {
-            
-        }
+        // match renderer.render(
+        //     mode.size,
+        //     Transform::Normal,
+        //     |renderer, frame| {
+        //         render_layers_and_windows(
+        //             renderer,
+        //             frame,
+        //             &*state.window_map.borrow(),
+        //             output_geometry,
+        //             output_scale,
+        //             &log,
+        //         )?;
+
+        //         Ok(())
+        //     }
+        // )
+        //     .map_err(Into::<SwapBuffersError>::into)
+        //     .and_then(|x| x)
+        //     .map_err(Into::<SwapBuffersError>::into)
+        // {
+        //     Ok(()) => {
+        //         // todo: Present
+        //     },
+        //     Err(err) => {
+        //         // TODO:
+        //     }
+        // }
 
         // // drawing logic
         // {

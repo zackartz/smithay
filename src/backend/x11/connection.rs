@@ -2,7 +2,10 @@
 
 use std::{fmt, ptr};
 
-use x11_dl::{xlib::Xlib, xlib_xcb::{XEventQueueOwner, Xlib_xcb}};
+use x11_dl::{
+    xlib::Xlib,
+    xlib_xcb::{XEventQueueOwner, Xlib_xcb},
+};
 use x11rb::{rust_connection::ConnectError, xcb_ffi::XCBConnection};
 
 /// An error that may occur when connecting to the X server.
@@ -77,11 +80,14 @@ impl XConnection {
             return Err(ConnectToXError::Xcb(xcb_connection.err().unwrap()));
         }
 
-        Ok((XConnection {
-            xlib_library: xlib,
-            xlib_display: display,
-            xcb_connection: xcb_connection.unwrap(),
-        }, screen_number as usize))
+        Ok((
+            XConnection {
+                xlib_library: xlib,
+                xlib_display: display,
+                xcb_connection: xcb_connection.unwrap(),
+            },
+            screen_number as usize,
+        ))
     }
 
     /// Returns the xcb connection

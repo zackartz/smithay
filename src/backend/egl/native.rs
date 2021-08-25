@@ -1,7 +1,5 @@
 //! Type safe native types for safe context/surface creation
 
-use crate::backend::x11::X11Backend;
-
 use super::{display::EGLDisplayHandle, ffi, wrap_egl_call, SwapBuffersError};
 #[cfg(feature = "backend_winit")]
 use std::os::raw::c_int;
@@ -164,27 +162,6 @@ impl EGLNativeDisplay for WinitWindow {
         } else {
             unreachable!("No backends for winit other then Wayland and X11 are supported")
         }
-    }
-}
-
-#[cfg(feature = "backend_x11")]
-impl EGLNativeDisplay for X11Backend {
-    fn supported_platforms(&self) -> Vec<EGLPlatform<'_>> {
-        let display = self.connection().xlib_display();
-
-        vec![
-            // see: https://khronos.org/registry/EGL/extensions/KHR/EGL_KHR_platform_x11.txt
-            egl_platform!(PLATFORM_X11_KHR, display, &["EGL_KHR_platform_x11"]),
-            // see: https://khronos.org/registry/EGL/extensions/EXT/EGL_EXT_platform_x11.txt
-            egl_platform!(PLATFORM_X11_EXT, display, &["EGL_EXT_platform_x11"]),
-
-            // Neither of these are supported for now since gl_generator causes a huge amount of
-            // problems from git and has no fallback to offer our own egl.xml that is reasonably
-            // recent. 
-
-            // https://khronos.org/registry/EGL/extensions/EXT/EGL_EXT_platform_xcb.txt
-            // EGL_MESA_platform_xcb
-        ]
     }
 }
 

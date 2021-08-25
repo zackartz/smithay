@@ -8,11 +8,11 @@ use std::sync::Arc;
 use super::{Window, X11Error};
 use nix::fcntl;
 use x11rb::connection::Connection;
+use x11rb::protocol::dri3::ConnectionExt as _;
 use x11rb::protocol::xproto::ConnectionExt as _;
 use x11rb::rust_connection::{ConnectionError, ReplyOrIdError};
 use x11rb::utils::RawFdContainer;
 use x11rb::xcb_ffi::XCBConnection;
-use x11rb::{protocol::dri3::ConnectionExt as _};
 
 use crate::backend::allocator::dmabuf::Dmabuf;
 use crate::backend::allocator::Buffer;

@@ -4,10 +4,13 @@ use std::{
     thread::{spawn, JoinHandle},
 };
 
-use x11rb::{connection::Connection as _, protocol::{
+use x11rb::{
+    connection::Connection as _,
+    protocol::{
         xproto::{Atom, ClientMessageEvent, ConnectionExt as _, EventMask, Window, CLIENT_MESSAGE_EVENT},
         Event,
-    }};
+    },
+};
 
 use calloop::{
     channel::{sync_channel, Channel, Event as ChannelEvent, SyncSender},
