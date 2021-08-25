@@ -4,6 +4,7 @@
 //! directly as an X11 client.
 //!
 
+mod connection;
 mod buffer;
 mod event_source;
 pub mod input;
@@ -14,7 +15,7 @@ use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
 use crate::backend::x11::event_source::X11Source;
 use crate::backend::x11::input::*;
-use crate::utils::x11rb::{ConnectToXError, XConnection};
+use self::connection::{ConnectToXError, XConnection};
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use slog::{error, info, o, Logger};
