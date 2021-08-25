@@ -2,10 +2,9 @@
 
 use crate::utils::{Logical, Size};
 
-use super::{WindowProperties, X11Error};
+use super::{Atoms, WindowProperties, X11Error};
 use std::cell::RefCell;
-use std::rc::Rc;
-use x11rb::atom_manager;
+use std::sync::Arc;
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
     self as x11, AtomEnum, CreateWindowAux, Depth, EventMask, PropMode, Screen, WindowClass,
@@ -14,19 +13,9 @@ use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
 use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt;
 
-atom_manager! {
-    pub Atoms: AtomCollectionCookie {
-        WM_PROTOCOLS,
-        WM_DELETE_WINDOW,
-        WM_CLASS,
-        _NET_WM_NAME,
-        UTF8_STRING,
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct WindowInner {
-    pub connection: Rc<RustConnection>,
+    pub connection: Arc<RustConnection>,
     pub inner: x11::Window,
     root: x11::Window,
     pub atoms: Atoms,
@@ -36,15 +25,14 @@ pub(crate) struct WindowInner {
 
 impl WindowInner {
     pub fn new(
-        connection: Rc<RustConnection>,
+        connection: Arc<RustConnection>,
         screen: &Screen,
         properties: WindowProperties<'_>,
+        atoms: Atoms,
         depth: Depth,
         visual_id: u32,
         colormap: u32,
     ) -> Result<WindowInner, X11Error> {
-        let atoms = Atoms::new(&*connection)?.reply()?;
-
         // Generate the xid for the window
         let window = connection.generate_id()?;
         let window_aux = CreateWindowAux::new()
