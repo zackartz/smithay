@@ -202,7 +202,7 @@ pub struct X11Backend {
     source: X11Source,
     connection: Arc<RustConnection>,
     window: Arc<WindowInner>,
-    key_counter: Rc<AtomicU32>,
+    key_counter: Arc<AtomicU32>,
     depth: Depth,
     visual_id: u32,
 }
@@ -281,7 +281,7 @@ impl X11Backend {
             source,
             connection,
             window,
-            key_counter: Rc::new(AtomicU32::new(0)),
+            key_counter: Arc::new(AtomicU32::new(0)),
             depth,
             visual_id,
         })
