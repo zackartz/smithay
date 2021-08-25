@@ -2,6 +2,7 @@
 
 mod geometry;
 pub mod signaling;
+pub mod x11rb;
 
 pub use self::geometry::{Buffer, Logical, Physical, Point, Raw, Rectangle, Size};
 

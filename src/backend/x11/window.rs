@@ -30,7 +30,7 @@ impl WindowInner {
         visual_id: u32,
         colormap: u32,
     ) -> Result<WindowInner, X11Error> {
-        let xcb = &connection.xcb_connection;
+        let xcb = connection.xcb_connection();
 
         // Generate the xid for the window
         let window = xcb.generate_id()?;
@@ -102,12 +102,12 @@ impl WindowInner {
     }
 
     pub fn map(&self) -> Result<(), X11Error> {
-        self.connection.xcb_connection.map_window(self.inner)?;
+        self.connection.xcb_connection().map_window(self.inner)?;
         Ok(())
     }
 
     pub fn unmap(&self) -> Result<(), X11Error> {
-        let xcb = &self.connection.xcb_connection;
+        let xcb = self.connection.xcb_connection();
 
         // ICCCM - Changing Window State
         //
@@ -137,7 +137,7 @@ impl WindowInner {
     }
 
     pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
-        let xcb = &self.connection.xcb_connection;
+        let xcb = self.connection.xcb_connection();
 
         // _NET_WM_NAME should be preferred by window managers, but set both in case.
         xcb.change_property8(
@@ -177,6 +177,6 @@ impl WindowInner {
 
 impl Drop for WindowInner {
     fn drop(&mut self) {
-        let _ = self.connection.xcb_connection.destroy_window(self.inner);
+        let _ = self.connection.xcb_connection().destroy_window(self.inner);
     }
 }

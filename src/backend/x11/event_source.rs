@@ -7,7 +7,7 @@ use std::{
 use x11rb::{connection::Connection as _, protocol::{
         xproto::{Atom, ClientMessageEvent, ConnectionExt as _, EventMask, Window, CLIENT_MESSAGE_EVENT},
         Event,
-    }, xcb_ffi::XCBConnection};
+    }};
 
 use calloop::{
     channel::{sync_channel, Channel, Event as ChannelEvent, SyncSender},
@@ -83,7 +83,7 @@ impl Drop for X11Source {
             data: [0; 20].into(),
         };
 
-        let xcb = &self.connection.xcb_connection;
+        let xcb = self.connection.xcb_connection();
         let _ = xcb.send_event(false, self.close_window, EventMask::NO_EVENT, event);
         let _ = xcb.flush();
 
@@ -139,7 +139,7 @@ impl EventSource for X11Source {
 /// calloop.
 fn run_event_thread(connection: Arc<XConnection>, sender: SyncSender<Event>, log: slog::Logger) {
     loop {
-        let event = match connection.xcb_connection.wait_for_event() {
+        let event = match connection.xcb_connection().wait_for_event() {
             Ok(event) => event,
             Err(err) => {
                 // Connection errors are most likely permanent. Thus, exit the thread.

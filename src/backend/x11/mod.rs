@@ -14,13 +14,11 @@ use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
 use crate::backend::x11::event_source::X11Source;
 use crate::backend::x11::input::*;
+use crate::utils::x11rb::{ConnectToXError, XConnection};
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use slog::{error, info, o, Logger};
-use x11_dl::xlib_xcb::{Xlib_xcb, XEventQueueOwner};
-use x11rb::xcb_ffi::XCBConnection;
-use std::{fmt, io, ptr};
-use std::ptr::NonNull;
+use std::io;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::sync::Weak;
@@ -30,7 +28,6 @@ use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt, Depth, VisualClass};
 use x11rb::rust_connection::ReplyOrIdError;
 use x11rb::x11_utils::X11Error as ImplError;
 use x11rb::{atom_manager, protocol as x11};
-use x11_dl::xlib::Xlib;
 
 /// An error that may occur when initializing the backend.
 #[derive(Debug, thiserror::Error)]
@@ -41,7 +38,7 @@ pub enum InitializationError {}
 pub enum X11Error {
     /// An error that may occur when initializing the backend.
     #[error("Error while initializing backend")]
-    Initialization(InitializationError),
+    Connect(ConnectToXError),
 
     /// Connecting to the X server failed.
     #[error("Connecting to the X server failed")]
@@ -56,9 +53,9 @@ pub enum X11Error {
     WindowDestroyed,
 }
 
-impl From<InitializationError> for X11Error {
-    fn from(e: InitializationError) -> Self {
-        X11Error::Initialization(e)
+impl From<ConnectToXError> for X11Error {
+    fn from(e: ConnectToXError) -> Self {
+        X11Error::Connect(e)
     }
 }
 
@@ -161,6 +158,7 @@ impl Window {
         }
     }
 
+    /// Returns the depth id of this window.
     pub fn depth(&self) -> u8 {
         if let Some(inner) = self.0.upgrade() {
             inner.depth.depth
@@ -169,6 +167,7 @@ impl Window {
         }
     }
 
+    /// Returns the graphics context used to draw to this window.
     pub fn gc(&self) -> u32 {
         if let Some(inner) = self.0.upgrade() {
             inner.gc
@@ -195,82 +194,6 @@ pub enum X11Event {
 
     /// The window was requested to be closed.
     CloseRequested,
-}
-
-pub struct XConnection {
-    xlib_library: Xlib,
-    xlib_display: *mut x11_dl::xlib::Display,
-    xcb_connection: XCBConnection,
-}
-
-impl XConnection {
-    pub fn new() -> Result<(XConnection, usize), X11Error> {
-        let xlib = Xlib::open().expect("Failed to open xlib library");
-        let xlib_xcb = Xlib_xcb::open().expect("Failed to load xlib_libxcb");
-        let (display, screen_number) = unsafe {
-            let display = (xlib.XOpenDisplay)(ptr::null());
-
-            if display.is_null() {
-                todo!("Failed to open display");
-            }
-
-            (display, (xlib.XDefaultScreen)(display))
-        };
-
-        // Transfer ownership of the event queue to XCB
-        let xcb_connection_t = unsafe {
-            let ptr = (xlib_xcb.XGetXCBConnection)(display);
-            (xlib_xcb.XSetEventQueueOwner)(display, XEventQueueOwner::XCBOwnsEventQueue);
-            ptr
-        };
-
-        let xcb_connection = unsafe {
-            if xcb_connection_t.is_null() {
-                (xlib.XCloseDisplay)(display);
-                return Err(todo!("Must have Xlib_xcb"));
-            }
-
-            // Do not drop the connection upon closure since Xlib created the xcb_connection_t
-            XCBConnection::from_raw_xcb_connection(xcb_connection_t, false)
-        }?;
-
-        Ok((XConnection {
-            xlib_library: xlib,
-            xlib_display: display,
-            xcb_connection,
-        }, screen_number as usize))
-    }
-
-    pub fn xcb_connection(&self) -> &XCBConnection {
-        &self.xcb_connection
-    }
-
-    pub fn xlib_display(&self) -> *mut x11_dl::xlib::Display {
-        self.xlib_display
-    }
-}
-
-// Xlib and libxcb are both thread safe.
-unsafe impl Send for XConnection {}
-unsafe impl Sync for XConnection {}
-
-impl fmt::Debug for XConnection {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("XConnection")
-            .field("xlib_library", &"xlib")
-            .field("xlib_display", &self.xlib_display)
-            .field("xcb_connection", &self.xcb_connection)
-            .finish()
-    }
-}
-
-impl Drop for XConnection {
-    fn drop(&mut self) {
-        // Close the display
-        unsafe {
-            (self.xlib_library.XCloseDisplay)(self.xlib_display);
-        }
-    }
 }
 
 /// An abstraction representing a connection to the X11 server.
@@ -306,15 +229,13 @@ impl X11Backend {
     {
         let log = crate::slog_or_fallback(logger).new(o!("smithay_module" => "backend_x11"));
 
-        
-
         info!(log, "Connecting to the X server");
 
         let (connection, screen_number) = XConnection::new()?;
         let connection = Arc::new(connection);
         info!(log, "Connected to screen {}", screen_number);
 
-        let xcb = &connection.xcb_connection;
+        let xcb = connection.xcb_connection();
         let screen = &xcb.setup().roots[screen_number];
 
         // We want 32 bit color
@@ -371,6 +292,7 @@ impl X11Backend {
         })
     }
 
+    /// Returns the underlying connection to the X server.
     pub fn connection(&self) -> &XConnection {
         &self.connection
     }
@@ -630,7 +552,7 @@ impl EventSource for X11Backend {
                 }
 
                 // Now flush requests to the clients.
-                let _ = connection.xcb_connection.flush();
+                let _ = connection.xcb_connection().flush();
             })
             .expect("TODO");
 

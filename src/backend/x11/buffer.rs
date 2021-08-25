@@ -59,6 +59,7 @@ pub struct Pixmap {
 }
 
 impl Pixmap {
+    #[allow(dead_code)]
     /// Creates a pixmap from a Dmabuf.
     pub fn from_dmabuf(
         connection: Arc<XCBConnection>,
@@ -112,6 +113,7 @@ impl Pixmap {
         })
     }
 
+    #[allow(dead_code)]
     pub fn present(&self, window: &Window) -> Result<(), X11Error> {
         self.connection.copy_area(
             self.inner,
