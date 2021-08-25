@@ -6,9 +6,7 @@ use super::{Atoms, WindowProperties, X11Error};
 use std::cell::RefCell;
 use std::sync::Arc;
 use x11rb::connection::Connection;
-use x11rb::protocol::xproto::{
-    self as x11, AtomEnum, CreateWindowAux, Depth, EventMask, PropMode, Screen, WindowClass,
-};
+use x11rb::protocol::xproto::{self as x11, AtomEnum, CreateGCAux, CreateWindowAux, Depth, EventMask, PropMode, Screen, WindowClass};
 use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
 use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt;
@@ -21,6 +19,7 @@ pub(crate) struct WindowInner {
     pub atoms: Atoms,
     pub size: RefCell<Size<u16, Logical>>,
     pub depth: Depth,
+    pub gc: x11::Gcontext,
 }
 
 impl WindowInner {
@@ -73,7 +72,12 @@ impl WindowInner {
             atoms,
             size: RefCell::new((properties.width, properties.height).into()),
             depth,
+            gc: 0,
         };
+
+        let gc = connection.generate_id()?;
+        connection.create_gc(gc, window.inner, &CreateGCAux::new())?;
+        window.gc = gc;
 
         // Enable WM_DELETE_WINDOW so our client is not disconnected upon our toplevel window being destroyed.
         connection.change_property32(

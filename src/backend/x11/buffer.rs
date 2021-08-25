@@ -56,6 +56,8 @@ impl From<ConnectionError> for CreatePixmapError {
 pub struct Pixmap {
     connection: Arc<RustConnection>,
     inner: u32,
+    width: u16,
+    height: u16,
 }
 
 impl Pixmap {
@@ -99,7 +101,7 @@ impl Pixmap {
             strides.next().unwrap(),
             offsets.next().unwrap(),
             window.depth(),
-            todo!("bpp"),
+            32, // TODO: Stop hardcoding this
             dmabuf.format().modifier.into(),
             fds,
         )?;
@@ -107,11 +109,25 @@ impl Pixmap {
         Ok(Pixmap {
             connection,
             inner: xid,
+            width: dmabuf.width() as u16,
+            height: dmabuf.height() as u16,
         })
     }
 
-    pub fn present(&self, _window: &Window) -> Result<(), X11Error> {
-        todo!()
+    pub fn present(&self, window: &Window) -> Result<(), X11Error> {
+        self.connection.copy_area(
+            self.inner,
+            window.id(),
+            window.gc(),
+            0,
+            0,
+            0,
+            0,
+            self.width,
+            self.height,
+        )?;
+
+        Ok(())
     }
 }
 

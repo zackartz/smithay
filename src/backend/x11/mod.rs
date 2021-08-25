@@ -16,6 +16,7 @@ use crate::backend::x11::event_source::X11Source;
 use crate::backend::x11::input::*;
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
+use drm_fourcc::{DrmFormat, DrmFourcc};
 use slog::{error, info, o, Logger};
 use std::io;
 use std::rc::Rc;
@@ -161,6 +162,14 @@ impl Window {
     pub fn depth(&self) -> u8 {
         if let Some(inner) = self.0.upgrade() {
             inner.depth.depth
+        } else {
+            0
+        }
+    }
+
+    pub fn gc(&self) -> u32 {
+        if let Some(inner) = self.0.upgrade() {
+            inner.gc
         } else {
             0
         }
