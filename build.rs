@@ -86,6 +86,8 @@ fn find_logind() {
 }
 
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+
     #[cfg(any(feature = "backend_egl", feature = "renderer_gl"))]
     gl_generate();
 

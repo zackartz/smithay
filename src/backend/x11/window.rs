@@ -2,19 +2,16 @@
 
 use crate::utils::{Logical, Size};
 
-use super::{Atoms, WindowProperties, X11Error};
-use std::cell::RefCell;
+use super::{Atoms, WindowProperties, X11Error, XConnection};
 use std::sync::{Arc, Mutex};
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{self as x11, AtomEnum, CreateGCAux, CreateWindowAux, Depth, EventMask, PropMode, Screen, WindowClass};
 use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
-use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt;
-use x11rb::xcb_ffi::XCBConnection;
 
 #[derive(Debug)]
 pub(crate) struct WindowInner {
-    pub connection: Arc<XCBConnection>,
+    pub connection: Arc<XConnection>,
     pub inner: x11::Window,
     root: x11::Window,
     pub atoms: Atoms,
@@ -25,7 +22,7 @@ pub(crate) struct WindowInner {
 
 impl WindowInner {
     pub fn new(
-        connection: Arc<XCBConnection>,
+        connection: Arc<XConnection>,
         screen: &Screen,
         properties: WindowProperties<'_>,
         atoms: Atoms,
@@ -33,8 +30,10 @@ impl WindowInner {
         visual_id: u32,
         colormap: u32,
     ) -> Result<WindowInner, X11Error> {
+        let xcb = &connection.xcb_connection;
+
         // Generate the xid for the window
-        let window = connection.generate_id()?;
+        let window = xcb.generate_id()?;
         let window_aux = CreateWindowAux::new()
             .event_mask(
                 EventMask::EXPOSURE // Be told when the window is exposed
@@ -51,7 +50,7 @@ impl WindowInner {
             .border_pixel(0)
             .colormap(colormap);
 
-        let cookie = connection.create_window(
+        let cookie = xcb.create_window(
             depth.depth,
             window,
             screen.root,
@@ -76,12 +75,12 @@ impl WindowInner {
             gc: 0,
         };
 
-        let gc = connection.generate_id()?;
-        connection.create_gc(gc, window.inner, &CreateGCAux::new())?;
+        let gc = xcb.generate_id()?;
+        xcb.create_gc(gc, window.inner, &CreateGCAux::new())?;
         window.gc = gc;
 
         // Enable WM_DELETE_WINDOW so our client is not disconnected upon our toplevel window being destroyed.
-        connection.change_property32(
+        xcb.change_property32(
             PropMode::REPLACE,
             window.inner,
             atoms.WM_PROTOCOLS,
@@ -94,28 +93,30 @@ impl WindowInner {
         window.set_title(properties.title)?;
 
         // Finally map the window
-        connection.map_window(window.inner)?;
+        xcb.map_window(window.inner)?;
 
         // Flush requests to server so window is displayed.
-        connection.flush()?;
+        xcb.flush()?;
 
         Ok(window)
     }
 
     pub fn map(&self) -> Result<(), X11Error> {
-        self.connection.map_window(self.inner)?;
+        self.connection.xcb_connection.map_window(self.inner)?;
         Ok(())
     }
 
     pub fn unmap(&self) -> Result<(), X11Error> {
+        let xcb = &self.connection.xcb_connection;
+
         // ICCCM - Changing Window State
         //
         // Normal -> Withdrawn - The client should unmap the window and follow it with a synthetic
         // UnmapNotify event as described later in this section.
-        self.connection.unmap_window(self.inner)?;
+        xcb.unmap_window(self.inner)?;
 
         // Send a synthetic UnmapNotify event to make the ICCCM happy
-        self.connection.send_event(
+        xcb.send_event(
             false,
             self.inner,
             EventMask::STRUCTURE_NOTIFY | EventMask::SUBSTRUCTURE_NOTIFY,
@@ -136,8 +137,10 @@ impl WindowInner {
     }
 
     pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
+        let xcb = &self.connection.xcb_connection;
+
         // _NET_WM_NAME should be preferred by window managers, but set both in case.
-        self.connection.change_property8(
+        xcb.change_property8(
             PropMode::REPLACE,
             self.inner,
             AtomEnum::WM_NAME,
@@ -145,7 +148,7 @@ impl WindowInner {
             title.as_bytes(),
         )?;
 
-        self.connection.change_property8(
+        xcb.change_property8(
             PropMode::REPLACE,
             self.inner,
             self.atoms._NET_WM_NAME,
@@ -160,7 +163,7 @@ impl WindowInner {
         raw.extend_from_slice(title.as_bytes());
         raw.push(b'\n');
 
-        let _ = self.connection.change_property8(
+        let _ = xcb.change_property8(
             PropMode::REPLACE,
             self.inner,
             self.atoms.WM_CLASS,
@@ -174,6 +177,6 @@ impl WindowInner {
 
 impl Drop for WindowInner {
     fn drop(&mut self) {
-        let _ = self.connection.destroy_window(self.inner);
+        let _ = self.connection.xcb_connection.destroy_window(self.inner);
     }
 }

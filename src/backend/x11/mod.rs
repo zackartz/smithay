@@ -17,17 +17,20 @@ use crate::backend::x11::input::*;
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use slog::{error, info, o, Logger};
+use x11_dl::xlib_xcb::{Xlib_xcb, XEventQueueOwner};
 use x11rb::xcb_ffi::XCBConnection;
-use std::io;
+use std::{fmt, io, ptr};
+use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::sync::Weak;
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt, Depth, VisualClass};
-use x11rb::rust_connection::{ReplyOrIdError, RustConnection};
+use x11rb::rust_connection::ReplyOrIdError;
 use x11rb::x11_utils::X11Error as ImplError;
 use x11rb::{atom_manager, protocol as x11};
+use x11_dl::xlib::Xlib;
 
 /// An error that may occur when initializing the backend.
 #[derive(Debug, thiserror::Error)]
@@ -194,17 +197,87 @@ pub enum X11Event {
     CloseRequested,
 }
 
+pub struct XConnection {
+    pub xlib_library: Xlib,
+    pub xlib_display: *mut x11_dl::xlib::Display,
+    pub xcb_connection: XCBConnection,
+}
+
+impl XConnection {
+    pub fn new() -> Result<(XConnection, usize), X11Error> {
+        let xlib = Xlib::open().expect("Failed to open xlib library");
+        let xlib_xcb = Xlib_xcb::open().expect("Failed to load xlib_libxcb");
+        let (display, screen_number) = unsafe {
+            let display = (xlib.XOpenDisplay)(ptr::null());
+
+            if display.is_null() {
+                todo!("Failed to open display");
+            }
+
+            (display, (xlib.XDefaultScreen)(display))
+        };
+
+        // Transfer ownership of the event queue to XCB
+        let xcb_connection_t = unsafe {
+            let ptr = (xlib_xcb.XGetXCBConnection)(display);
+            (xlib_xcb.XSetEventQueueOwner)(display, XEventQueueOwner::XCBOwnsEventQueue);
+            ptr
+        };
+
+        let xcb_connection = unsafe {
+            if xcb_connection_t.is_null() {
+                (xlib.XCloseDisplay)(display);
+                return Err(todo!("Must have Xlib_xcb"));
+            }
+
+            // Do not drop the connection upon closure since Xlib created the xcb_connection_t
+            XCBConnection::from_raw_xcb_connection(xcb_connection_t, false)
+        }?;
+
+        Ok((XConnection {
+            xlib_library: xlib,
+            xlib_display: display,
+            xcb_connection,
+        }, screen_number as usize))
+    }
+}
+
+// Xlib and libxcb are both thread safe.
+unsafe impl Send for XConnection {}
+unsafe impl Sync for XConnection {}
+
+impl fmt::Debug for XConnection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("XConnection")
+            .field("xlib_library", &"xlib")
+            .field("xlib_display", &self.xlib_display)
+            .field("xcb_connection", &self.xcb_connection)
+            .finish()
+    }
+}
+
+impl Drop for XConnection {
+    fn drop(&mut self) {
+        // Close the display
+        unsafe {
+            (self.xlib_library.XCloseDisplay)(self.xlib_display);
+        }
+    }
+}
+
 /// An abstraction representing a connection to the X11 server.
 #[derive(Debug)]
 pub struct X11Backend {
     log: Logger,
+    connection: Arc<XConnection>,
     source: X11Source,
-    connection: Arc<XCBConnection>,
     window: Arc<WindowInner>,
     key_counter: Arc<AtomicU32>,
     depth: Depth,
     visual_id: u32,
 }
+
+unsafe impl Send for X11Backend {}
 
 atom_manager! {
     pub(crate) Atoms: AtomCollectionCookie {
@@ -225,12 +298,16 @@ impl X11Backend {
     {
         let log = crate::slog_or_fallback(logger).new(o!("smithay_module" => "backend_x11"));
 
+        
+
         info!(log, "Connecting to the X server");
-        let (connection, screen_number) = XCBConnection::connect(None)?;
+
+        let (connection, screen_number) = XConnection::new()?;
         let connection = Arc::new(connection);
         info!(log, "Connected to screen {}", screen_number);
 
-        let screen = &connection.setup().roots[screen_number];
+        let xcb = &connection.xcb_connection;
+        let screen = &xcb.setup().roots[screen_number];
 
         // We want 32 bit color
         let depth = screen
@@ -252,10 +329,10 @@ impl X11Backend {
         // TODO
 
         // Make a colormap
-        let colormap = connection.generate_id()?;
-        connection.create_colormap(ColormapAlloc::NONE, colormap, screen.root, visual_id)?;
+        let colormap = xcb.generate_id()?;
+        &xcb.create_colormap(ColormapAlloc::NONE, colormap, screen.root, visual_id)?;
 
-        let atoms = Atoms::new(&*connection)?.reply()?;
+        let atoms = Atoms::new(xcb)?.reply()?;
 
         let window = Arc::new(WindowInner::new(
             connection.clone(),
@@ -284,6 +361,10 @@ impl X11Backend {
             depth,
             visual_id,
         })
+    }
+
+    pub fn connection(&self) -> &XConnection {
+        &self.connection
     }
 
     /// Returns a handle to the X11 window this input backend handles inputs for.
@@ -541,7 +622,7 @@ impl EventSource for X11Backend {
                 }
 
                 // Now flush requests to the clients.
-                let _ = connection.flush();
+                let _ = connection.xcb_connection.flush();
             })
             .expect("TODO");
 
@@ -558,5 +639,11 @@ impl EventSource for X11Backend {
 
     fn unregister(&mut self, poll: &mut Poll) -> io::Result<()> {
         self.source.unregister(poll)
+    }
+}
+
+impl Drop for X11Backend {
+    fn drop(&mut self) {
+        todo!()
     }
 }

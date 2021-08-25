@@ -3,18 +3,16 @@
 //! Buffers imported into X11 are represented as X pixmaps which are then presented to the window.
 
 use std::os::unix::prelude::RawFd;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use super::{Window, X11Error};
 use nix::fcntl;
-use wayland_server::protocol::wl_buffer::WlBuffer;
 use x11rb::connection::Connection;
-use x11rb::protocol::shm::ConnectionExt;
 use x11rb::protocol::xproto::ConnectionExt as _;
 use x11rb::rust_connection::{ConnectionError, ReplyOrIdError};
 use x11rb::utils::RawFdContainer;
-use x11rb::{protocol::dri3::ConnectionExt as _, rust_connection::RustConnection};
+use x11rb::xcb_ffi::XCBConnection;
+use x11rb::{protocol::dri3::ConnectionExt as _};
 
 use crate::backend::allocator::dmabuf::Dmabuf;
 use crate::backend::allocator::Buffer;
@@ -54,7 +52,7 @@ impl From<ConnectionError> for CreatePixmapError {
 
 #[derive(Debug)]
 pub struct Pixmap {
-    connection: Arc<RustConnection>,
+    connection: Arc<XCBConnection>,
     inner: u32,
     width: u16,
     height: u16,
@@ -63,7 +61,7 @@ pub struct Pixmap {
 impl Pixmap {
     /// Creates a pixmap from a Dmabuf.
     pub fn from_dmabuf(
-        connection: Arc<RustConnection>,
+        connection: Arc<XCBConnection>,
         window: &Window,
         dmabuf: &Dmabuf,
     ) -> Result<Pixmap, CreatePixmapError> {
@@ -135,43 +133,4 @@ impl Drop for Pixmap {
     fn drop(&mut self) {
         let _ = self.connection.free_pixmap(self.inner);
     }
-}
-
-#[allow(dead_code)]
-pub fn new_dma_pixbuf(
-    dmabuf: Dmabuf,
-    connection: Rc<RustConnection>,
-    window: u32,
-    width: u16,
-    height: u16,
-    depth: u8,
-    bpp: u8,
-) -> Result<Pixmap, X11Error> {
-    // Dup FDs since XCB will close the FDs after sending them.
-    // TODO:
-
-    let pixmap = connection.generate_id()?;
-    connection
-        .dri3_pixmap_from_buffers(
-            pixmap,
-            window,
-            width,
-            height,
-            dmabuf.strides().next().unwrap(),
-            dmabuf.offsets().next().unwrap(),
-            dmabuf.strides().nth(1).unwrap(),
-            dmabuf.offsets().nth(1).unwrap(),
-            dmabuf.strides().nth(2).unwrap(),
-            dmabuf.offsets().nth(2).unwrap(),
-            dmabuf.strides().nth(3).unwrap(),
-            dmabuf.offsets().nth(3).unwrap(),
-            depth,
-            bpp,
-            dmabuf.format().modifier.into(),
-            // TODO: Duplicate attributes, as raw fd container takes ownership
-            dmabuf.handles().map(RawFdContainer::new).collect(),
-        )?
-        .check()?;
-
-    todo!()
 }
