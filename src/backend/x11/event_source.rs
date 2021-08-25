@@ -4,14 +4,10 @@ use std::{
     thread::{spawn, JoinHandle},
 };
 
-use x11rb::{
-    connection::Connection as _,
-    protocol::{
+use x11rb::{connection::Connection as _, protocol::{
         xproto::{Atom, ClientMessageEvent, ConnectionExt as _, EventMask, Window, CLIENT_MESSAGE_EVENT},
         Event,
-    },
-    rust_connection::RustConnection,
-};
+    }, rust_connection::RustConnection, xcb_ffi::XCBConnection};
 
 use calloop::{
     channel::{sync_channel, Channel, Event as ChannelEvent, SyncSender},
@@ -30,7 +26,7 @@ use calloop::{
 /// [1]: https://docs.rs/x11rb/0.8.1/x11rb/event_loop_integration/index.html#threads-and-races
 #[derive(Debug)]
 pub struct X11Source {
-    connection: Arc<RustConnection>,
+    connection: Arc<XCBConnection>,
     channel: Channel<Event>,
     event_thread: Option<JoinHandle<()>>,
     close_window: Window,
@@ -46,7 +42,7 @@ impl X11Source {
     /// created by us. Thus, the event reading thread will wake up and check an internal exit flag,
     /// then exit.
     pub fn new(
-        connection: Arc<RustConnection>,
+        connection: Arc<XCBConnection>,
         close_window: Window,
         close_type: Atom,
         log: slog::Logger,
@@ -139,7 +135,7 @@ impl EventSource for X11Source {
 /// This thread will call wait_for_event(). RustConnection then ensures internally to wake us up
 /// when an event arrives. So far, this seems to be the only safe way to integrate x11rb with
 /// calloop.
-fn run_event_thread(connection: Arc<RustConnection>, sender: SyncSender<Event>, log: slog::Logger) {
+fn run_event_thread(connection: Arc<XCBConnection>, sender: SyncSender<Event>, log: slog::Logger) {
     loop {
         let event = match connection.wait_for_event() {
             Ok(event) => event,

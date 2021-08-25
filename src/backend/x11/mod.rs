@@ -16,10 +16,9 @@ use crate::backend::x11::event_source::X11Source;
 use crate::backend::x11::input::*;
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
-use drm_fourcc::{DrmFormat, DrmFourcc};
 use slog::{error, info, o, Logger};
+use x11rb::xcb_ffi::XCBConnection;
 use std::io;
-use std::rc::Rc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::sync::Weak;
@@ -200,7 +199,7 @@ pub enum X11Event {
 pub struct X11Backend {
     log: Logger,
     source: X11Source,
-    connection: Arc<RustConnection>,
+    connection: Arc<XCBConnection>,
     window: Arc<WindowInner>,
     key_counter: Arc<AtomicU32>,
     depth: Depth,
@@ -227,7 +226,7 @@ impl X11Backend {
         let log = crate::slog_or_fallback(logger).new(o!("smithay_module" => "backend_x11"));
 
         info!(log, "Connecting to the X server");
-        let (connection, screen_number) = RustConnection::connect(None)?;
+        let (connection, screen_number) = XCBConnection::connect(None)?;
         let connection = Arc::new(connection);
         info!(log, "Connected to screen {}", screen_number);
 
@@ -509,7 +508,10 @@ impl EventSource for X11Backend {
                     x11::Event::ResizeRequest(resized) => {
                         if resized.window == window.inner {
                             let size: Size<u16, Logical> = (resized.width, resized.height).into();
-                            window.size.replace(size);
+
+                            {
+                                *window.size.lock().unwrap() = size;
+                            }
 
                             (callback)(X11Event::Resized(size), &mut event_window);
                         }

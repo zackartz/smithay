@@ -10,10 +10,11 @@ use x11rb::protocol::xproto::{self as x11, AtomEnum, CreateGCAux, CreateWindowAu
 use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
 use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt;
+use x11rb::xcb_ffi::XCBConnection;
 
 #[derive(Debug)]
 pub(crate) struct WindowInner {
-    pub connection: Arc<RustConnection>,
+    pub connection: Arc<XCBConnection>,
     pub inner: x11::Window,
     root: x11::Window,
     pub atoms: Atoms,
@@ -24,7 +25,7 @@ pub(crate) struct WindowInner {
 
 impl WindowInner {
     pub fn new(
-        connection: Arc<RustConnection>,
+        connection: Arc<XCBConnection>,
         screen: &Screen,
         properties: WindowProperties<'_>,
         atoms: Atoms,
