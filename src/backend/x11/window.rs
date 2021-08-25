@@ -65,7 +65,7 @@ impl WindowInner {
         )?;
 
         // Send requests to change window properties while we wait for the window creation request to complete.
-        let window = WindowInner {
+        let mut window = WindowInner {
             connection: connection.clone(),
             inner: window,
             root: screen.root,

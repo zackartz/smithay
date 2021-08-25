@@ -54,6 +54,11 @@ pub fn run_x11(log: Logger) {
     info!(log, "Initialization completed, starting the main loop.");
 
     while state.running.load(Ordering::SeqCst) {
+        // drawing logic
+        {
+            
+        }
+
         // // drawing logic
         // {
         //     let mut renderer = renderer.borrow_mut();
