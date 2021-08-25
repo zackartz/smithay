@@ -198,9 +198,9 @@ pub enum X11Event {
 }
 
 pub struct XConnection {
-    pub xlib_library: Xlib,
-    pub xlib_display: *mut x11_dl::xlib::Display,
-    pub xcb_connection: XCBConnection,
+    xlib_library: Xlib,
+    xlib_display: *mut x11_dl::xlib::Display,
+    xcb_connection: XCBConnection,
 }
 
 impl XConnection {
@@ -239,6 +239,14 @@ impl XConnection {
             xlib_display: display,
             xcb_connection,
         }, screen_number as usize))
+    }
+
+    pub fn xcb_connection(&self) -> &XCBConnection {
+        &self.xcb_connection
+    }
+
+    pub fn xlib_display(&self) -> *mut x11_dl::xlib::Display {
+        self.xlib_display
     }
 }
 

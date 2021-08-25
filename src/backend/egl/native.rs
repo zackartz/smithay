@@ -170,7 +170,7 @@ impl EGLNativeDisplay for WinitWindow {
 #[cfg(feature = "backend_x11")]
 impl EGLNativeDisplay for X11Backend {
     fn supported_platforms(&self) -> Vec<EGLPlatform<'_>> {
-        let display = self.connection().xlib_display;
+        let display = self.connection().xlib_display();
 
         vec![
             // see: https://khronos.org/registry/EGL/extensions/KHR/EGL_KHR_platform_x11.txt
