@@ -211,9 +211,8 @@ impl InputBackend for X11Input {
     where
         F: FnMut(InputEvent<Self>),
     {
-        // This dispatch_new_events call is entirely internal, as the X11Input type is private to this module, hence this is never called.
-        //
-        // This implementation does exist to associate the types with the backend.
-        unreachable!();
+        // The implementation of the trait here is exclusively for type definitions.
+        // See `X11Event::Input` to handle input events.
+        unreachable!()
     }
 }

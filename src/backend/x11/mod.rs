@@ -5,7 +5,7 @@
 //!
 
 mod buffer;
-mod connection;
+pub mod connection;
 mod event_source;
 pub mod input;
 pub mod window;
@@ -111,11 +111,8 @@ impl Default for WindowProperties<'_> {
 /// An event emitted by the X11 backend.
 #[derive(Debug)]
 pub enum X11Event {
-    /// The X server has sent an expose event, requiring the compositor to redraw the window.
-    ///
-    /// This is only called when redrawing is required, otherwise you should schedule drawing to
-    /// the window yourself.
-    Expose,
+    /// The X server has required the compositor to redraw the window.
+    Refresh,
 
     /// An input event occurred.
     Input(InputEvent<X11Input>),
@@ -158,13 +155,13 @@ impl X11Backend {
     where
         L: Into<Option<slog::Logger>>,
     {
-        let log = crate::slog_or_fallback(logger).new(o!("smithay_module" => "backend_x11"));
+        let logger = crate::slog_or_fallback(logger).new(o!("smithay_module" => "backend_x11"));
 
-        info!(log, "Connecting to the X server");
+        info!(logger, "Connecting to the X server");
 
-        let (connection, screen_number) = XConnection::new()?;
+        let (connection, screen_number) = XConnection::new(&logger)?;
         let connection = Arc::new(connection);
-        info!(log, "Connected to screen {}", screen_number);
+        info!(logger, "Connected to screen {}", screen_number);
 
         let xcb = connection.xcb_connection();
         let screen = &xcb.setup().roots[screen_number];
@@ -190,7 +187,7 @@ impl X11Backend {
 
         // Make a colormap
         let colormap = xcb.generate_id()?;
-        &xcb.create_colormap(ColormapAlloc::NONE, colormap, screen.root, visual_id)?;
+        xcb.create_colormap(ColormapAlloc::NONE, colormap, screen.root, visual_id)?;
 
         let atoms = Atoms::new(xcb)?.reply()?;
 
@@ -203,17 +200,18 @@ impl X11Backend {
             visual_id,
             colormap,
         )?);
+
         let source = X11Source::new(
             connection.clone(),
             window.inner,
             atoms._SMITHAY_X11_BACKEND_CLOSE,
-            log.clone(),
+            logger.clone(),
         );
 
-        info!(log, "Window created");
+        info!(logger, "Window created");
 
         Ok(X11Backend {
-            log,
+            log: logger,
             source,
             connection,
             window,
@@ -261,7 +259,6 @@ impl EventSource for X11Backend {
         self.source
             .process_events(readiness, token, |event, _| {
                 match event {
-                    // Input events need to be queued up:
                     x11::Event::ButtonPress(button_press) => {
                         if button_press.event == window.inner {
                             // X11 decided to associate scroll wheel with a button, 4, 5, 6 and 7 for
@@ -271,7 +268,16 @@ impl EventSource for X11Backend {
 
                             // Ideally we would use `ButtonIndex` from XCB, however it does not cover 6 and 7
                             // for horizontal scroll and does not work nicely in match statements, so we
-                            // use magic constants here.
+                            // use magic constants here:
+                            //
+                            // 1 => MouseButton::Left
+                            // 2 => MouseButton::Middle
+                            // 3 => MouseButton::Right
+                            // 4 => Axis::Vertical +1.0
+                            // 5 => Axis::Vertical -1.0
+                            // 6 => Axis::Horizontal -1.0
+                            // 7 => Axis::Horizontal +1.0
+                            // Others => ??
                             match button_press.detail {
                                 1..=3 => {
                                     // Clicking a button.
@@ -326,7 +332,7 @@ impl EventSource for X11Backend {
                                     )
                                 }
 
-                                // Unknown button?
+                                // Unknown mouse button
                                 _ => callback(
                                     Input(InputEvent::PointerButton {
                                         event: X11MouseInputEvent {
@@ -392,7 +398,7 @@ impl EventSource for X11Backend {
                                         time: key_press.time,
                                         // It seems as if X11's keycodes are +8 relative to the libinput
                                         // keycodes that are expected, so subtract 8 from each keycode
-                                        // to be correct.
+                                        // to match libinput.
                                         key: key_press.detail as u32 - 8,
                                         count: key_counter.fetch_add(1, Ordering::SeqCst) + 1,
                                         state: KeyState::Pressed,
@@ -416,7 +422,7 @@ impl EventSource for X11Backend {
                                         time: key_release.time,
                                         // It seems as if X11's keycodes are +8 relative to the libinput
                                         // keycodes that are expected, so subtract 8 from each keycode
-                                        // to be correct.
+                                        // to match libinput.
                                         key: key_release.detail as u32 - 8,
                                         count: key_counter_val,
                                         state: KeyState::Released,
@@ -451,6 +457,9 @@ impl EventSource for X11Backend {
                         if resized.window == window.inner {
                             let size: Size<u16, Logical> = (resized.width, resized.height).into();
 
+                            // Intentionally drop the lock on the size mutex incase a user
+                            // requests a resize or does something which causes a resize
+                            // inside the callback.
                             {
                                 *window.size.lock().unwrap() = size;
                             }
@@ -460,9 +469,8 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::ClientMessage(client_message) => {
-                        // Were we told to destroy the window?
-                        if client_message.data.as_data32()[0] == window.atoms.WM_DELETE_WINDOW
-                            && client_message.window == window.inner
+                        if client_message.data.as_data32()[0] == window.atoms.WM_DELETE_WINDOW // Destroy the window?
+                            && client_message.window == window.inner // Same window
                         {
                             (callback)(X11Event::CloseRequested, &mut event_window);
                         }
@@ -470,8 +478,10 @@ impl EventSource for X11Backend {
 
                     x11::Event::Expose(expose) => {
                         // TODO: We would ideally use this to determine damage and render more efficiently that way.
+                        //
+                        // Although there is an Expose with damage event somewhere?
                         if expose.window == window.inner && expose.count == 0 {
-                            (callback)(X11Event::Expose, &mut event_window);
+                            (callback)(X11Event::Refresh, &mut event_window);
                         }
                     }
 
@@ -482,7 +492,7 @@ impl EventSource for X11Backend {
                     _ => (),
                 }
 
-                // Now flush requests to the clients.
+                // Flush the connection so changes to the window state during callbacks can be emitted.
                 let _ = connection.xcb_connection().flush();
             })
             .expect("TODO");
@@ -500,11 +510,5 @@ impl EventSource for X11Backend {
 
     fn unregister(&mut self, poll: &mut Poll) -> io::Result<()> {
         self.source.unregister(poll)
-    }
-}
-
-impl Drop for X11Backend {
-    fn drop(&mut self) {
-        todo!()
     }
 }

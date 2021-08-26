@@ -2,6 +2,7 @@
 
 use std::{fmt, ptr};
 
+use slog::Logger;
 use x11_dl::{
     xlib::Xlib,
     xlib_xcb::{XEventQueueOwner, Xlib_xcb},
@@ -39,13 +40,20 @@ impl From<ConnectError> for ConnectToXError {
 /// This contains a way to access both the xcb connection and the xlib Display.
 pub struct XConnection {
     xlib_library: Xlib,
+    /// The xlib Display that initiated the XCBConnection
+    ///
+    /// If we want to allow creation of an EGL Context using X11, the XCB extensions are not
+    /// implemented most drivers yet. So we also expose the Xlib types so an OpenGL context
+    /// can be made in nearly every driver.
     xlib_display: *mut x11_dl::xlib::Display,
     xcb_connection: XCBConnection,
 }
 
 impl XConnection {
     /// Attempts to connect to the X server.
-    pub fn new() -> Result<(XConnection, usize), ConnectToXError> {
+    pub(crate) fn new(_logger: &Logger) -> Result<(XConnection, usize), ConnectToXError> {
+        // TODO: Log setup process
+
         let xlib = Xlib::open().expect("Failed to open xlib library");
         let xlib_xcb = Xlib_xcb::open().expect("Failed to load xlib_libxcb");
         let (display, screen_number) = unsafe {
@@ -58,7 +66,7 @@ impl XConnection {
             (display, (xlib.XDefaultScreen)(display))
         };
 
-        // Transfer ownership of the event queue to XCB
+        // Transfer ownership of the event queue to XCB since we use XCB to handle events.
         let xcb_connection_t = unsafe {
             let ptr = (xlib_xcb.XGetXCBConnection)(display);
             (xlib_xcb.XSetEventQueueOwner)(display, XEventQueueOwner::XCBOwnsEventQueue);
@@ -66,12 +74,14 @@ impl XConnection {
         };
 
         let xcb_connection = unsafe {
+            // Xlib implementation does not use XCB
             if xcb_connection_t.is_null() {
                 (xlib.XCloseDisplay)(display);
                 return Err(ConnectToXError::NoXlibXcb);
             }
 
-            // Do not drop the connection upon closure since Xlib created the xcb_connection_t
+            // Do not drop the connection upon closure since Xlib created the xcb_connection_t.
+            // The Drop impl of `XConnection` will shutdown the Xlib Display
             XCBConnection::from_raw_xcb_connection(xcb_connection_t, false)
         };
 
