@@ -19,12 +19,13 @@ use crate::backend::x11::input::*;
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use slog::{error, info, o, Logger};
+use x11rb::protocol::dri3::{self, ConnectionExt};
 use std::io;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
-use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt, Depth, VisualClass};
+use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt as _, Depth, VisualClass};
 use x11rb::rust_connection::ReplyOrIdError;
 use x11rb::x11_utils::X11Error as ImplError;
 use x11rb::{atom_manager, protocol as x11};
@@ -162,8 +163,30 @@ impl X11Backend {
         let (connection, screen_number) = XConnection::new(&logger)?;
         let connection = Arc::new(connection);
         info!(logger, "Connected to screen {}", screen_number);
-
         let xcb = connection.xcb_connection();
+
+        // Does the X server support dri3?
+        let (dri3_major, dri3_minor) = {
+            let extension = xcb.query_extension(dri3::X11_EXTENSION_NAME.as_bytes())?.reply()?;
+
+            if !extension.present {
+                todo!("Missing extension")
+            }
+
+            // TODO: Figure out what on earth xcb does with these 2 params?
+            let version = xcb.dri3_query_version(1, 2)?.reply()?;
+
+            if version.major_version < 1 {
+                todo!("DRI3 version too low")
+            }
+
+            (version.major_version, version.minor_version)
+        };
+
+        // Now that we've initialized the connection to the X server, we need to determine which
+        // drm-device the Display is using.
+        // TODO:
+
         let screen = &xcb.setup().roots[screen_number];
 
         // We want 32 bit color
