@@ -3,13 +3,88 @@
 use crate::utils::{Logical, Size};
 
 use super::{Atoms, WindowProperties, X11Error, XConnection};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
     self as x11, AtomEnum, CreateGCAux, CreateWindowAux, Depth, EventMask, PropMode, Screen, WindowClass,
 };
 use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
 use x11rb::wrapper::ConnectionExt;
+
+/// An X11 window.
+#[derive(Debug)]
+pub struct Window(Weak<WindowInner>);
+
+impl Window {
+    /// Sets the title of the window.
+    pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
+        if let Some(inner) = self.0.upgrade() {
+            inner.set_title(title)
+        } else {
+            Err(X11Error::WindowDestroyed)
+        }
+    }
+
+    /// Maps the window, making it visible.
+    pub fn map(&self) -> Result<(), X11Error> {
+        if let Some(inner) = self.0.upgrade() {
+            inner.map()
+        } else {
+            Err(X11Error::WindowDestroyed)
+        }
+    }
+
+    /// Unmaps the window, making it invisible.
+    pub fn unmap(&self) -> Result<(), X11Error> {
+        if let Some(inner) = self.0.upgrade() {
+            inner.unmap()
+        } else {
+            Err(X11Error::WindowDestroyed)
+        }
+    }
+
+    /// Returns the size of this window.
+    pub fn size(&self) -> Result<Size<u16, Logical>, X11Error> {
+        if let Some(inner) = self.0.upgrade() {
+            Ok(inner.size())
+        } else {
+            Err(X11Error::WindowDestroyed)
+        }
+    }
+
+    /// Returns the XID of the window.
+    pub fn id(&self) -> u32 {
+        if let Some(inner) = self.0.upgrade() {
+            inner.inner
+        } else {
+            0
+        }
+    }
+
+    /// Returns the depth id of this window.
+    pub fn depth(&self) -> u8 {
+        if let Some(inner) = self.0.upgrade() {
+            inner.depth.depth
+        } else {
+            0
+        }
+    }
+
+    /// Returns the graphics context used to draw to this window.
+    pub fn gc(&self) -> u32 {
+        if let Some(inner) = self.0.upgrade() {
+            inner.gc
+        } else {
+            0
+        }
+    }
+}
+
+impl From<Arc<WindowInner>> for Window {
+    fn from(inner: Arc<WindowInner>) -> Self {
+        Window(Arc::downgrade(&inner))
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct WindowInner {

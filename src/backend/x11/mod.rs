@@ -8,10 +8,10 @@ mod buffer;
 mod connection;
 mod event_source;
 pub mod input;
-mod window;
+pub mod window;
 
 use self::connection::{ConnectToXError, XConnection};
-use self::window::WindowInner;
+use self::window::{Window, WindowInner};
 use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
 use crate::backend::x11::event_source::X11Source;
@@ -22,7 +22,6 @@ use slog::{error, info, o, Logger};
 use std::io;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
-use std::sync::Weak;
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt, Depth, VisualClass};
@@ -105,75 +104,6 @@ impl Default for WindowProperties<'_> {
             width: 1280,
             height: 800,
             title: "Smithay",
-        }
-    }
-}
-
-/// An X11 window.
-#[derive(Debug)]
-pub struct Window(Weak<WindowInner>);
-
-impl Window {
-    /// Sets the title of the window.
-    pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
-        if let Some(inner) = self.0.upgrade() {
-            inner.set_title(title)
-        } else {
-            Err(X11Error::WindowDestroyed)
-        }
-    }
-
-    /// Maps the window, making it visible.
-    pub fn map(&self) -> Result<(), X11Error> {
-        if let Some(inner) = self.0.upgrade() {
-            inner.map()
-        } else {
-            Err(X11Error::WindowDestroyed)
-        }
-    }
-
-    /// Unmaps the window, making it invisible.
-    pub fn unmap(&self) -> Result<(), X11Error> {
-        if let Some(inner) = self.0.upgrade() {
-            inner.unmap()
-        } else {
-            Err(X11Error::WindowDestroyed)
-        }
-    }
-
-    /// Returns the size of this window.
-    pub fn size(&self) -> Result<Size<u16, Logical>, X11Error> {
-        if let Some(inner) = self.0.upgrade() {
-            Ok(inner.size())
-        } else {
-            Err(X11Error::WindowDestroyed)
-        }
-    }
-
-    /// Returns the XID of the window.
-    pub fn id(&self) -> u32 {
-        if let Some(inner) = self.0.upgrade() {
-            inner.inner
-        } else {
-            0
-        }
-    }
-
-    /// Returns the depth id of this window.
-    pub fn depth(&self) -> u8 {
-        if let Some(inner) = self.0.upgrade() {
-            inner.depth.depth
-        } else {
-            0
-        }
-    }
-
-    /// Returns the graphics context used to draw to this window.
-    pub fn gc(&self) -> u32 {
-        if let Some(inner) = self.0.upgrade() {
-            inner.gc
-        } else {
-            0
         }
     }
 }
@@ -300,7 +230,7 @@ impl X11Backend {
 
     /// Returns a handle to the X11 window this input backend handles inputs for.
     pub fn window(&self) -> Window {
-        Window(Arc::downgrade(&self.window))
+        self.window.clone().into()
     }
 }
 
@@ -326,7 +256,7 @@ impl EventSource for X11Backend {
         let window = self.window.clone();
         let key_counter = self.key_counter.clone();
         let log = self.log.clone();
-        let mut event_window = Window(Arc::downgrade(&window));
+        let mut event_window = window.clone().into();
 
         self.source
             .process_events(readiness, token, |event, _| {
