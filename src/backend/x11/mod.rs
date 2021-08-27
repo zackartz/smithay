@@ -18,9 +18,11 @@ use crate::backend::x11::event_source::X11Source;
 use crate::backend::x11::input::*;
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
+use gbm::Device;
 use slog::{error, info, o, Logger};
 use x11rb::protocol::dri3::{self, ConnectionExt};
 use std::io;
+use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use x11rb::connection::Connection;
@@ -125,6 +127,9 @@ pub enum X11Event {
     CloseRequested,
 }
 
+// TODO:
+// Figure out how to expose this to the outside world after inserting in the event loop so buffers can be allocated?
+
 /// An abstraction representing a connection to the X11 server.
 #[derive(Debug)]
 pub struct X11Backend {
@@ -135,6 +140,7 @@ pub struct X11Backend {
     key_counter: Arc<AtomicU32>,
     depth: Depth,
     visual_id: u32,
+    gbm_device: Device<RawFd>,
 }
 
 unsafe impl Send for X11Backend {}
@@ -170,10 +176,10 @@ impl X11Backend {
             let extension = xcb.query_extension(dri3::X11_EXTENSION_NAME.as_bytes())?.reply()?;
 
             if !extension.present {
-                todo!("Missing extension")
+                todo!("DRI3 is not present")
             }
 
-            // TODO: Figure out what on earth xcb does with these 2 params?
+            // TODO: Figure out what on earth xcb does with these 2 params? Is it the requested version?
             let version = xcb.dri3_query_version(1, 2)?.reply()?;
 
             if version.major_version < 1 {
@@ -183,11 +189,25 @@ impl X11Backend {
             (version.major_version, version.minor_version)
         };
 
+        let screen = &xcb.setup().roots[screen_number];
+
         // Now that we've initialized the connection to the X server, we need to determine which
         // drm-device the Display is using.
-        // TODO:
+        let dri3 = xcb.dri3_open(screen.root, 0)?.reply()?;
+        // This file descriptor points towards the DRM device that the X server is using.
+        let drm_device_fd = dri3.device_fd;
 
-        let screen = &xcb.setup().roots[screen_number];
+        let fd_flags = nix::fcntl::fcntl(drm_device_fd.as_raw_fd(), nix::fcntl::F_GETFD).expect("Handle this error");
+        // No need to check if ret == 1 since nix handles that.
+
+        // Enable the close-on-exec flag.
+        nix::fcntl::fcntl(drm_device_fd.as_raw_fd(), nix::fcntl::F_SETFD(nix::fcntl::FdFlag::from_bits_truncate(fd_flags) | nix::fcntl::FdFlag::FD_CLOEXEC)).expect("Handle this result");
+
+        // Check if the returned fd is a drm_render node
+        // TODO
+
+        // Finally create a GBMDevice to manage buffers.
+        let gbm_device = crate::backend::allocator::gbm::GbmDevice::new(drm_device_fd.as_raw_fd()).expect("Failed to create gbm device");
 
         // We want 32 bit color
         let depth = screen
@@ -241,6 +261,7 @@ impl X11Backend {
             key_counter: Arc::new(AtomicU32::new(0)),
             depth,
             visual_id,
+            gbm_device,
         })
     }
 
@@ -252,6 +273,11 @@ impl X11Backend {
     /// Returns a handle to the X11 window this input backend handles inputs for.
     pub fn window(&self) -> Window {
         self.window.clone().into()
+    }
+
+    /// Returns a reference to the GBM device used to allocate buffers used to present to the window.
+    pub fn gbm_device(&self) -> &Device<RawFd> {
+        &self.gbm_device
     }
 }
 
