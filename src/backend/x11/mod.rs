@@ -4,6 +4,12 @@
 //! directly as an X11 client.
 //!
 
+/*
+TODO: Possible future changes:
+
+- Migrate to x11rb's Wrapper types for Pixmaps and windows when the next version releases
+*/
+
 mod buffer;
 pub mod connection;
 mod event_source;
@@ -142,8 +148,6 @@ pub struct X11Backend {
     visual_id: u32,
     gbm_device: Device<RawFd>,
 }
-
-unsafe impl Send for X11Backend {}
 
 atom_manager! {
     pub(crate) Atoms: AtomCollectionCookie {

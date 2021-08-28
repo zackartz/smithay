@@ -52,6 +52,7 @@ impl From<ConnectionError> for CreatePixmapError {
 
 #[derive(Debug)]
 pub struct Pixmap {
+    // TODO: Consider future x11rb WindowWrapper
     connection: Arc<XCBConnection>,
     inner: u32,
     width: u16,
