@@ -5,6 +5,8 @@ pub use calloop;
 pub use dbus;
 #[cfg(feature = "backend_drm")]
 pub use drm;
+#[cfg(feature = "backend_drm")]
+pub use drm_fourcc;
 #[cfg(feature = "backend_gbm")]
 pub use gbm;
 #[cfg(feature = "backend_libinput")]
