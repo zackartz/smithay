@@ -88,6 +88,7 @@ impl From<Arc<WindowInner>> for Window {
 
 #[derive(Debug)]
 pub(crate) struct WindowInner {
+    // TODO: Consider future x11rb WindowWrapper
     pub connection: Arc<XConnection>,
     pub inner: x11::Window,
     root: x11::Window,
@@ -111,6 +112,21 @@ impl WindowInner {
 
         // Generate the xid for the window
         let window = xcb.generate_id()?;
+
+        // The event mask never include `EventMask::RESIZE_REDIRECT`.
+        //
+        // The reason is twofold:
+        // - We are not a window manager
+        // - Makes our window impossible to resize.
+        //
+        // On the resizing aspect, KWin and some other WMs would allow resizing, but those
+        // compositors rely on putting this window in another window for drawing decorations,
+        // so visibly in KWin it would look like using the RESIZE_REDIRECT event mask would work,
+        // but a tiling window manager would be sad and the tiling window manager devs mad because
+        // this window would refuse to listen to the tiling WM.
+        //
+        // For resizing we use ConfigureNotify events from the STRUCTURE_NOTIFY event mask.
+
         let window_aux = CreateWindowAux::new()
             .event_mask(
                 EventMask::EXPOSURE // Be told when the window is exposed
@@ -120,7 +136,6 @@ impl WindowInner {
             | EventMask::BUTTON_PRESS // Mouse button press and release
             | EventMask::BUTTON_RELEASE
             | EventMask::POINTER_MOTION // Mouse movement
-            | EventMask::RESIZE_REDIRECT // Handling resizes
             | EventMask::NO_EVENT,
             )
             // Border pixel and color map need to be set if our depth may differ from the root depth.

@@ -5,6 +5,15 @@
 //!
 
 /*
+A note from i509 for future maintainers and contributors:
+
+Grab yourself the nearest copy of the ICCCM.
+
+You should follow this document religiously, or else you will easily get shot in the foot.
+Specifically look out for "Section 4: Client to Window Manager Communication"
+
+A link to the ICCCM Section 4: https://tronche.com/gui/x/icccm/sec-4.html
+
 TODO: Possible future changes:
 
 - Migrate to x11rb's Wrapper types for Pixmaps and windows when the next version releases
@@ -516,18 +525,25 @@ impl EventSource for X11Backend {
                         }
                     }
 
-                    x11::Event::ResizeRequest(resized) => {
-                        if resized.window == window.inner {
-                            let size: Size<u16, Logical> = (resized.width, resized.height).into();
+                    x11::Event::ConfigureNotify(configure_notify) => {
+                        if configure_notify.window == window.inner {
+                            let previous_size = {
+                                *window.size.lock().unwrap()
+                            };
+    
+                            // Did the size of the window change?
+                            let configure_notify_size: Size<u16, Logical> = (configure_notify.width, configure_notify.height).into();
+    
+                            if configure_notify_size != previous_size {
+                                // Intentionally drop the lock on the size mutex incase a user
+                                // requests a resize or does something which causes a resize
+                                // inside the callback.
+                                {
+                                    *window.size.lock().unwrap() = configure_notify_size;
+                                }
 
-                            // Intentionally drop the lock on the size mutex incase a user
-                            // requests a resize or does something which causes a resize
-                            // inside the callback.
-                            {
-                                *window.size.lock().unwrap() = size;
+                                (callback)(X11Event::Resized(configure_notify_size), &mut event_window);
                             }
-
-                            (callback)(X11Event::Resized(size), &mut event_window);
                         }
                     }
 
