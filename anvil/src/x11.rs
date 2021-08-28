@@ -2,9 +2,7 @@ use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
 use smithay::{
-    backend::{
-        x11::{WindowProperties, X11Backend, X11Event},
-    },
+    backend::x11::{WindowProperties, X11Backend, X11Event},
     reexports::{
         calloop::EventLoop,
         wayland_server::{protocol::wl_output, Display},

@@ -20,13 +20,13 @@ use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use gbm::Device;
 use slog::{error, info, o, Logger};
-use x11rb::protocol::dri3::{self, ConnectionExt};
 use std::io;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
+use x11rb::protocol::dri3::{self, ConnectionExt};
 use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt as _, Depth, VisualClass};
 use x11rb::rust_connection::ReplyOrIdError;
 use x11rb::x11_utils::X11Error as ImplError;
@@ -173,7 +173,9 @@ impl X11Backend {
 
         // Does the X server support dri3?
         let (dri3_major, dri3_minor) = {
-            let extension = xcb.query_extension(dri3::X11_EXTENSION_NAME.as_bytes())?.reply()?;
+            let extension = xcb
+                .query_extension(dri3::X11_EXTENSION_NAME.as_bytes())?
+                .reply()?;
 
             if !extension.present {
                 todo!("DRI3 is not present")
@@ -197,17 +199,25 @@ impl X11Backend {
         // This file descriptor points towards the DRM device that the X server is using.
         let drm_device_fd = dri3.device_fd;
 
-        let fd_flags = nix::fcntl::fcntl(drm_device_fd.as_raw_fd(), nix::fcntl::F_GETFD).expect("Handle this error");
+        let fd_flags =
+            nix::fcntl::fcntl(drm_device_fd.as_raw_fd(), nix::fcntl::F_GETFD).expect("Handle this error");
         // No need to check if ret == 1 since nix handles that.
 
         // Enable the close-on-exec flag.
-        nix::fcntl::fcntl(drm_device_fd.as_raw_fd(), nix::fcntl::F_SETFD(nix::fcntl::FdFlag::from_bits_truncate(fd_flags) | nix::fcntl::FdFlag::FD_CLOEXEC)).expect("Handle this result");
+        nix::fcntl::fcntl(
+            drm_device_fd.as_raw_fd(),
+            nix::fcntl::F_SETFD(
+                nix::fcntl::FdFlag::from_bits_truncate(fd_flags) | nix::fcntl::FdFlag::FD_CLOEXEC,
+            ),
+        )
+        .expect("Handle this result");
 
         // Check if the returned fd is a drm_render node
         // TODO
 
         // Finally create a GBMDevice to manage buffers.
-        let gbm_device = crate::backend::allocator::gbm::GbmDevice::new(drm_device_fd.as_raw_fd()).expect("Failed to create gbm device");
+        let gbm_device = crate::backend::allocator::gbm::GbmDevice::new(drm_device_fd.as_raw_fd())
+            .expect("Failed to create gbm device");
 
         // We want 32 bit color
         let depth = screen
@@ -519,7 +529,8 @@ impl EventSource for X11Backend {
 
                     x11::Event::ClientMessage(client_message) => {
                         if client_message.data.as_data32()[0] == window.atoms.WM_DELETE_WINDOW // Destroy the window?
-                            && client_message.window == window.inner // Same window
+                            && client_message.window == window.inner
+                        // Same window
                         {
                             (callback)(X11Event::CloseRequested, &mut event_window);
                         }

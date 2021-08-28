@@ -1,9 +1,11 @@
 //! Utilities to open a connection to an X server using [x11rb](https://github.com/psychon/x11rb).
 
-use std::{fmt, ptr};
+use std::ptr;
 
+use lazy_static::lazy_static;
 use slog::Logger;
 use x11_dl::{
+    error::OpenError,
     xlib::Xlib,
     xlib_xcb::{XEventQueueOwner, Xlib_xcb},
 };
@@ -18,7 +20,7 @@ pub enum ConnectToXError {
 
     /// Some required libraries were not present.
     #[error("Required libraries (xlib and xlib_libxcb) were not loaded")]
-    LibrariesNotLoaded,
+    LibrariesNotLoaded(OpenError),
 
     /// Xlib failed to initialize it's connection.
     #[error("An xlib connection could not be established")]
@@ -35,11 +37,41 @@ impl From<ConnectError> for ConnectToXError {
     }
 }
 
+impl From<OpenError> for ConnectToXError {
+    fn from(e: OpenError) -> Self {
+        Self::LibrariesNotLoaded(e)
+    }
+}
+
+pub(crate) struct X11Libraries {
+    pub xlib: Xlib,
+    pub xlib_xcb: Xlib_xcb,
+}
+
+lazy_static! {
+    pub(crate) static ref LIBRARIES: Result<X11Libraries, ConnectToXError> = {
+        let xlib = Xlib::open().map(|library| {
+            // In order to make XConnection Send and Sync, we need to call this that any Displays
+            // created by xlib are thread safe.
+            unsafe { (library.XInitThreads)() };
+
+            library
+        })?;
+
+        let xlib_xcb = Xlib_xcb::open()?;
+
+        Ok(X11Libraries {
+            xlib,
+            xlib_xcb,
+        })
+    };
+}
+
 /// A connection to the X server.
 ///
 /// This contains a way to access both the xcb connection and the xlib Display.
+#[derive(Debug)]
 pub struct XConnection {
-    xlib_library: Xlib,
     /// The xlib Display that initiated the XCBConnection
     ///
     /// If we want to allow creation of an EGL Context using X11, the XCB extensions are not
@@ -52,10 +84,11 @@ pub struct XConnection {
 impl XConnection {
     /// Attempts to connect to the X server.
     pub(crate) fn new(_logger: &Logger) -> Result<(XConnection, usize), ConnectToXError> {
-        // TODO: Log setup process
+        let library = LIBRARIES.as_ref().expect("Handle this error");
+        let xlib = &library.xlib;
+        let xlib_xcb = &library.xlib_xcb;
 
-        let xlib = Xlib::open().expect("Failed to open xlib library");
-        let xlib_xcb = Xlib_xcb::open().expect("Failed to load xlib_libxcb");
+        // TODO: Log setup process
         let (display, screen_number) = unsafe {
             let display = (xlib.XOpenDisplay)(ptr::null());
 
@@ -92,7 +125,6 @@ impl XConnection {
 
         Ok((
             XConnection {
-                xlib_library: xlib,
                 xlib_display: display,
                 xcb_connection: xcb_connection.unwrap(),
             },
@@ -111,25 +143,15 @@ impl XConnection {
     }
 }
 
-// Xlib and libxcb are both thread safe.
+// Xlib (after calling XInitThreads) and libxcb are both thread safe.
 unsafe impl Send for XConnection {}
 unsafe impl Sync for XConnection {}
-
-impl fmt::Debug for XConnection {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("XConnection")
-            .field("xlib_library", &"xlib")
-            .field("xlib_display", &self.xlib_display)
-            .field("xcb_connection", &self.xcb_connection)
-            .finish()
-    }
-}
 
 impl Drop for XConnection {
     fn drop(&mut self) {
         // Close the display
         unsafe {
-            (self.xlib_library.XCloseDisplay)(self.xlib_display);
+            (LIBRARIES.as_ref().unwrap().xlib.XCloseDisplay)(self.xlib_display);
         }
     }
 }
