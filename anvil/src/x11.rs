@@ -1,21 +1,12 @@
 use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
-use smithay::{
-    backend::allocator::dmabuf::AsDmabuf,
-    backend::{
-        egl::{EGLContext, EGLDisplay},
-        renderer::{gles2::Gles2Renderer, ImportEgl},
-        x11::{WindowProperties, X11Backend, X11Event},
-    },
-    reexports::{
+use smithay::{backend::allocator::dmabuf::AsDmabuf, backend::{SwapBuffersError, egl::{EGLContext, EGLDisplay}, renderer::{Bind, ImportEgl, Renderer, Transform, Unbind, gles2::Gles2Renderer}, x11::{WindowProperties, X11Backend, X11Event}}, reexports::{
         calloop::EventLoop,
         wayland_server::{protocol::wl_output, Display},
-    },
-    wayland::output::{Mode, PhysicalProperties},
-};
+    }, wayland::output::{Mode, PhysicalProperties}};
 
-use crate::{state::Backend, AnvilState};
+use crate::{AnvilState, render::render_layers_and_windows, state::Backend};
 
 pub const OUTPUT_NAME: &str = "x11";
 
@@ -128,34 +119,37 @@ pub fn run_x11(log: Logger) {
             .map(|output| (output.geometry(), output.scale()))
             .unwrap();
 
-        // drawing logic
-        // match renderer.render(
-        //     mode.size,
-        //     Transform::Normal,
-        //     |renderer, frame| {
-        //         render_layers_and_windows(
-        //             renderer,
-        //             frame,
-        //             &*state.window_map.borrow(),
-        //             output_geometry,
-        //             output_scale,
-        //             &log,
-        //         )?;
+        // renderer.bind(todo!()).expect("TODO");
 
-        //         Ok(())
-        //     }
-        // )
-        //     .map_err(Into::<SwapBuffersError>::into)
-        //     .and_then(|x| x)
-        //     .map_err(Into::<SwapBuffersError>::into)
-        // {
-        //     Ok(()) => {
-        //         // todo: Present
-        //     },
-        //     Err(err) => {
-        //         // TODO:
-        //     }
-        // }
+        // drawing logic
+        match renderer.render(
+            mode.size,
+            Transform::Normal,
+            |renderer, frame| {
+                render_layers_and_windows(
+                    renderer,
+                    frame,
+                    &*state.window_map.borrow(),
+                    output_geometry,
+                    output_scale,
+                    &log,
+                )?;
+
+                Ok(())
+            }
+        )
+            .map_err(Into::<SwapBuffersError>::into)
+            .and_then(|x| x)
+            .map_err(Into::<SwapBuffersError>::into)
+        {
+            Ok(()) => {
+                // renderer.unbind()?;
+                // Convert the buffer to a pixmap and present
+            },
+            Err(err) => {
+                // TODO:
+            }
+        }
 
         // // drawing logic
         // {
