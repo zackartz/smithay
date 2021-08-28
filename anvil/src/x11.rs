@@ -1,14 +1,10 @@
 use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
-use smithay::{
-    backend::x11::{WindowProperties, X11Backend, X11Event},
-    reexports::{
+use smithay::{backend::allocator::dmabuf::AsDmabuf, backend::{egl::{EGLContext, EGLDisplay}, renderer::{ImportEgl, gles2::Gles2Renderer}, x11::{WindowProperties, X11Backend, X11Event}}, reexports::{
         calloop::EventLoop,
         wayland_server::{protocol::wl_output, Display},
-    },
-    wayland::output::{Mode, PhysicalProperties},
-};
+    }, wayland::output::{Mode, PhysicalProperties}};
 
 use crate::{state::Backend, AnvilState};
 
@@ -35,18 +31,18 @@ pub fn run_x11(log: Logger) {
 
     let backend = X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
 
-    // TODO: Renderer?
-    // let egl = EGLDisplay::new(&backend, log.clone()).expect("Failed to initialize EGLDisplay");
-    // let context = EGLContext::new(&egl, log.clone()).expect("Failed to create EGL context");
-    // let mut renderer =
-    //     unsafe { Gles2Renderer::new(context, log.clone()) }.expect("Failed to intiialize renderer");
+    // Initialize EGL using the GBM device setup earlier.
+    let egl = EGLDisplay::new(backend.gbm_device(), log.clone()).expect("TODO");
+    dbg!("EGL");
+    let context = EGLContext::new(&egl, log.clone()).expect("TODO");
+    let mut renderer = unsafe { Gles2Renderer::new(context, log.clone()) }.expect("Failed to intiialize renderer");
 
-    // #[cfg(feature = "egl")]
-    // {
-    //     if renderer.bind_wl_display(&*display.borrow()).is_ok() {
-    //         info!(log, "EGL hardware-acceleration enabled");
-    //     }
-    // }
+    #[cfg(feature = "egl")]
+    {
+        if renderer.bind_wl_display(&*display.borrow()).is_ok() {
+            info!(log, "EGL hardware-acceleration enabled");
+        }
+    }
 
     let data = X11Data;
 

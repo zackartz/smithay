@@ -32,6 +32,8 @@ pub mod window;
 
 use self::connection::{ConnectToXError, XConnection};
 use self::window::{Window, WindowInner};
+use super::allocator::Allocator;
+use super::allocator::dmabuf::Dmabuf;
 use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
 use crate::backend::x11::drm::{DRM_NODE_RENDER, get_drm_node_type};
@@ -40,6 +42,7 @@ use crate::backend::x11::input::*;
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use gbm::Device;
+use nix::fcntl;
 use slog::{error, info, o, Logger};
 use std::io;
 use std::os::unix::prelude::{AsRawFd, RawFd};
@@ -214,6 +217,12 @@ impl X11Backend {
         let dri3 = xcb.dri3_open(screen.root, 0)?.reply()?;
         // This file descriptor points towards the DRM device that the X server is using.
         let drm_device_fd = dri3.device_fd;
+
+        // Duplicate the drm_device_fd
+        let drm_device_fd: RawFd = fcntl::fcntl(
+            drm_device_fd.as_raw_fd(),
+            fcntl::FcntlArg::F_DUPFD_CLOEXEC(3), // Set to 3 so the fd cannot become stdin, stdout or stderr
+        ).expect("TODO");
 
         let fd_flags =
             nix::fcntl::fcntl(drm_device_fd.as_raw_fd(), nix::fcntl::F_GETFD).expect("Handle this error");
