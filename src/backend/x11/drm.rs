@@ -6,7 +6,10 @@ About certain this needs checking
 
 use std::os::unix::prelude::RawFd;
 
-use nix::{errno::Errno, sys::stat::{SFlag, fstat, major, minor}};
+use nix::{
+    errno::Errno,
+    sys::stat::{fstat, major, minor, SFlag},
+};
 
 /// This function is a copy of `drmGetNodeTypeFromFd` from libdrm.
 pub fn get_drm_node_type(fd: RawFd) -> Result<u64, Errno> {
@@ -23,8 +26,9 @@ pub fn get_drm_node_type(fd: RawFd) -> Result<u64, Errno> {
         // Extract file type code with S_IFMT
         //
         // Then check if we have a character device by seeing if the leftover is equal to S_IFCHR
-        || !((stat_flags & SFlag::S_IFMT) == SFlag::S_IFCHR) {
-            todo!()
+        || !((stat_flags & SFlag::S_IFMT) == SFlag::S_IFCHR)
+    {
+        todo!()
     }
 
     Ok(drm_get_minor_type(major, minor).expect("TODO"))
@@ -48,7 +52,7 @@ pub fn drm_get_minor_type(major: u64, minor: u64) -> Result<u64, ()> {
 
     match ty {
         DRM_NODE_PRIMARY | DRM_NODE_CONTROL | DRM_NODE_RENDER => Ok(ty),
-        _ => Err(())
+        _ => Err(()),
     }
 }
 

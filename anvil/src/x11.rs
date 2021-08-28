@@ -1,10 +1,19 @@
 use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
-use smithay::{backend::allocator::dmabuf::AsDmabuf, backend::{egl::{EGLContext, EGLDisplay}, renderer::{ImportEgl, gles2::Gles2Renderer}, x11::{WindowProperties, X11Backend, X11Event}}, reexports::{
+use smithay::{
+    backend::allocator::dmabuf::AsDmabuf,
+    backend::{
+        egl::{EGLContext, EGLDisplay},
+        renderer::{gles2::Gles2Renderer, ImportEgl},
+        x11::{WindowProperties, X11Backend, X11Event},
+    },
+    reexports::{
         calloop::EventLoop,
         wayland_server::{protocol::wl_output, Display},
-    }, wayland::output::{Mode, PhysicalProperties}};
+    },
+    wayland::output::{Mode, PhysicalProperties},
+};
 
 use crate::{state::Backend, AnvilState};
 
@@ -35,7 +44,8 @@ pub fn run_x11(log: Logger) {
     let egl = EGLDisplay::new(backend.gbm_device(), log.clone()).expect("TODO");
     dbg!("EGL");
     let context = EGLContext::new(&egl, log.clone()).expect("TODO");
-    let mut renderer = unsafe { Gles2Renderer::new(context, log.clone()) }.expect("Failed to intiialize renderer");
+    let mut renderer =
+        unsafe { Gles2Renderer::new(context, log.clone()) }.expect("Failed to intiialize renderer");
 
     #[cfg(feature = "egl")]
     {
