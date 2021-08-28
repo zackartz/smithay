@@ -25,6 +25,7 @@ TODO: Possible future changes:
 
 mod buffer;
 pub mod connection;
+mod drm;
 mod event_source;
 pub mod input;
 pub mod window;
@@ -33,6 +34,7 @@ use self::connection::{ConnectToXError, XConnection};
 use self::window::{Window, WindowInner};
 use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
+use crate::backend::x11::drm::{DRM_NODE_RENDER, get_drm_node_type};
 use crate::backend::x11::event_source::X11Source;
 use crate::backend::x11::input::*;
 use crate::utils::{Logical, Size};
@@ -226,10 +228,11 @@ impl X11Backend {
         )
         .expect("Handle this result");
 
-        // Check if the returned fd is a drm_render node
-        // TODO
+        if get_drm_node_type(drm_device_fd.as_raw_fd()).expect("TODO") != DRM_NODE_RENDER {
+            todo!("Attempt to get the render device by name for the DRM node that isn't a render node")
+        }
 
-        // Finally create a GBMDevice to manage buffers.
+        // Finally create a GBMDevice to manage the buffers.
         let gbm_device = crate::backend::allocator::gbm::GbmDevice::new(drm_device_fd.as_raw_fd())
             .expect("Failed to create gbm device");
 
