@@ -14,6 +14,10 @@ Specifically look out for "Section 4: Client to Window Manager Communication"
 
 A link to the ICCCM Section 4: https://tronche.com/gui/x/icccm/sec-4.html
 
+Useful reading:
+
+DRI3 protocol documentation: https://cgit.freedesktop.org/xorg/proto/dri3proto/tree/dri3proto.txt
+
 TODO: Possible future changes:
 
 - Migrate to x11rb's Wrapper types for Pixmaps and windows when the next version releases
@@ -39,7 +43,7 @@ use std::io;
 use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
-use x11rb::connection::Connection;
+use x11rb::connection::{Connection, RequestConnection};
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol::dri3::{self, ConnectionExt};
 use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt as _, Depth, VisualClass};
@@ -184,20 +188,17 @@ impl X11Backend {
         info!(logger, "Connected to screen {}", screen_number);
         let xcb = connection.xcb_connection();
 
+        if xcb.extension_information(dri3::X11_EXTENSION_NAME)?.is_none() {
+            todo!("DRI3 is not present")
+        }
+
         // Does the X server support dri3?
         let (dri3_major, dri3_minor) = {
-            let extension = xcb
-                .query_extension(dri3::X11_EXTENSION_NAME.as_bytes())?
-                .reply()?;
-
-            if !extension.present {
-                todo!("DRI3 is not present")
-            }
-
-            // TODO: Figure out what on earth xcb does with these 2 params? Is it the requested version?
+            // DRI3 will only return the highest version we request.
+            // TODO: We might need to request a higher version?
             let version = xcb.dri3_query_version(1, 2)?.reply()?;
 
-            if version.major_version < 1 {
+            if version.minor_version < 2 {
                 todo!("DRI3 version too low")
             }
 
@@ -527,13 +528,12 @@ impl EventSource for X11Backend {
 
                     x11::Event::ConfigureNotify(configure_notify) => {
                         if configure_notify.window == window.inner {
-                            let previous_size = {
-                                *window.size.lock().unwrap()
-                            };
-    
+                            let previous_size = { *window.size.lock().unwrap() };
+
                             // Did the size of the window change?
-                            let configure_notify_size: Size<u16, Logical> = (configure_notify.width, configure_notify.height).into();
-    
+                            let configure_notify_size: Size<u16, Logical> =
+                                (configure_notify.width, configure_notify.height).into();
+
                             if configure_notify_size != previous_size {
                                 // Intentionally drop the lock on the size mutex incase a user
                                 // requests a resize or does something which causes a resize
