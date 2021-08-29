@@ -1,12 +1,22 @@
 use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
-use smithay::{backend::allocator::dmabuf::AsDmabuf, backend::{SwapBuffersError, egl::{EGLContext, EGLDisplay}, renderer::{Bind, ImportEgl, Renderer, Transform, Unbind, gles2::Gles2Renderer}, x11::{WindowProperties, X11Backend, X11Event}}, reexports::{
+use smithay::{
+    backend::allocator::dmabuf::AsDmabuf,
+    backend::{
+        egl::{EGLContext, EGLDisplay},
+        renderer::{gles2::Gles2Renderer, Bind, ImportEgl, Renderer, Transform, Unbind},
+        x11::{gbm::GbmBufferingX11Surface, WindowProperties, X11Backend, X11Event},
+        SwapBuffersError,
+    },
+    reexports::{
         calloop::EventLoop,
         wayland_server::{protocol::wl_output, Display},
-    }, wayland::output::{Mode, PhysicalProperties}};
+    },
+    wayland::output::{Mode, PhysicalProperties},
+};
 
-use crate::{AnvilState, render::render_layers_and_windows, state::Backend};
+use crate::{render::render_layers_and_windows, state::Backend, AnvilState};
 
 pub const OUTPUT_NAME: &str = "x11";
 
@@ -30,9 +40,10 @@ pub fn run_x11(log: Logger) {
     };
 
     let backend = X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
+    let buffer = GbmBufferingX11Surface::new(&backend).expect("TODO");
 
     // Initialize EGL using the GBM device setup earlier.
-    let egl = EGLDisplay::new(backend.gbm_device(), log.clone()).expect("TODO");
+    let egl = EGLDisplay::new(&buffer.device(), log.clone()).expect("TODO");
     dbg!("EGL");
     let context = EGLContext::new(&egl, log.clone()).expect("TODO");
     let mut renderer =
@@ -122,10 +133,8 @@ pub fn run_x11(log: Logger) {
         // renderer.bind(todo!()).expect("TODO");
 
         // drawing logic
-        match renderer.render(
-            mode.size,
-            Transform::Normal,
-            |renderer, frame| {
+        match renderer
+            .render(mode.size, Transform::Normal, |renderer, frame| {
                 render_layers_and_windows(
                     renderer,
                     frame,
@@ -136,8 +145,7 @@ pub fn run_x11(log: Logger) {
                 )?;
 
                 Ok(())
-            }
-        )
+            })
             .map_err(Into::<SwapBuffersError>::into)
             .and_then(|x| x)
             .map_err(Into::<SwapBuffersError>::into)
@@ -145,7 +153,7 @@ pub fn run_x11(log: Logger) {
             Ok(()) => {
                 // renderer.unbind()?;
                 // Convert the buffer to a pixmap and present
-            },
+            }
             Err(err) => {
                 // TODO:
             }

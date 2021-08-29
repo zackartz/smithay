@@ -80,7 +80,7 @@ impl Pixmap {
             // XCB closes the file descriptor after sending, so duplicate the file descriptor.
             let fd: RawFd = fcntl::fcntl(
                 handle,
-                fcntl::FcntlArg::F_DUPFD_CLOEXEC(0), // Why is this 0?
+                fcntl::FcntlArg::F_DUPFD_CLOEXEC(3), // Set to 3 so the fd cannot become stdin, stdout or stderr
             )
             .map_err(|e| CreatePixmapError::DupFailed(e.to_string()))?;
 

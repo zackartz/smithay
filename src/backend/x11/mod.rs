@@ -27,30 +27,24 @@ pub mod buffer;
 pub mod connection;
 mod drm;
 mod event_source;
+pub mod gbm;
 pub mod input;
 pub mod window;
 
 use self::connection::{ConnectToXError, XConnection};
 use self::window::{Window, WindowInner};
-use super::allocator::dmabuf::Dmabuf;
-use super::allocator::Allocator;
 use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
-use crate::backend::x11::drm::{get_drm_node_type, DRM_NODE_RENDER};
 use crate::backend::x11::event_source::X11Source;
 use crate::backend::x11::input::*;
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
-use gbm::Device;
-use nix::fcntl;
 use slog::{error, info, o, Logger};
 use std::io;
-use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
-use x11rb::connection::{Connection, RequestConnection};
+use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
-use x11rb::protocol::dri3::{self, ConnectionExt};
 use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt as _, Depth, VisualClass};
 use x11rb::rust_connection::ReplyOrIdError;
 use x11rb::x11_utils::X11Error as ImplError;
@@ -160,11 +154,11 @@ pub struct X11Backend {
     log: Logger,
     connection: Arc<XConnection>,
     source: X11Source,
+    screen_number: usize,
     window: Arc<WindowInner>,
     key_counter: Arc<AtomicU32>,
     depth: Depth,
     visual_id: u32,
-    gbm_device: Device<RawFd>,
 }
 
 atom_manager! {
@@ -193,58 +187,7 @@ impl X11Backend {
         info!(logger, "Connected to screen {}", screen_number);
         let xcb = connection.xcb_connection();
 
-        if xcb.extension_information(dri3::X11_EXTENSION_NAME)?.is_none() {
-            todo!("DRI3 is not present")
-        }
-
-        // Does the X server support dri3?
-        let (dri3_major, dri3_minor) = {
-            // DRI3 will only return the highest version we request.
-            // TODO: We might need to request a higher version?
-            let version = xcb.dri3_query_version(1, 2)?.reply()?;
-
-            if version.minor_version < 2 {
-                todo!("DRI3 version too low")
-            }
-
-            (version.major_version, version.minor_version)
-        };
-
         let screen = &xcb.setup().roots[screen_number];
-
-        // Now that we've initialized the connection to the X server, we need to determine which
-        // drm-device the Display is using.
-        let dri3 = xcb.dri3_open(screen.root, 0)?.reply()?;
-        // This file descriptor points towards the DRM device that the X server is using.
-        let drm_device_fd = dri3.device_fd;
-
-        // Duplicate the drm_device_fd
-        let drm_device_fd: RawFd = fcntl::fcntl(
-            drm_device_fd.as_raw_fd(),
-            fcntl::FcntlArg::F_DUPFD_CLOEXEC(3), // Set to 3 so the fd cannot become stdin, stdout or stderr
-        )
-        .expect("TODO");
-
-        let fd_flags =
-            nix::fcntl::fcntl(drm_device_fd.as_raw_fd(), nix::fcntl::F_GETFD).expect("Handle this error");
-        // No need to check if ret == 1 since nix handles that.
-
-        // Enable the close-on-exec flag.
-        nix::fcntl::fcntl(
-            drm_device_fd.as_raw_fd(),
-            nix::fcntl::F_SETFD(
-                nix::fcntl::FdFlag::from_bits_truncate(fd_flags) | nix::fcntl::FdFlag::FD_CLOEXEC,
-            ),
-        )
-        .expect("Handle this result");
-
-        if get_drm_node_type(drm_device_fd.as_raw_fd()).expect("TODO") != DRM_NODE_RENDER {
-            todo!("Attempt to get the render device by name for the DRM node that isn't a render node")
-        }
-
-        // Finally create a GBMDevice to manage the buffers.
-        let gbm_device = crate::backend::allocator::gbm::GbmDevice::new(drm_device_fd.as_raw_fd())
-            .expect("Failed to create gbm device");
 
         // We want 32 bit color
         let depth = screen
@@ -298,23 +241,22 @@ impl X11Backend {
             key_counter: Arc::new(AtomicU32::new(0)),
             depth,
             visual_id,
-            gbm_device,
+            screen_number,
         })
     }
 
+    pub fn screen(&self) -> usize {
+        self.screen_number
+    }
+
     /// Returns the underlying connection to the X server.
-    pub fn connection(&self) -> &XConnection {
-        &self.connection
+    pub fn connection(&self) -> Arc<XConnection> {
+        self.connection.clone()
     }
 
     /// Returns a handle to the X11 window this input backend handles inputs for.
     pub fn window(&self) -> Window {
         self.window.clone().into()
-    }
-
-    /// Returns a reference to the GBM device used to allocate buffers used to present to the window.
-    pub fn gbm_device(&self) -> &Device<RawFd> {
-        &self.gbm_device
     }
 }
 
