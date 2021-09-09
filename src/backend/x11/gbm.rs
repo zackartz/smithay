@@ -3,21 +3,25 @@ use std::{
     sync::Arc,
 };
 
-use gbm::Device;
+use drm_fourcc::DrmFourcc;
+use gbm::{BufferObjectFlags, Device};
 use nix::fcntl;
 use x11rb::{
     connection::{Connection, RequestConnection},
     protocol::dri3::{self, ConnectionExt},
 };
 
-use crate::backend::x11::drm::{get_drm_node_type, DRM_NODE_RENDER};
+use crate::backend::{allocator::dmabuf::{AsDmabuf, Dmabuf}, x11::drm::{get_drm_node_type, DRM_NODE_RENDER}};
 
 use super::{connection::XConnection, X11Backend, X11Error};
 
 /// An X11 surface which uses GBM to allocate and present buffers.
+#[derive(Debug)]
 pub struct GbmBufferingX11Surface {
     connection: Arc<XConnection>,
     device: Device<RawFd>,
+    current: Dmabuf,
+    next: Dmabuf,
 }
 
 impl GbmBufferingX11Surface {
@@ -75,10 +79,20 @@ impl GbmBufferingX11Surface {
         let device = crate::backend::allocator::gbm::GbmDevice::new(drm_device_fd.as_raw_fd())
             .expect("Failed to create gbm device");
 
-        Ok(GbmBufferingX11Surface { connection, device })
+        let size = backend.window().size().expect("TODO");
+        // TODO: Dont hardcode format.
+        let current = device.create_buffer_object::<()>(size.w as u32, size.h as u32, DrmFourcc::Argb8888, BufferObjectFlags::empty()).expect("Failed to allocate presented buffer").export().unwrap();
+        let next = device.create_buffer_object::<()>(size.w as u32, size.h as u32, DrmFourcc::Argb8888, BufferObjectFlags::empty()).expect("Failed to allocate back buffer").export().unwrap();
+
+        Ok(GbmBufferingX11Surface { connection, device, current, next })
     }
 
     pub fn device(&self) -> Device<RawFd> {
         self.device.clone()
+    }
+
+    // TODO: Error type
+    pub fn next_buffer(&mut self) -> Result<Dmabuf, ()> {
+        Ok(self.next.clone())
     }
 }

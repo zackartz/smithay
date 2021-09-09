@@ -40,10 +40,10 @@ pub fn run_x11(log: Logger) {
     };
 
     let backend = X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
-    let buffer = GbmBufferingX11Surface::new(&backend).expect("TODO");
+    let mut surface = GbmBufferingX11Surface::new(&backend).expect("TODO");
 
     // Initialize EGL using the GBM device setup earlier.
-    let egl = EGLDisplay::new(&buffer.device(), log.clone()).expect("TODO");
+    let egl = EGLDisplay::new(&surface.device(), log.clone()).expect("TODO");
     dbg!("EGL");
     let context = EGLContext::new(&egl, log.clone()).expect("TODO");
     let mut renderer =
@@ -130,7 +130,8 @@ pub fn run_x11(log: Logger) {
             .map(|output| (output.geometry(), output.scale()))
             .unwrap();
 
-        // renderer.bind(todo!()).expect("TODO");
+        let dmabuf = surface.next_buffer().unwrap(); // TODO: Error handling
+        renderer.bind(dmabuf).expect("TODO");
 
         // drawing logic
         match renderer
@@ -151,9 +152,10 @@ pub fn run_x11(log: Logger) {
             .map_err(Into::<SwapBuffersError>::into)
         {
             Ok(()) => {
-                // renderer.unbind()?;
+                renderer.unbind().expect("Unbind");
                 // Convert the buffer to a pixmap and present
             }
+
             Err(err) => {
                 // TODO:
             }
