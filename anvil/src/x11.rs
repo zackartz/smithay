@@ -136,7 +136,8 @@ pub fn run_x11(log: Logger) {
 
             // drawing logic
             match renderer
-                .render(mode.size, Transform::Normal, |renderer, frame| {
+                // Apparently X11 is upside down
+                .render(mode.size, Transform::Flipped180, |renderer, frame| {
                     render_layers_and_windows(
                         renderer,
                         frame,

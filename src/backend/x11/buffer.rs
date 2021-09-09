@@ -78,8 +78,6 @@ impl Pixmap {
         let mut strides = dmabuf.strides();
         let mut offsets = dmabuf.offsets();
 
-        dbg!("Strides: {}, Offsets: {}", strides.size_hint(), offsets.size_hint());
-
         let mut fds = Vec::new();
 
         for handle in dmabuf.handles() {
@@ -92,8 +90,6 @@ impl Pixmap {
 
             fds.push(RawFdContainer::new(fd))
         }
-
-        dbg!("handles: {}", &fds);
 
         let stride = strides.next().unwrap();
 
