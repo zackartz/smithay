@@ -1,4 +1,5 @@
 use std::{
+    mem,
     os::unix::prelude::{AsRawFd, RawFd},
     sync::Arc,
 };
@@ -11,7 +12,10 @@ use x11rb::{
     protocol::dri3::{self, ConnectionExt},
 };
 
-use crate::backend::{allocator::dmabuf::{AsDmabuf, Dmabuf}, x11::drm::{get_drm_node_type, DRM_NODE_RENDER}};
+use crate::backend::{
+    allocator::dmabuf::{AsDmabuf, Dmabuf},
+    x11::drm::{get_drm_node_type, DRM_NODE_RENDER},
+};
 
 use super::{connection::XConnection, X11Backend, X11Error};
 
@@ -81,10 +85,33 @@ impl GbmBufferingX11Surface {
 
         let size = backend.window().size().expect("TODO");
         // TODO: Dont hardcode format.
-        let current = device.create_buffer_object::<()>(size.w as u32, size.h as u32, DrmFourcc::Argb8888, BufferObjectFlags::empty()).expect("Failed to allocate presented buffer").export().unwrap();
-        let next = device.create_buffer_object::<()>(size.w as u32, size.h as u32, DrmFourcc::Argb8888, BufferObjectFlags::empty()).expect("Failed to allocate back buffer").export().unwrap();
+        let current = device
+            .create_buffer_object::<()>(
+                size.w as u32,
+                size.h as u32,
+                DrmFourcc::Argb8888,
+                BufferObjectFlags::empty(),
+            )
+            .expect("Failed to allocate presented buffer")
+            .export()
+            .unwrap();
+        let next = device
+            .create_buffer_object::<()>(
+                size.w as u32,
+                size.h as u32,
+                DrmFourcc::Argb8888,
+                BufferObjectFlags::empty(),
+            )
+            .expect("Failed to allocate back buffer")
+            .export()
+            .unwrap();
 
-        Ok(GbmBufferingX11Surface { connection, device, current, next })
+        Ok(GbmBufferingX11Surface {
+            connection,
+            device,
+            current,
+            next,
+        })
     }
 
     pub fn device(&self) -> Device<RawFd> {
@@ -92,7 +119,34 @@ impl GbmBufferingX11Surface {
     }
 
     // TODO: Error type
-    pub fn next_buffer(&mut self) -> Result<Dmabuf, ()> {
-        Ok(self.next.clone())
+    pub fn present(&mut self) -> Result<Present<'_>, ()> {
+        Ok(Present { surface: self })
+    }
+}
+
+/// An RAII scope holding a Dmabuf to be bound to a renderer.
+///
+/// Upon dropping this object, the contents of the Dmabuf are immediately presented to the window.
+#[derive(Debug)]
+pub struct Present<'a> {
+    surface: &'a mut GbmBufferingX11Surface,
+}
+
+impl Present<'_> {
+    /// Returns the next buffer that will be presented to the Window.
+    ///
+    /// You may bind this buffer to a renderer to render.
+    pub fn buffer(&self) -> Dmabuf {
+        self.surface.next.clone()
+    }
+}
+
+impl Drop for Present<'_> {
+    fn drop(&mut self) {
+        // Swap the buffers
+        mem::swap(&mut self.surface.next, &mut self.surface.current);
+
+        // Now present the current buffer
+        // TODO
     }
 }

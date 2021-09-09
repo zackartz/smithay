@@ -130,34 +130,37 @@ pub fn run_x11(log: Logger) {
             .map(|output| (output.geometry(), output.scale()))
             .unwrap();
 
-        let dmabuf = surface.next_buffer().unwrap(); // TODO: Error handling
-        renderer.bind(dmabuf).expect("TODO");
-
-        // drawing logic
-        match renderer
-            .render(mode.size, Transform::Normal, |renderer, frame| {
-                render_layers_and_windows(
-                    renderer,
-                    frame,
-                    &*state.window_map.borrow(),
-                    output_geometry,
-                    output_scale,
-                    &log,
-                )?;
-
-                Ok(())
-            })
-            .map_err(Into::<SwapBuffersError>::into)
-            .and_then(|x| x)
-            .map_err(Into::<SwapBuffersError>::into)
         {
-            Ok(()) => {
-                renderer.unbind().expect("Unbind");
-                // Convert the buffer to a pixmap and present
-            }
+            let present = surface.present().expect("TODO");
+            renderer.bind(present.buffer()).expect("TODO");
 
-            Err(err) => {
-                // TODO:
+            // drawing logic
+            match renderer
+                .render(mode.size, Transform::Normal, |renderer, frame| {
+                    render_layers_and_windows(
+                        renderer,
+                        frame,
+                        &*state.window_map.borrow(),
+                        output_geometry,
+                        output_scale,
+                        &log,
+                    )?;
+
+                    Ok(())
+                })
+                .map_err(Into::<SwapBuffersError>::into)
+                .and_then(|x| x)
+                .map_err(Into::<SwapBuffersError>::into)
+            {
+                Ok(()) => {
+                    // Unbind the buffer and now let the scope end to present.
+                    renderer.unbind().expect("Unbind");
+                }
+
+                Err(err) => {
+                    // TODO:
+                    panic!("Swap buffers");
+                }
             }
         }
 
