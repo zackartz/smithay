@@ -77,6 +77,9 @@ impl Pixmap {
         let xid = xcb.generate_id()?;
         let mut strides = dmabuf.strides();
         let mut offsets = dmabuf.offsets();
+
+        dbg!("Strides: {}, Offsets: {}", strides.size_hint(), offsets.size_hint());
+
         let mut fds = Vec::new();
 
         for handle in dmabuf.handles() {
@@ -90,23 +93,28 @@ impl Pixmap {
             fds.push(RawFdContainer::new(fd))
         }
 
-        xcb.dri3_pixmap_from_buffers(
+        dbg!("handles: {}", &fds);
+
+        let stride = strides.next().unwrap();
+
+        xcb.dri3_pixmap_from_buffer(
             xid,
             window.id(),
+            dmabuf.height() * stride,
             dmabuf.width() as u16,
             dmabuf.height() as u16,
-            strides.next().unwrap(),
-            offsets.next().unwrap(),
-            strides.next().unwrap(),
-            offsets.next().unwrap(),
-            strides.next().unwrap(),
-            offsets.next().unwrap(),
-            strides.next().unwrap(),
-            offsets.next().unwrap(),
+            stride as u16,
+            //offsets.next().unwrap(),
+            //strides.next().unwrap(),
+            //offsets.next().unwrap(),
+            //strides.next().unwrap(),
+            //offsets.next().unwrap(),
+            //strides.next().unwrap(),
+            //offsets.next().unwrap(),
             window.depth(),
             32, // TODO: Stop hardcoding this
-            dmabuf.format().modifier.into(),
-            fds,
+            //dmabuf.format().modifier.into(),
+            fds.remove(0),
         )?;
 
         Ok(Pixmap {

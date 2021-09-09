@@ -52,6 +52,8 @@ impl GbmBufferingX11Surface {
             (version.major_version, version.minor_version)
         };
 
+        dbg!("DRI3 {}.{}", dri3_major, dri3_minor);
+
         // Determine which drm-device the Display is using.
         let screen = &xcb.setup().roots[backend.screen()];
         let dri3 = xcb.dri3_open(screen.root, 0)?.reply()?;
