@@ -17,12 +17,13 @@ use crate::backend::{
     x11::drm::{get_drm_node_type, DRM_NODE_RENDER},
 };
 
-use super::{connection::XConnection, X11Backend, X11Error};
+use super::{buffer::Pixmap, connection::XConnection, window::Window, X11Backend, X11Error};
 
 /// An X11 surface which uses GBM to allocate and present buffers.
 #[derive(Debug)]
 pub struct GbmBufferingX11Surface {
     connection: Arc<XConnection>,
+    window: Window,
     device: Device<RawFd>,
     current: Dmabuf,
     next: Dmabuf,
@@ -31,6 +32,7 @@ pub struct GbmBufferingX11Surface {
 impl GbmBufferingX11Surface {
     pub fn new(backend: &X11Backend) -> Result<GbmBufferingX11Surface, X11Error> {
         let connection = backend.connection();
+        let window = backend.window();
         let xcb = connection.xcb_connection();
 
         if xcb.extension_information(dri3::X11_EXTENSION_NAME)?.is_none() {
@@ -108,6 +110,7 @@ impl GbmBufferingX11Surface {
 
         Ok(GbmBufferingX11Surface {
             connection,
+            window,
             device,
             current,
             next,
@@ -143,10 +146,15 @@ impl Present<'_> {
 
 impl Drop for Present<'_> {
     fn drop(&mut self) {
+        let surface = &mut self.surface;
+
         // Swap the buffers
-        mem::swap(&mut self.surface.next, &mut self.surface.current);
+        mem::swap(&mut surface.next, &mut surface.current);
 
         // Now present the current buffer
         // TODO
+        let pixmap = Pixmap::from_dmabuf(surface.connection.clone(), &surface.window, &surface.current)
+            .expect("Failed to create pixmap");
+        pixmap.present(&surface.window).expect("X11 error");
     }
 }

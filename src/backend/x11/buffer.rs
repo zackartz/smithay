@@ -5,6 +5,7 @@
 use std::os::unix::prelude::RawFd;
 use std::sync::Arc;
 
+use super::connection::XConnection;
 use super::{Window, X11Error};
 use nix::fcntl;
 use x11rb::connection::Connection;
@@ -53,7 +54,7 @@ impl From<ConnectionError> for CreatePixmapError {
 #[derive(Debug)]
 pub struct Pixmap {
     // TODO: Consider future x11rb WindowWrapper
-    connection: Arc<XCBConnection>,
+    connection: Arc<XConnection>,
     inner: u32,
     width: u16,
     height: u16,
@@ -63,7 +64,7 @@ impl Pixmap {
     #[allow(dead_code)]
     /// Creates a pixmap from a Dmabuf.
     pub fn from_dmabuf(
-        connection: Arc<XCBConnection>,
+        connection: Arc<XConnection>,
         window: &Window,
         dmabuf: &Dmabuf,
     ) -> Result<Pixmap, CreatePixmapError> {
@@ -71,7 +72,9 @@ impl Pixmap {
             return Err(CreatePixmapError::TooManyPlanes);
         }
 
-        let xid = connection.generate_id()?;
+        let xcb = connection.xcb_connection();
+
+        let xid = xcb.generate_id()?;
         let mut strides = dmabuf.strides();
         let mut offsets = dmabuf.offsets();
         let mut fds = Vec::new();
@@ -87,7 +90,7 @@ impl Pixmap {
             fds.push(RawFdContainer::new(fd))
         }
 
-        connection.dri3_pixmap_from_buffers(
+        xcb.dri3_pixmap_from_buffers(
             xid,
             window.id(),
             dmabuf.width() as u16,
@@ -116,7 +119,7 @@ impl Pixmap {
 
     #[allow(dead_code)]
     pub fn present(&self, window: &Window) -> Result<(), X11Error> {
-        self.connection.copy_area(
+        self.connection.xcb_connection().copy_area(
             self.inner,
             window.id(),
             window.gc(),
@@ -134,6 +137,6 @@ impl Pixmap {
 
 impl Drop for Pixmap {
     fn drop(&mut self) {
-        let _ = self.connection.free_pixmap(self.inner);
+        let _ = self.connection.xcb_connection().free_pixmap(self.inner);
     }
 }
