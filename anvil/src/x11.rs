@@ -2,7 +2,6 @@ use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
 use smithay::{
-    backend::allocator::dmabuf::AsDmabuf,
     backend::{
         egl::{EGLContext, EGLDisplay},
         renderer::{gles2::Gles2Renderer, Bind, ImportEgl, Renderer, Transform, Unbind},
@@ -21,7 +20,7 @@ use crate::{render::render_layers_and_windows, state::Backend, AnvilState};
 pub const OUTPUT_NAME: &str = "x11";
 
 #[derive(Debug)]
-struct X11Data;
+pub struct X11Data;
 
 impl Backend for X11Data {
     fn seat_name(&self) -> String {
@@ -107,10 +106,10 @@ pub fn run_x11(log: Logger) {
                     state.window_map.borrow_mut().layers.arange_layers(output);
                 }
 
+                X11Event::Input(event) => state.process_input_event(event),
+
                 _ => (),
             }
-
-            println!("{:?}", event);
         })
         .expect("Failed to insert X11 Backend into event loop");
 
