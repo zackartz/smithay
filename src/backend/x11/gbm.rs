@@ -9,7 +9,10 @@ use gbm::{BufferObjectFlags, Device};
 use nix::fcntl;
 use x11rb::{
     connection::{Connection, RequestConnection},
-    protocol::dri3::{self, ConnectionExt},
+    protocol::{
+        dri3::{self, ConnectionExt},
+        xproto::PixmapWrapper,
+    },
 };
 
 use crate::backend::{
@@ -17,7 +20,12 @@ use crate::backend::{
     x11::drm::{get_drm_node_type, DRM_NODE_RENDER},
 };
 
-use super::{buffer::Pixmap, connection::XConnection, window::Window, X11Backend, X11Error};
+use super::{
+    buffer::{present, PixmapWrapperExt},
+    connection::XConnection,
+    window::Window,
+    X11Backend, X11Error,
+};
 
 /// An X11 surface which uses GBM to allocate and present buffers.
 #[derive(Debug)]
@@ -25,6 +33,8 @@ pub struct GbmBufferingX11Surface {
     connection: Arc<XConnection>,
     window: Window,
     device: Device<RawFd>,
+    width: u16,
+    height: u16,
     current: Dmabuf,
     next: Dmabuf,
 }
@@ -115,6 +125,8 @@ impl GbmBufferingX11Surface {
             connection,
             window,
             device,
+            width: size.w,
+            height: size.h,
             current,
             next,
         })
@@ -158,10 +170,19 @@ impl Drop for Present<'_> {
         // Swap the buffers
         mem::swap(&mut surface.next, &mut surface.current);
 
-        // Now present the current buffer
-        // TODO
-        let pixmap = Pixmap::from_dmabuf(surface.connection.clone(), &surface.window, &surface.current)
-            .expect("Failed to create pixmap");
-        pixmap.present(&surface.window).expect("X11 error");
+        if let Ok(pixmap) = PixmapWrapper::create_with_dmabuf(
+            surface.connection.xcb_connection(),
+            &surface.window,
+            &surface.current,
+        ) {
+            // Now present the current buffer
+            let _ = present(
+                surface.connection.xcb_connection(),
+                &pixmap,
+                &surface.window,
+                surface.width,
+                surface.height,
+            );
+        }
     }
 }

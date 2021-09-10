@@ -3,14 +3,12 @@
 //! Buffers imported into X11 are represented as X pixmaps which are then presented to the window.
 
 use std::os::unix::prelude::RawFd;
-use std::sync::Arc;
 
-use super::connection::XConnection;
 use super::{Window, X11Error};
 use nix::fcntl;
 use x11rb::connection::Connection;
 use x11rb::protocol::dri3::ConnectionExt as _;
-use x11rb::protocol::xproto::ConnectionExt as _;
+use x11rb::protocol::xproto::{ConnectionExt as _, PixmapWrapper};
 use x11rb::rust_connection::{ConnectionError, ReplyOrIdError};
 use x11rb::utils::RawFdContainer;
 
@@ -50,30 +48,31 @@ impl From<ConnectionError> for CreatePixmapError {
     }
 }
 
-#[derive(Debug)]
-pub struct Pixmap {
-    // TODO: Consider future x11rb WindowWrapper
-    connection: Arc<XConnection>,
-    inner: u32,
-    width: u16,
-    height: u16,
-}
-
-impl Pixmap {
-    #[allow(dead_code)]
-    /// Creates a pixmap from a Dmabuf.
-    pub fn from_dmabuf(
-        connection: Arc<XConnection>,
+pub trait PixmapWrapperExt<'c, C>
+where
+    C: Connection,
+{
+    fn create_with_dmabuf(
+        connection: &'c C,
         window: &Window,
         dmabuf: &Dmabuf,
-    ) -> Result<Pixmap, CreatePixmapError> {
+    ) -> Result<PixmapWrapper<'c, C>, CreatePixmapError>;
+}
+
+impl<'c, C> PixmapWrapperExt<'c, C> for PixmapWrapper<'c, C>
+where
+    C: Connection,
+{
+    fn create_with_dmabuf(
+        connection: &'c C,
+        window: &Window,
+        dmabuf: &Dmabuf,
+    ) -> Result<PixmapWrapper<'c, C>, CreatePixmapError> {
         if dmabuf.num_planes() > 4 {
             return Err(CreatePixmapError::TooManyPlanes);
         }
 
-        let xcb = connection.xcb_connection();
-
-        let xid = xcb.generate_id()?;
+        let xid = connection.generate_id()?;
         let mut strides = dmabuf.strides();
 
         let mut fds = Vec::new();
@@ -91,7 +90,7 @@ impl Pixmap {
 
         let stride = strides.next().unwrap();
 
-        xcb.dri3_pixmap_from_buffer(
+        connection.dri3_pixmap_from_buffer(
             xid,
             window.id(),
             dmabuf.height() * stride,
@@ -103,34 +102,28 @@ impl Pixmap {
             fds.remove(0),
         )?;
 
-        Ok(Pixmap {
-            connection,
-            inner: xid,
-            width: dmabuf.width() as u16,
-            height: dmabuf.height() as u16,
-        })
-    }
-
-    #[allow(dead_code)]
-    pub fn present(&self, window: &Window) -> Result<(), X11Error> {
-        self.connection.xcb_connection().copy_area(
-            self.inner,
-            window.id(),
-            window.gc(),
-            0,
-            0,
-            0,
-            0,
-            self.width,
-            self.height,
-        )?;
-
-        Ok(())
+        Ok(PixmapWrapper::for_pixmap(connection, xid))
     }
 }
 
-impl Drop for Pixmap {
-    fn drop(&mut self) {
-        let _ = self.connection.xcb_connection().free_pixmap(self.inner);
-    }
+pub fn present<C: Connection>(
+    connection: &C,
+    pixmap: &PixmapWrapper<'_, C>,
+    window: &Window,
+    width: u16,
+    height: u16,
+) -> Result<(), X11Error> {
+    connection.copy_area(
+        pixmap.pixmap(),
+        window.id(),
+        window.gc(),
+        0,
+        0,
+        0,
+        0,
+        width,
+        height,
+    )?;
+
+    Ok(())
 }
