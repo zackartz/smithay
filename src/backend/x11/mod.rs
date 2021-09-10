@@ -36,7 +36,6 @@ use self::window::{Window, WindowInner};
 use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
 use crate::backend::x11::event_source::X11Source;
-use crate::backend::x11::input::*;
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use slog::{error, info, o, Logger};
@@ -49,6 +48,8 @@ use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt as _, Depth, VisualCl
 use x11rb::rust_connection::ReplyOrIdError;
 use x11rb::x11_utils::X11Error as ImplError;
 use x11rb::{atom_manager, protocol as x11};
+
+pub use crate::backend::x11::input::*;
 
 /// An error that may occur when initializing the backend.
 #[derive(Debug, thiserror::Error)]

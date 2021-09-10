@@ -15,9 +15,12 @@ use x11rb::{
     },
 };
 
-use crate::backend::{
-    allocator::dmabuf::{AsDmabuf, Dmabuf},
-    x11::drm::{get_drm_node_type, DRM_NODE_RENDER},
+use crate::{
+    backend::{
+        allocator::dmabuf::{AsDmabuf, Dmabuf},
+        x11::drm::{get_drm_node_type, DRM_NODE_RENDER},
+    },
+    utils::{Logical, Size},
 };
 
 use super::{
@@ -143,6 +146,42 @@ impl GbmBufferingX11Surface {
     // TODO: Error type
     pub fn present(&mut self) -> Result<Present<'_>, ()> {
         Ok(Present { surface: self })
+    }
+
+    // TODO: Error type, cannot resize while presenting.
+    pub fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), ()> {
+        self.width = size.w;
+        self.height = size.h;
+
+        // Create new buffers
+        let current = self
+            .device
+            .create_buffer_object::<()>(
+                size.w as u32,
+                size.h as u32,
+                DrmFourcc::Argb8888,
+                BufferObjectFlags::empty(),
+            )
+            .expect("Failed to allocate presented buffer")
+            .export()
+            .unwrap();
+
+        let next = self
+            .device
+            .create_buffer_object::<()>(
+                size.w as u32,
+                size.h as u32,
+                DrmFourcc::Argb8888,
+                BufferObjectFlags::empty(),
+            )
+            .expect("Failed to allocate back buffer")
+            .export()
+            .unwrap();
+
+        self.current = current;
+        self.next = next;
+
+        Ok(())
     }
 }
 

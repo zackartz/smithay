@@ -20,7 +20,10 @@ use crate::{render::render_layers_and_windows, state::Backend, AnvilState};
 pub const OUTPUT_NAME: &str = "x11";
 
 #[derive(Debug)]
-pub struct X11Data;
+pub struct X11Data {
+    mode: Mode,
+    surface: GbmBufferingX11Surface,
+}
 
 impl Backend for X11Data {
     fn seat_name(&self) -> String {
@@ -39,14 +42,13 @@ pub fn run_x11(log: Logger) {
     };
 
     let backend = X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
-    let mut surface = GbmBufferingX11Surface::new(&backend).expect("TODO");
+    let surface = GbmBufferingX11Surface::new(&backend).expect("TODO");
 
     // Initialize EGL using the GBM device setup earlier.
     let egl = EGLDisplay::new(&surface.device(), log.clone()).expect("TODO");
-    dbg!("EGL");
     let context = EGLContext::new(&egl, log.clone()).expect("TODO");
     let mut renderer =
-        unsafe { Gles2Renderer::new(context, log.clone()) }.expect("Failed to intiialize renderer");
+        unsafe { Gles2Renderer::new(context, log.clone()) }.expect("Failed to initialize renderer");
 
     #[cfg(feature = "egl")]
     {
@@ -54,10 +56,6 @@ pub fn run_x11(log: Logger) {
             info!(log, "EGL hardware-acceleration enabled");
         }
     }
-
-    let data = X11Data;
-
-    let mut state = AnvilState::init(display.clone(), event_loop.handle(), data, log.clone(), true);
 
     let size = {
         let s = backend.window().size().unwrap();
@@ -69,6 +67,13 @@ pub fn run_x11(log: Logger) {
         size,
         refresh: 60_000,
     };
+
+    let data = X11Data {
+        mode,
+        surface
+    };
+
+    let mut state = AnvilState::init(display.clone(), event_loop.handle(), data, log.clone(), true);
 
     state.output_map.borrow_mut().add(
         OUTPUT_NAME,
@@ -89,8 +94,14 @@ pub fn run_x11(log: Logger) {
             }
 
             X11Event::Resized(size) => {
+                state.backend_data.surface.resize(size).expect("TODO");
+
                 let size = { (size.w as i32, size.h as i32).into() };
 
+                state.backend_data.mode = Mode {
+                    size,
+                    refresh: 60_000,
+                };
                 state.output_map.borrow_mut().update_mode_by_name(
                     Mode {
                         size,
@@ -128,17 +139,20 @@ pub fn run_x11(log: Logger) {
             .unwrap();
 
         {
-            let present = surface.present().expect("TODO");
+            let backend_data = &mut state.backend_data;
+            let present = backend_data.surface.present().expect("TODO");
+            let window_map = state.window_map.borrow();
+
             renderer.bind(present.buffer()).expect("TODO");
 
             // drawing logic
             match renderer
                 // Apparently X11 is upside down
-                .render(mode.size, Transform::Flipped180, |renderer, frame| {
+                .render(backend_data.mode.size, Transform::Flipped180, |renderer, frame| {
                     render_layers_and_windows(
                         renderer,
                         frame,
-                        &*state.window_map.borrow(),
+                        &*window_map,
                         output_geometry,
                         output_scale,
                         &log,
@@ -300,4 +314,7 @@ pub fn run_x11(log: Logger) {
 
     // Cleanup stuff
     state.window_map.borrow_mut().clear();
+
+    // TODO: Figure out why the renderer is dropped later than everything else and therefore segfaults?
+    drop(renderer);
 }
