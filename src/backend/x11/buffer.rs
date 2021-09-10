@@ -13,7 +13,6 @@ use x11rb::protocol::dri3::ConnectionExt as _;
 use x11rb::protocol::xproto::ConnectionExt as _;
 use x11rb::rust_connection::{ConnectionError, ReplyOrIdError};
 use x11rb::utils::RawFdContainer;
-use x11rb::xcb_ffi::XCBConnection;
 
 use crate::backend::allocator::dmabuf::Dmabuf;
 use crate::backend::allocator::Buffer;
@@ -76,7 +75,6 @@ impl Pixmap {
 
         let xid = xcb.generate_id()?;
         let mut strides = dmabuf.strides();
-        let mut offsets = dmabuf.offsets();
 
         let mut fds = Vec::new();
 
@@ -100,16 +98,8 @@ impl Pixmap {
             dmabuf.width() as u16,
             dmabuf.height() as u16,
             stride as u16,
-            //offsets.next().unwrap(),
-            //strides.next().unwrap(),
-            //offsets.next().unwrap(),
-            //strides.next().unwrap(),
-            //offsets.next().unwrap(),
-            //strides.next().unwrap(),
-            //offsets.next().unwrap(),
             window.depth(),
             32, // TODO: Stop hardcoding this
-            //dmabuf.format().modifier.into(),
             fds.remove(0),
         )?;
 

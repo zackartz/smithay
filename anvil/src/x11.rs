@@ -83,33 +83,31 @@ pub fn run_x11(log: Logger) {
 
     event_loop
         .handle()
-        .insert_source(backend, |event, _window, state| {
-            match event {
-                X11Event::CloseRequested => {
-                    state.running.store(false, Ordering::SeqCst);
-                }
-
-                X11Event::Resized(size) => {
-                    let size = { (size.w as i32, size.h as i32).into() };
-
-                    state.output_map.borrow_mut().update_mode_by_name(
-                        Mode {
-                            size,
-                            refresh: 60_000,
-                        },
-                        OUTPUT_NAME,
-                    );
-
-                    let output_mut = state.output_map.borrow();
-                    let output = output_mut.find_by_name(OUTPUT_NAME).unwrap();
-
-                    state.window_map.borrow_mut().layers.arange_layers(output);
-                }
-
-                X11Event::Input(event) => state.process_input_event(event),
-
-                _ => (),
+        .insert_source(backend, |event, _window, state| match event {
+            X11Event::CloseRequested => {
+                state.running.store(false, Ordering::SeqCst);
             }
+
+            X11Event::Resized(size) => {
+                let size = { (size.w as i32, size.h as i32).into() };
+
+                state.output_map.borrow_mut().update_mode_by_name(
+                    Mode {
+                        size,
+                        refresh: 60_000,
+                    },
+                    OUTPUT_NAME,
+                );
+
+                let output_mut = state.output_map.borrow();
+                let output = output_mut.find_by_name(OUTPUT_NAME).unwrap();
+
+                state.window_map.borrow_mut().layers.arange_layers(output);
+            }
+
+            X11Event::Input(event) => state.process_input_event(event),
+
+            _ => (),
         })
         .expect("Failed to insert X11 Backend into event loop");
 

@@ -26,7 +26,7 @@ pub fn get_drm_node_type(fd: RawFd) -> Result<u64, Errno> {
         // Extract file type code with S_IFMT
         //
         // Then check if we have a character device by seeing if the leftover is equal to S_IFCHR
-        || !((stat_flags & SFlag::S_IFMT) == SFlag::S_IFCHR)
+        || (stat_flags & SFlag::S_IFMT) != SFlag::S_IFCHR
     {
         todo!()
     }
@@ -42,7 +42,7 @@ pub const DRM_NODE_CONTROL: u64 = 1;
 #[allow(dead_code)]
 pub const DRM_NODE_RENDER: u64 = 2;
 
-pub fn drm_get_minor_type(major: u64, minor: u64) -> Result<u64, ()> {
+pub fn drm_get_minor_type(_major: u64, minor: u64) -> Result<u64, ()> {
     #[cfg(target_os = "freebsd")]
     compile_error!("FreeBSD is not implemented yet!");
 

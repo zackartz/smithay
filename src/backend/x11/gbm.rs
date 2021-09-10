@@ -30,6 +30,7 @@ pub struct GbmBufferingX11Surface {
 }
 
 impl GbmBufferingX11Surface {
+    /// Returns a new surface which allows allocating Dmabufs and presenting them to an X11 window.
     pub fn new(backend: &X11Backend) -> Result<GbmBufferingX11Surface, X11Error> {
         let connection = backend.connection();
         let window = backend.window();
@@ -119,10 +120,14 @@ impl GbmBufferingX11Surface {
         })
     }
 
+    /// Returns a handle to the GBM device used to allocate buffers.
     pub fn device(&self) -> Device<RawFd> {
         self.device.clone()
     }
 
+    /// Returns an RAII scoped object which provides the next buffer.
+    ///
+    /// When the object is dropped, the contents of the buffer are swapped and then presented.
     // TODO: Error type
     pub fn present(&mut self) -> Result<Present<'_>, ()> {
         Ok(Present { surface: self })

@@ -4,7 +4,7 @@ use std::{process::Command, sync::atomic::Ordering};
 use crate::udev::UdevData;
 #[cfg(feature = "winit")]
 use crate::winit::WinitData;
-use crate::{AnvilState, x11::X11Data};
+use crate::{x11::X11Data, AnvilState};
 
 use smithay::{
     backend::input::{
@@ -510,67 +510,64 @@ impl AnvilState<UdevData> {
 impl AnvilState<X11Data> {
     pub fn process_input_event<B: InputBackend>(&mut self, event: InputEvent<B>) {
         match event {
-            InputEvent::Keyboard { event } => {
-                match self.keyboard_key_to_action::<B>(event) {
-                    KeyAction::None | KeyAction::Forward => (),
+            InputEvent::Keyboard { event } => match self.keyboard_key_to_action::<B>(event) {
+                KeyAction::None | KeyAction::Forward => (),
 
-                    KeyAction::Quit => {
-                        info!(self.log, "Quitting.");
-                        self.running.store(false, Ordering::SeqCst);
-                    },
+                KeyAction::Quit => {
+                    info!(self.log, "Quitting.");
+                    self.running.store(false, Ordering::SeqCst);
+                }
 
-                    KeyAction::Run(cmd) => {
-                        info!(self.log, "Starting program"; "cmd" => cmd.clone());
+                KeyAction::Run(cmd) => {
+                    info!(self.log, "Starting program"; "cmd" => cmd.clone());
 
-                        if let Err(e) = Command::new(&cmd).spawn() {
-                            error!(self.log,
-                                "Failed to start program";
-                                "cmd" => cmd,
-                                "err" => format!("{:?}", e)
-                            );
-                        }
-                    },
-
-                    KeyAction::ScaleUp => {
-                        let current_scale = {
-                            self.output_map
-                                .borrow()
-                                .find_by_name(crate::x11::OUTPUT_NAME)
-                                .map(|o| o.scale())
-                                .unwrap_or(1.0)
-                        };
-
-                        self.output_map.borrow_mut().update_scale_by_name(
-                            current_scale + 0.25f32,
-                            crate::x11::OUTPUT_NAME,
+                    if let Err(e) = Command::new(&cmd).spawn() {
+                        error!(self.log,
+                            "Failed to start program";
+                            "cmd" => cmd,
+                            "err" => format!("{:?}", e)
                         );
-                    },
-
-                    KeyAction::ScaleDown => {
-                        let current_scale = {
-                            self.output_map
-                                .borrow()
-                                .find_by_name(crate::x11::OUTPUT_NAME)
-                                .map(|o| o.scale())
-                                .unwrap_or(1.0)
-                        };
-
-                        self.output_map.borrow_mut().update_scale_by_name(
-                            f32::max(1.0f32, current_scale + 0.25f32),
-                            crate::x11::OUTPUT_NAME,
-                        );
-                    },
-
-                    action => {
-                        warn!(self.log, "Key action {:?} unsupported on x11 backend.", action);
                     }
+                }
+
+                KeyAction::ScaleUp => {
+                    let current_scale = {
+                        self.output_map
+                            .borrow()
+                            .find_by_name(crate::x11::OUTPUT_NAME)
+                            .map(|o| o.scale())
+                            .unwrap_or(1.0)
+                    };
+
+                    self.output_map
+                        .borrow_mut()
+                        .update_scale_by_name(current_scale + 0.25f32, crate::x11::OUTPUT_NAME);
+                }
+
+                KeyAction::ScaleDown => {
+                    let current_scale = {
+                        self.output_map
+                            .borrow()
+                            .find_by_name(crate::x11::OUTPUT_NAME)
+                            .map(|o| o.scale())
+                            .unwrap_or(1.0)
+                    };
+
+                    self.output_map.borrow_mut().update_scale_by_name(
+                        f32::max(1.0f32, current_scale + 0.25f32),
+                        crate::x11::OUTPUT_NAME,
+                    );
+                }
+
+                action => {
+                    warn!(self.log, "Key action {:?} unsupported on x11 backend.", action);
                 }
             },
 
             InputEvent::PointerMotionAbsolute { event } => self.on_pointer_move_absolute::<B>(event),
             InputEvent::PointerButton { event } => self.on_pointer_button::<B>(event),
             InputEvent::PointerAxis { event } => self.on_pointer_axis::<B>(event),
-            _ => () // other events are not handled in anvil (yet)
+            _ => (), // other events are not handled in anvil (yet)
         }
     }
 

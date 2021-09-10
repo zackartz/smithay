@@ -23,7 +23,7 @@ TODO: Possible future changes:
 - Migrate to x11rb's Wrapper types for Pixmaps and windows when the next version releases
 */
 
-pub mod buffer;
+mod buffer;
 pub mod connection;
 mod drm;
 mod event_source;
@@ -245,6 +245,7 @@ impl X11Backend {
         })
     }
 
+    /// Returns the default screen number of the X server.
     pub fn screen(&self) -> usize {
         self.screen_number
     }
