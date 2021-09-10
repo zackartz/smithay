@@ -9,7 +9,7 @@ A note from i509 for future maintainers and contributors:
 
 Grab yourself the nearest copy of the ICCCM.
 
-You should follow this document religiously, or else you will easily get shot in the foot.
+You should follow this document religiously, or else you will easily get shot in the foot when doing anything window related.
 Specifically look out for "Section 4: Client to Window Manager Communication"
 
 A link to the ICCCM Section 4: https://tronche.com/gui/x/icccm/sec-4.html
@@ -17,10 +17,6 @@ A link to the ICCCM Section 4: https://tronche.com/gui/x/icccm/sec-4.html
 Useful reading:
 
 DRI3 protocol documentation: https://cgit.freedesktop.org/xorg/proto/dri3proto/tree/dri3proto.txt
-
-TODO: Possible future changes:
-
-- Migrate to x11rb's Wrapper types for Pixmaps and windows when the next version releases
 */
 
 mod buffer;
@@ -426,9 +422,11 @@ impl EventSource for X11Backend {
                                 Input(InputEvent::Keyboard {
                                     event: X11KeyboardInputEvent {
                                         time: key_press.time,
-                                        // It seems as if X11's keycodes are +8 relative to the libinput
-                                        // keycodes that are expected, so subtract 8 from each keycode
-                                        // to match libinput.
+                                        // X11's keycodes are +8 relative to the libinput keycodes
+                                        // that are expected, so subtract 8 from each keycode to
+                                        // match libinput.
+                                        //
+                                        // https://github.com/freedesktop/xorg-xf86-input-libinput/blob/master/src/xf86libinput.c#L54
                                         key: key_press.detail as u32 - 8,
                                         count: key_counter.fetch_add(1, Ordering::SeqCst) + 1,
                                         state: KeyState::Pressed,
@@ -450,9 +448,11 @@ impl EventSource for X11Backend {
                                 Input(InputEvent::Keyboard {
                                     event: X11KeyboardInputEvent {
                                         time: key_release.time,
-                                        // It seems as if X11's keycodes are +8 relative to the libinput
-                                        // keycodes that are expected, so subtract 8 from each keycode
-                                        // to match libinput.
+                                        // X11's keycodes are +8 relative to the libinput keycodes
+                                        // that are expected, so subtract 8 from each keycode to
+                                        // match libinput.
+                                        //
+                                        // https://github.com/freedesktop/xorg-xf86-input-libinput/blob/master/src/xf86libinput.c#L54
                                         key: key_release.detail as u32 - 8,
                                         count: key_counter_val,
                                         state: KeyState::Released,
@@ -514,9 +514,7 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::Expose(expose) => {
-                        // TODO: We would ideally use this to determine damage and render more efficiently that way.
-                        //
-                        // Although there is an Expose with damage event somewhere?
+                        // TODO: Use details of expose event to tell the the compositor what has been damaged?
                         if expose.window == window.inner && expose.count == 0 {
                             (callback)(X11Event::Refresh, &mut event_window);
                         }

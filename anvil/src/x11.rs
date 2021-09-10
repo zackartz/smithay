@@ -17,12 +17,19 @@ use smithay::{
 
 use crate::{render::render_layers_and_windows, state::Backend, AnvilState};
 
+#[cfg(feature = "debug")]
+use smithay::backend::renderer::gles2::Gles2Texture;
+
 pub const OUTPUT_NAME: &str = "x11";
 
 #[derive(Debug)]
 pub struct X11Data {
     mode: Mode,
     surface: GbmBufferingX11Surface,
+    #[cfg(feature = "debug")]
+    fps_texture: Gles2Texture,
+    #[cfg(feature = "debug")]
+    fps: fps_ticker::Fps,
 }
 
 impl Backend for X11Data {
@@ -70,7 +77,25 @@ pub fn run_x11(log: Logger) {
 
     let data = X11Data {
         mode,
-        surface
+        surface,
+        #[cfg(feature = "debug")]
+        fps_texture: {
+            use crate::drawing::{import_bitmap, FPS_NUMBERS_PNG};
+
+            import_bitmap(
+                &mut renderer,
+                &image::io::Reader::with_format(
+                    std::io::Cursor::new(FPS_NUMBERS_PNG),
+                    image::ImageFormat::Png,
+                )
+                .decode()
+                .unwrap()
+                .to_rgba8(),
+            )
+            .expect("Unable to upload FPS texture")
+        },
+        #[cfg(feature = "debug")]
+        fps: fps_ticker::Fps::default(),
     };
 
     let mut state = AnvilState::init(display.clone(), event_loop.handle(), data, log.clone(), true);
@@ -142,24 +167,39 @@ pub fn run_x11(log: Logger) {
             let backend_data = &mut state.backend_data;
             let present = backend_data.surface.present().expect("TODO");
             let window_map = state.window_map.borrow();
+            #[cfg(feature = "debug")]
+            let fps = backend_data.fps.avg().round() as u32;
+            #[cfg(feature = "debug")]
+            let fps_texture = &backend_data.fps_texture;
 
             renderer.bind(present.buffer()).expect("TODO");
 
             // drawing logic
             match renderer
                 // Apparently X11 is upside down
-                .render(backend_data.mode.size, Transform::Flipped180, |renderer, frame| {
-                    render_layers_and_windows(
-                        renderer,
-                        frame,
-                        &*window_map,
-                        output_geometry,
-                        output_scale,
-                        &log,
-                    )?;
+                .render(
+                    backend_data.mode.size,
+                    Transform::Flipped180,
+                    |renderer, frame| {
+                        render_layers_and_windows(
+                            renderer,
+                            frame,
+                            &*window_map,
+                            output_geometry,
+                            output_scale,
+                            &log,
+                        )?;
 
-                    Ok(())
-                })
+                        #[cfg(feature = "debug")]
+                        {
+                            use crate::drawing::draw_fps;
+
+                            draw_fps(renderer, frame, fps_texture, output_scale as f64, fps)?;
+                        }
+
+                        Ok(())
+                    },
+                )
                 .map_err(Into::<SwapBuffersError>::into)
                 .and_then(|x| x)
                 .map_err(Into::<SwapBuffersError>::into)
@@ -175,50 +215,6 @@ pub fn run_x11(log: Logger) {
                 }
             }
         }
-
-        // // drawing logic
-        // {
-        //     let mut renderer = renderer.borrow_mut();
-        //     // This is safe to do as with winit we are guaranteed to have exactly one output
-        //     let (output_geometry, output_scale) = state
-        //         .output_map
-        //         .borrow()
-        //         .find_by_name(OUTPUT_NAME)
-        //         .map(|output| (output.geometry(), output.scale()))
-        //         .unwrap();
-
-        //     let result = renderer
-        //         .render(|renderer, frame| {
-        //             frame.clear([0.8, 0.8, 0.9, 1.0])?;
-
-        //             let window_map = &*state.window_map.borrow();
-
-        //             for layer in [Layer::Background, Layer::Bottom] {
-        //                 draw_layers(
-        //                     renderer,
-        //                     frame,
-        //                     window_map,
-        //                     layer,
-        //                     output_geometry,
-        //                     output_scale,
-        //                     &log,
-        //                 )?;
-        //             }
-
-        //             // draw the windows
-        //             draw_windows(renderer, frame, window_map, output_geometry, output_scale, &log)?;
-
-        //             for layer in [Layer::Top, Layer::Overlay] {
-        //                 draw_layers(
-        //                     renderer,
-        //                     frame,
-        //                     window_map,
-        //                     layer,
-        //                     output_geometry,
-        //                     output_scale,
-        //                     &log,
-        //                 )?;
-        //             }
 
         //             let (x, y) = state.pointer_location.into();
         //             // draw the dnd icon if any
@@ -264,31 +260,6 @@ pub fn run_x11(log: Logger) {
         //                     cursor_visible = true;
         //                 }
         //             }
-
-        //             #[cfg(feature = "debug")]
-        //             {
-        //                 let fps = state.backend_data.fps.avg().round() as u32;
-        //                 draw_fps(
-        //                     renderer,
-        //                     frame,
-        //                     &state.backend_data.fps_texture,
-        //                     output_scale as f64,
-        //                     fps,
-        //                 )?;
-        //             }
-
-        //             Ok(())
-        //         })
-        //         .map_err(Into::<SwapBuffersError>::into)
-        //         .and_then(|x| x);
-
-        //     renderer.window().set_cursor_visible(cursor_visible);
-
-        //     if let Err(SwapBuffersError::ContextLost(err)) = result {
-        //         error!(log, "Critical Rendering Error: {}", err);
-        //         state.running.store(false, Ordering::SeqCst);
-        //     }
-        // }
 
         // Send frame events so that client start drawing their next frame
         state

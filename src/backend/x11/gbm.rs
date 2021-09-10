@@ -148,6 +148,7 @@ impl GbmBufferingX11Surface {
         Ok(Present { surface: self })
     }
 
+    /// Resizes the surface, and recreates the internal buffers to match the new size.
     // TODO: Error type, cannot resize while presenting.
     pub fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), ()> {
         self.width = size.w;
