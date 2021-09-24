@@ -65,7 +65,7 @@ pub fn run_x11(log: Logger) {
     }
 
     let size = {
-        let s = backend.window().size().unwrap();
+        let s = backend.window().size();
 
         (s.w as i32, s.h as i32).into()
     };

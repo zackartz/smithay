@@ -13,6 +13,7 @@ use x11rb::{
         dri3::{self, ConnectionExt},
         xproto::PixmapWrapper,
     },
+    rust_connection::RustConnection,
 };
 
 use crate::{
@@ -25,7 +26,6 @@ use crate::{
 
 use super::{
     buffer::{present, PixmapWrapperExt},
-    connection::XConnection,
     window::Window,
     X11Backend, X11Error,
 };
@@ -33,7 +33,7 @@ use super::{
 /// An X11 surface which uses GBM to allocate and present buffers.
 #[derive(Debug)]
 pub struct GbmBufferingX11Surface {
-    connection: Arc<XConnection>,
+    connection: Arc<RustConnection>,
     window: Window,
     device: Device<RawFd>,
     width: u16,
@@ -45,11 +45,13 @@ pub struct GbmBufferingX11Surface {
 impl GbmBufferingX11Surface {
     /// Returns a new surface which allows allocating Dmabufs and presenting them to an X11 window.
     pub fn new(backend: &X11Backend) -> Result<GbmBufferingX11Surface, X11Error> {
-        let connection = backend.connection();
+        let connection = &backend.connection;
         let window = backend.window();
-        let xcb = connection.xcb_connection();
 
-        if xcb.extension_information(dri3::X11_EXTENSION_NAME)?.is_none() {
+        if connection
+            .extension_information(dri3::X11_EXTENSION_NAME)?
+            .is_none()
+        {
             todo!("DRI3 is not present")
         }
 
@@ -57,7 +59,7 @@ impl GbmBufferingX11Surface {
         let (dri3_major, dri3_minor) = {
             // DRI3 will only return the highest version we request.
             // TODO: We might need to request a higher version?
-            let version = xcb.dri3_query_version(1, 2)?.reply()?;
+            let version = connection.dri3_query_version(1, 2)?.reply()?;
 
             if version.minor_version < 2 {
                 todo!("DRI3 version too low")
@@ -69,8 +71,8 @@ impl GbmBufferingX11Surface {
         dbg!("DRI3 {}.{}", dri3_major, dri3_minor);
 
         // Determine which drm-device the Display is using.
-        let screen = &xcb.setup().roots[backend.screen()];
-        let dri3 = xcb.dri3_open(screen.root, 0)?.reply()?;
+        let screen = &connection.setup().roots[backend.screen()];
+        let dri3 = connection.dri3_open(screen.root, 0)?.reply()?;
 
         let drm_device_fd = dri3.device_fd;
         // Duplicate the drm_device_fd
@@ -101,7 +103,7 @@ impl GbmBufferingX11Surface {
         let device = crate::backend::allocator::gbm::GbmDevice::new(drm_device_fd.as_raw_fd())
             .expect("Failed to create gbm device");
 
-        let size = backend.window().size().expect("TODO");
+        let size = backend.window().size();
         // TODO: Dont hardcode format.
         let current = device
             .create_buffer_object::<()>(
@@ -125,7 +127,7 @@ impl GbmBufferingX11Surface {
             .unwrap();
 
         Ok(GbmBufferingX11Surface {
-            connection,
+            connection: connection.clone(),
             window,
             device,
             width: size.w,
@@ -210,14 +212,12 @@ impl Drop for Present<'_> {
         // Swap the buffers
         mem::swap(&mut surface.next, &mut surface.current);
 
-        if let Ok(pixmap) = PixmapWrapper::with_dmabuf(
-            surface.connection.xcb_connection(),
-            &surface.window,
-            &surface.current,
-        ) {
+        if let Ok(pixmap) =
+            PixmapWrapper::with_dmabuf(&*surface.connection, &surface.window, &surface.current)
+        {
             // Now present the current buffer
             let _ = present(
-                surface.connection.xcb_connection(),
+                &*surface.connection,
                 &pixmap,
                 &surface.window,
                 surface.width,

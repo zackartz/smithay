@@ -2,13 +2,14 @@
 
 use crate::utils::{Logical, Size};
 
-use super::{Atoms, WindowProperties, X11Error, XConnection};
+use super::{Atoms, WindowProperties, X11Error};
 use std::sync::{Arc, Mutex, Weak};
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
     self as x11, AtomEnum, CreateGCAux, CreateWindowAux, Depth, EventMask, PropMode, Screen, WindowClass,
 };
 use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
+use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt;
 
 /// An X11 window.
@@ -17,66 +18,43 @@ pub struct Window(Weak<WindowInner>);
 
 impl Window {
     /// Sets the title of the window.
-    pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
-        if let Some(inner) = self.0.upgrade() {
-            inner.set_title(title)
-        } else {
-            Err(X11Error::WindowDestroyed)
-        }
+    pub fn set_title(&self, title: &str) {
+        self.0.upgrade().map(|inner| inner.set_title(title));
     }
 
     /// Maps the window, making it visible.
-    pub fn map(&self) -> Result<(), X11Error> {
-        if let Some(inner) = self.0.upgrade() {
-            inner.map()
-        } else {
-            Err(X11Error::WindowDestroyed)
-        }
+    pub fn map(&self) {
+        self.0.upgrade().map(|inner| inner.map());
     }
 
     /// Unmaps the window, making it invisible.
-    pub fn unmap(&self) -> Result<(), X11Error> {
-        if let Some(inner) = self.0.upgrade() {
-            inner.unmap()
-        } else {
-            Err(X11Error::WindowDestroyed)
-        }
+    pub fn unmap(&self) {
+        self.0.upgrade().map(|inner| inner.unmap());
     }
 
     /// Returns the size of this window.
-    pub fn size(&self) -> Result<Size<u16, Logical>, X11Error> {
-        if let Some(inner) = self.0.upgrade() {
-            Ok(inner.size())
-        } else {
-            Err(X11Error::WindowDestroyed)
-        }
+    ///
+    /// If the window has been destroyed, the size is `0 x 0`.
+    pub fn size(&self) -> Size<u16, Logical> {
+        self.0
+            .upgrade()
+            .map(|inner| inner.size())
+            .unwrap_or((0, 0).into())
     }
 
     /// Returns the XID of the window.
     pub fn id(&self) -> u32 {
-        if let Some(inner) = self.0.upgrade() {
-            inner.inner
-        } else {
-            0
-        }
+        self.0.upgrade().map(|inner| inner.inner).unwrap_or(0)
     }
 
     /// Returns the depth id of this window.
     pub fn depth(&self) -> u8 {
-        if let Some(inner) = self.0.upgrade() {
-            inner.depth.depth
-        } else {
-            0
-        }
+        self.0.upgrade().map(|inner| inner.depth.depth).unwrap_or(0)
     }
 
     /// Returns the graphics context used to draw to this window.
     pub fn gc(&self) -> u32 {
-        if let Some(inner) = self.0.upgrade() {
-            inner.gc
-        } else {
-            0
-        }
+        self.0.upgrade().map(|inner| inner.gc).unwrap_or(0)
     }
 }
 
@@ -89,7 +67,7 @@ impl From<Arc<WindowInner>> for Window {
 #[derive(Debug)]
 pub(crate) struct WindowInner {
     // TODO: Consider future x11rb WindowWrapper
-    pub connection: Arc<XConnection>,
+    pub connection: Weak<RustConnection>,
     pub inner: x11::Window,
     root: x11::Window,
     pub atoms: Atoms,
@@ -100,7 +78,7 @@ pub(crate) struct WindowInner {
 
 impl WindowInner {
     pub fn new(
-        connection: Arc<XConnection>,
+        connection: Weak<RustConnection>,
         screen: &Screen,
         properties: WindowProperties<'_>,
         atoms: Atoms,
@@ -108,10 +86,11 @@ impl WindowInner {
         visual_id: u32,
         colormap: u32,
     ) -> Result<WindowInner, X11Error> {
-        let xcb = connection.xcb_connection();
+        let weak = connection;
+        let connection = weak.upgrade().unwrap();
 
         // Generate the xid for the window
-        let window = xcb.generate_id()?;
+        let window = connection.generate_id()?;
 
         // The event mask never include `EventMask::RESIZE_REDIRECT`.
         //
@@ -142,7 +121,7 @@ impl WindowInner {
             .border_pixel(0)
             .colormap(colormap);
 
-        let cookie = xcb.create_window(
+        let cookie = connection.create_window(
             depth.depth,
             window,
             screen.root,
@@ -158,7 +137,7 @@ impl WindowInner {
 
         // Send requests to change window properties while we wait for the window creation request to complete.
         let mut window = WindowInner {
-            connection: connection.clone(),
+            connection: weak,
             inner: window,
             root: screen.root,
             atoms,
@@ -167,12 +146,12 @@ impl WindowInner {
             gc: 0,
         };
 
-        let gc = xcb.generate_id()?;
-        xcb.create_gc(gc, window.inner, &CreateGCAux::new())?;
+        let gc = connection.generate_id()?;
+        connection.create_gc(gc, window.inner, &CreateGCAux::new())?;
         window.gc = gc;
 
         // Enable WM_DELETE_WINDOW so our client is not disconnected upon our toplevel window being destroyed.
-        xcb.change_property32(
+        connection.change_property32(
             PropMode::REPLACE,
             window.inner,
             atoms.WM_PROTOCOLS,
@@ -181,7 +160,7 @@ impl WindowInner {
         )?;
 
         // WM class cannot be safely changed later.
-        let _ = xcb.change_property8(
+        let _ = connection.change_property8(
             PropMode::REPLACE,
             window.inner,
             atoms.WM_CLASS,
@@ -189,80 +168,75 @@ impl WindowInner {
             b"Smithay\0Wayland_Compositor\0",
         )?;
 
-        // Block until window creation is complete.
-        cookie.check()?;
-        window.set_title(properties.title)?;
-
-        // Finally map the window
-        xcb.map_window(window.inner)?;
+        window.set_title(properties.title);
+        window.map();
 
         // Flush requests to server so window is displayed.
-        xcb.flush()?;
+        connection.flush()?;
 
         Ok(window)
     }
 
-    pub fn map(&self) -> Result<(), X11Error> {
-        self.connection.xcb_connection().map_window(self.inner)?;
-        Ok(())
+    pub fn map(&self) {
+        self.connection.upgrade().map(|connection| {
+            let _ = connection.map_window(self.inner);
+        });
     }
 
-    pub fn unmap(&self) -> Result<(), X11Error> {
-        let xcb = self.connection.xcb_connection();
+    pub fn unmap(&self) {
+        if let Some(connection) = self.connection.upgrade() {
+            // ICCCM - Changing Window State
+            //
+            // Normal -> Withdrawn - The client should unmap the window and follow it with a synthetic
+            // UnmapNotify event as described later in this section.
+            connection.unmap_window(self.inner);
 
-        // ICCCM - Changing Window State
-        //
-        // Normal -> Withdrawn - The client should unmap the window and follow it with a synthetic
-        // UnmapNotify event as described later in this section.
-        xcb.unmap_window(self.inner)?;
-
-        // Send a synthetic UnmapNotify event to make the ICCCM happy
-        xcb.send_event(
-            false,
-            self.inner,
-            EventMask::STRUCTURE_NOTIFY | EventMask::SUBSTRUCTURE_NOTIFY,
-            UnmapNotifyEvent {
-                response_type: x11rb::protocol::xproto::UNMAP_NOTIFY_EVENT,
-                sequence: 0, // Ignored by X server
-                event: self.root,
-                window: self.inner,
-                from_configure: false,
-            },
-        )?;
-
-        Ok(())
+            // Send a synthetic UnmapNotify event to make the ICCCM happy
+            let _ = connection.send_event(
+                false,
+                self.inner,
+                EventMask::STRUCTURE_NOTIFY | EventMask::SUBSTRUCTURE_NOTIFY,
+                UnmapNotifyEvent {
+                    response_type: x11rb::protocol::xproto::UNMAP_NOTIFY_EVENT,
+                    sequence: 0, // Ignored by X server
+                    event: self.root,
+                    window: self.inner,
+                    from_configure: false,
+                },
+            );
+        }
     }
 
     pub fn size(&self) -> Size<u16, Logical> {
         *self.size.lock().unwrap()
     }
 
-    pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
-        let xcb = self.connection.xcb_connection();
+    pub fn set_title(&self, title: &str) {
+        if let Some(connection) = self.connection.upgrade() {
+            // _NET_WM_NAME should be preferred by window managers, but set both properties.
+            let _ = connection.change_property8(
+                PropMode::REPLACE,
+                self.inner,
+                AtomEnum::WM_NAME,
+                AtomEnum::STRING,
+                title.as_bytes(),
+            );
 
-        // _NET_WM_NAME should be preferred by window managers, but set both properties.
-        xcb.change_property8(
-            PropMode::REPLACE,
-            self.inner,
-            AtomEnum::WM_NAME,
-            AtomEnum::STRING,
-            title.as_bytes(),
-        )?;
-
-        xcb.change_property8(
-            PropMode::REPLACE,
-            self.inner,
-            self.atoms._NET_WM_NAME,
-            self.atoms.UTF8_STRING,
-            title.as_bytes(),
-        )?;
-
-        Ok(())
+            let _ = connection.change_property8(
+                PropMode::REPLACE,
+                self.inner,
+                self.atoms._NET_WM_NAME,
+                self.atoms.UTF8_STRING,
+                title.as_bytes(),
+            );
+        }
     }
 }
 
 impl Drop for WindowInner {
     fn drop(&mut self) {
-        let _ = self.connection.xcb_connection().destroy_window(self.inner);
+        let _ = self.connection.upgrade().map(|connection| {
+            let _ = connection.destroy_window(self.inner);
+        });
     }
 }

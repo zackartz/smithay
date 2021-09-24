@@ -111,8 +111,6 @@ where
 
         let stride = strides.next().unwrap();
 
-
-
         // TODO: Use dri3_pixmap_from_buffers where appropriate.
 
         connection.dri3_pixmap_from_buffer(

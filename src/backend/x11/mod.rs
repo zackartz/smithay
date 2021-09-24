@@ -20,14 +20,12 @@ DRI3 protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto
 */
 
 mod buffer;
-pub mod connection;
 mod drm;
 mod event_source;
 pub mod gbm;
 pub mod input;
 pub mod window;
 
-use self::connection::{ConnectToXError, XConnection};
 use self::window::{Window, WindowInner};
 use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
@@ -41,7 +39,7 @@ use std::sync::Arc;
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt as _, Depth, VisualClass};
-use x11rb::rust_connection::ReplyOrIdError;
+use x11rb::rust_connection::{ReplyOrIdError, RustConnection};
 use x11rb::x11_utils::X11Error as ImplError;
 use x11rb::{atom_manager, protocol as x11};
 
@@ -54,10 +52,6 @@ pub enum InitializationError {}
 /// An error emitted by the X11 backend.
 #[derive(Debug, thiserror::Error)]
 pub enum X11Error {
-    /// An error that may occur when initializing the backend.
-    #[error("Error while initializing backend")]
-    Connect(ConnectToXError),
-
     /// Connecting to the X server failed.
     #[error("Connecting to the X server failed")]
     ConnectionFailed(ConnectError),
@@ -69,12 +63,6 @@ pub enum X11Error {
     /// The window was destroyed.
     #[error("The window was destroyed")]
     WindowDestroyed,
-}
-
-impl From<ConnectToXError> for X11Error {
-    fn from(e: ConnectToXError) -> Self {
-        X11Error::Connect(e)
-    }
 }
 
 impl From<ConnectError> for X11Error {
@@ -149,7 +137,8 @@ pub enum X11Event {
 #[derive(Debug)]
 pub struct X11Backend {
     log: Logger,
-    connection: Arc<XConnection>,
+    // TODO: Narrow access once the presentation is part of the window.
+    pub(crate) connection: Arc<RustConnection>,
     source: X11Source,
     screen_number: usize,
     window: Arc<WindowInner>,
@@ -179,12 +168,11 @@ impl X11Backend {
 
         info!(logger, "Connecting to the X server");
 
-        let (connection, screen_number) = XConnection::new(&logger)?;
+        let (connection, screen_number) = RustConnection::connect(None)?;
         let connection = Arc::new(connection);
         info!(logger, "Connected to screen {}", screen_number);
-        let xcb = connection.xcb_connection();
 
-        let screen = &xcb.setup().roots[screen_number];
+        let screen = &connection.setup().roots[screen_number];
 
         // We want 32 bit color
         let depth = screen
@@ -206,13 +194,13 @@ impl X11Backend {
         // TODO
 
         // Make a colormap
-        let colormap = xcb.generate_id()?;
-        xcb.create_colormap(ColormapAlloc::NONE, colormap, screen.root, visual_id)?;
+        let colormap = connection.generate_id()?;
+        connection.create_colormap(ColormapAlloc::NONE, colormap, screen.root, visual_id)?;
 
-        let atoms = Atoms::new(xcb)?.reply()?;
+        let atoms = Atoms::new(&*connection)?.reply()?;
 
         let window = Arc::new(WindowInner::new(
-            connection.clone(),
+            Arc::downgrade(&connection),
             screen,
             properties,
             atoms,
@@ -248,8 +236,8 @@ impl X11Backend {
     }
 
     /// Returns the underlying connection to the X server.
-    pub fn connection(&self) -> Arc<XConnection> {
-        self.connection.clone()
+    pub fn connection(&self) -> &RustConnection {
+        &*self.connection
     }
 
     /// Returns a handle to the X11 window this input backend handles inputs for.
@@ -528,7 +516,7 @@ impl EventSource for X11Backend {
                 }
 
                 // Flush the connection so changes to the window state during callbacks can be emitted.
-                let _ = connection.xcb_connection().flush();
+                let _ = connection.flush();
             })
             .expect("TODO");
 
