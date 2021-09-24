@@ -180,6 +180,15 @@ impl WindowInner {
             &[atoms.WM_DELETE_WINDOW],
         )?;
 
+        // WM class cannot be safely changed later.
+        let _ = xcb.change_property8(
+            PropMode::REPLACE,
+            window.inner,
+            atoms.WM_CLASS,
+            AtomEnum::STRING,
+            b"Smithay\0Wayland_Compositor\0",
+        )?;
+
         // Block until window creation is complete.
         cookie.check()?;
         window.set_title(properties.title)?;
@@ -231,7 +240,7 @@ impl WindowInner {
     pub fn set_title(&self, title: &str) -> Result<(), X11Error> {
         let xcb = self.connection.xcb_connection();
 
-        // _NET_WM_NAME should be preferred by window managers, but set both in case.
+        // _NET_WM_NAME should be preferred by window managers, but set both properties.
         xcb.change_property8(
             PropMode::REPLACE,
             self.inner,
@@ -246,21 +255,6 @@ impl WindowInner {
             self.atoms._NET_WM_NAME,
             self.atoms.UTF8_STRING,
             title.as_bytes(),
-        )?;
-
-        // Set WM_CLASS
-        let mut raw = Vec::new();
-        raw.extend_from_slice(title.as_bytes());
-        raw.extend_from_slice(b"\n");
-        raw.extend_from_slice(title.as_bytes());
-        raw.push(b'\n');
-
-        let _ = xcb.change_property8(
-            PropMode::REPLACE,
-            self.inner,
-            self.atoms.WM_CLASS,
-            AtomEnum::STRING,
-            &raw[..],
         )?;
 
         Ok(())
