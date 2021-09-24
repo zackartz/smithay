@@ -16,7 +16,7 @@ A link to the ICCCM Section 4: https://tronche.com/gui/x/icccm/sec-4.html
 
 Useful reading:
 
-DRI3 protocol documentation: https://cgit.freedesktop.org/xorg/proto/dri3proto/tree/dri3proto.txt
+DRI3 protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto/-/blob/master/dri3proto.txt
 */
 
 mod buffer;

@@ -210,7 +210,7 @@ impl Drop for Present<'_> {
         // Swap the buffers
         mem::swap(&mut surface.next, &mut surface.current);
 
-        if let Ok(pixmap) = PixmapWrapper::create_with_dmabuf(
+        if let Ok(pixmap) = PixmapWrapper::with_dmabuf(
             surface.connection.xcb_connection(),
             &surface.window,
             &surface.current,
