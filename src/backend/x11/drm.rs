@@ -10,13 +10,12 @@ use std::{
     os::unix::prelude::RawFd,
 };
 
-use nix::{
-    errno::Errno,
-    sys::stat::{fstat, major, minor, SFlag},
-};
+use nix::sys::stat::{fstat, major, minor, SFlag};
+
+use super::AllocateBuffersError;
 
 /// This function is a copy of `drmGetNodeTypeFromFd` from libdrm.
-pub fn get_drm_node_type(fd: RawFd) -> Result<u64, Errno> {
+pub fn get_drm_node_type(fd: RawFd) -> Result<u64, AllocateBuffersError> {
     // Obtain major and minor numbers of the file descriptor
     let stat_buf = fstat(fd)?;
 
@@ -32,7 +31,7 @@ pub fn get_drm_node_type(fd: RawFd) -> Result<u64, Errno> {
         // Then check if we have a character device by seeing if the leftover is equal to S_IFCHR
         || (stat_flags & SFlag::S_IFMT) != SFlag::S_IFCHR
     {
-        todo!()
+        todo!("Non drm-node")
     }
 
     Ok(drm_get_minor_type(major, minor).expect("TODO"))
@@ -46,6 +45,25 @@ pub const DRM_NODE_CONTROL: u64 = 1;
 #[allow(dead_code)]
 pub const DRM_NODE_RENDER: u64 = 2;
 
+// Again copied from xf86drm.c
+
+#[cfg(target_os = "dragonfly")]
+pub const DRM_MAJOR: u64 = 145;
+
+#[cfg(target_os = "netbsd")]
+pub const DRM_MAJOR: u64 = 34;
+
+#[cfg(all(target_os = "openbsd", target_arch = "i386"))]
+pub const DRM_MAJOR: u64 = 88;
+
+#[cfg(all(target_os = "openbsd", not(target_arch = "i386")))]
+pub const DRM_MAJOR: u64 = 87;
+
+// libdrm uses the Linux value as the fallback where a DRM_MAJOR isn't otherwise defined.
+#[cfg(not(any(target_os = "dragonfly", target_os = "netbsd", target_os = "openbsd")))]
+#[allow(dead_code)]
+pub const DRM_MAJOR: u64 = 226;
+
 #[derive(Debug)]
 pub struct UnsupportedDrmNodeType;
 
@@ -57,7 +75,8 @@ impl Display for UnsupportedDrmNodeType {
 
 impl Error for UnsupportedDrmNodeType {}
 
-pub fn drm_get_minor_type(_major: u64, minor: u64) -> Result<u64, UnsupportedDrmNodeType> {
+/// This function is a copy of `drmGetMinorType` from libdrm
+pub fn drm_get_minor_type(_major: u64, minor: u64) -> Result<u64, AllocateBuffersError> {
     #[cfg(target_os = "freebsd")]
     compile_error!("FreeBSD is not implemented yet!");
 
@@ -67,12 +86,13 @@ pub fn drm_get_minor_type(_major: u64, minor: u64) -> Result<u64, UnsupportedDrm
 
     match ty {
         DRM_NODE_PRIMARY | DRM_NODE_CONTROL | DRM_NODE_RENDER => Ok(ty),
-        _ => Err(UnsupportedDrmNodeType),
+        _ => Err(AllocateBuffersError::UnsupportedDrmNode),
     }
 }
 
 // drmNodeIsDRM has differing implementations on each os
 
+/// This function is a copy of `isDrmNodeDrm` from libdrm
 #[cfg(target_os = "linux")]
 pub fn is_drm_node_drm(major: u64, minor: u64) -> bool {
     use nix::sys::stat::stat;
@@ -83,12 +103,14 @@ pub fn is_drm_node_drm(major: u64, minor: u64) -> bool {
     stat(path.as_str()).is_ok()
 }
 
+/// This function is a copy of `isDrmNodeDrm` from libdrm
 #[cfg(target_os = "freebsd")]
 pub fn is_drm_node_drm(major: u64, minor: u64) -> bool {
     compile_error!("FreeBSD not implemented yet!")
 }
 
+/// This function is a copy of `isDrmNodeDrm` from libdrm
 #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
-pub fn is_drm_node_drm(major: u64, minor: u64) -> bool {
-    compile_error!("Non Linux and FreeBSD not implemented yet!")
+pub fn is_drm_node_drm(major: u64, _minor: u64) -> bool {
+    major == DRM_MAJOR
 }

@@ -27,113 +27,52 @@ DRI3 protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto
 
 mod buffer;
 mod drm;
+mod error;
 mod input;
 mod window_inner;
 
-use self::buffer::{present, PixmapWrapperExt};
-use self::drm::UnsupportedDrmNodeType;
-use self::window_inner::WindowInner;
-use super::allocator::dmabuf::{AsDmabuf, Dmabuf};
-use super::allocator::gbm::GbmConvertError;
-use super::input::{Axis, ButtonState, KeyState, MouseButton};
-use crate::backend::input::InputEvent;
-use crate::backend::x11::drm::{get_drm_node_type, DRM_NODE_RENDER};
-use crate::utils::x11rb::X11Source;
-use crate::utils::{Logical, Size};
+use self::{
+    buffer::{present, PixmapWrapperExt},
+    window_inner::WindowInner,
+};
+use super::{
+    allocator::dmabuf::{AsDmabuf, Dmabuf},
+    input::{Axis, ButtonState, KeyState, MouseButton},
+};
+use crate::{
+    backend::{
+        input::InputEvent,
+        x11::drm::{get_drm_node_type, DRM_NODE_RENDER},
+    },
+    utils::{x11rb::X11Source, Logical, Size},
+};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use drm_fourcc::DrmFourcc;
 use gbm::BufferObjectFlags;
-use nix::errno::Errno;
 use nix::fcntl;
 use slog::{error, info, o, Logger};
-use std::os::unix::prelude::{AsRawFd, RawFd};
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc, Weak};
-use std::{io, mem};
-use x11rb::connection::{Connection, RequestConnection};
-use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
-use x11rb::protocol::dri3::{self, ConnectionExt};
-use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt as _, Depth, PixmapWrapper, VisualClass};
-use x11rb::rust_connection::{ReplyOrIdError, RustConnection};
-use x11rb::x11_utils::X11Error as ImplError;
-use x11rb::{atom_manager, protocol as x11};
+use std::{
+    io, mem,
+    os::unix::prelude::{AsRawFd, RawFd},
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        mpsc::{self, Receiver, Sender},
+        Arc, Weak,
+    },
+};
+use x11rb::{
+    atom_manager,
+    connection::{Connection, RequestConnection},
+    protocol::{
+        self as x11,
+        dri3::{self, ConnectionExt},
+        xproto::{ColormapAlloc, ConnectionExt as _, Depth, PixmapWrapper, VisualClass},
+    },
+    rust_connection::RustConnection,
+};
 
-pub use crate::backend::x11::input::*;
-
-/// An error emitted by the X11 backend.
-#[derive(Debug, thiserror::Error)]
-pub enum X11Error {
-    /// Connecting to the X server failed.
-    #[error("Connecting to the X server failed")]
-    ConnectionFailed(ConnectError),
-
-    /// An X11 protocol error occured during initialization.
-    #[error("An X11 protocol error occured during initialization.")]
-    Protocol(ReplyOrIdError),
-
-    /// Opening the DRM device to allocate buffers with failed.
-    #[error("Failed to open DRM device to use as an allocator")]
-    OpenDevice(Errno),
-
-    /// The DRM node of the DRM device is not supported.
-    #[error("DRM node does not have proper node type")]
-    UnsupportedDrmNode(UnsupportedDrmNodeType),
-
-    /// No depth meeting the pixel format requirements was found.
-    #[error("No depth meeting the requirements was found")]
-    NoDepth, // TODO: Include requirements?
-
-    /// No visual meeting the pixel format requirements was found.
-    #[error("No visual meeting the requirements was found")]
-    NoVisual, // TODO: Include requirements?
-
-    /// Allocating buffers used to present to the window failed.
-    #[error("Allocating buffers used to present to the window failed.")]
-    AllocateBuffers(AllocateBufferError),
-}
-
-impl From<ConnectError> for X11Error {
-    fn from(e: ConnectError) -> Self {
-        X11Error::ConnectionFailed(e)
-    }
-}
-
-impl From<ConnectionError> for X11Error {
-    fn from(e: ConnectionError) -> Self {
-        ReplyOrIdError::from(e).into()
-    }
-}
-
-impl From<ImplError> for X11Error {
-    fn from(e: ImplError) -> Self {
-        ReplyOrIdError::from(e).into()
-    }
-}
-
-impl From<ReplyError> for X11Error {
-    fn from(e: ReplyError) -> Self {
-        ReplyOrIdError::from(e).into()
-    }
-}
-
-impl From<ReplyOrIdError> for X11Error {
-    fn from(e: ReplyOrIdError) -> Self {
-        X11Error::Protocol(e)
-    }
-}
-
-impl From<AllocateBufferError> for X11Error {
-    fn from(e: AllocateBufferError) -> Self {
-        X11Error::AllocateBuffers(e)
-    }
-}
-
-impl From<Errno> for X11Error {
-    fn from(e: Errno) -> Self {
-        X11Error::OpenDevice(e)
-    }
-}
+pub use self::error::*;
+pub use self::input::*;
 
 /// Properties defining initial information about the window created by the X11 backend.
 #[derive(Debug, Clone, Copy)]
@@ -215,14 +154,14 @@ impl X11Backend {
             .iter()
             .find(|depth| depth.depth == 32)
             .cloned()
-            .ok_or(X11Error::NoDepth)?;
+            .ok_or(CreateWindowError::NoDepth)?;
 
         // Next find a visual using the supported depth
         let visual_id = depth
             .visuals
             .iter()
             .find(|visual| visual.class == VisualClass::TRUE_COLOR)
-            .ok_or(X11Error::NoVisual)?
+            .ok_or(CreateWindowError::NoVisual)?
             .visual_id;
 
         // Find a supported format.
@@ -337,7 +276,8 @@ impl X11Surface {
         let drm_device_fd: RawFd = fcntl::fcntl(
             drm_device_fd.as_raw_fd(),
             fcntl::FcntlArg::F_DUPFD_CLOEXEC(3), // Set to 3 so the fd cannot become stdin, stdout or stderr
-        )?;
+        )
+        .map_err(AllocateBuffersError::from)?;
 
         let fd_flags =
             nix::fcntl::fcntl(drm_device_fd.as_raw_fd(), nix::fcntl::F_GETFD).expect("Handle this error");
@@ -349,7 +289,8 @@ impl X11Surface {
             nix::fcntl::F_SETFD(
                 nix::fcntl::FdFlag::from_bits_truncate(fd_flags) | nix::fcntl::FdFlag::FD_CLOEXEC,
             ),
-        )?;
+        )
+        .map_err(AllocateBuffersError::from)?;
 
         if get_drm_node_type(drm_device_fd.as_raw_fd())? != DRM_NODE_RENDER {
             todo!("Attempt to get the render device by name for the DRM node that isn't a render node")
@@ -367,9 +308,9 @@ impl X11Surface {
                 DrmFourcc::Argb8888,
                 BufferObjectFlags::empty(),
             )
-            .map_err(Into::<AllocateBufferError>::into)?
+            .map_err(Into::<AllocateBuffersError>::into)?
             .export()
-            .map_err(Into::<AllocateBufferError>::into)?;
+            .map_err(Into::<AllocateBuffersError>::into)?;
 
         let next = device
             .create_buffer_object::<()>(
@@ -378,9 +319,9 @@ impl X11Surface {
                 DrmFourcc::Argb8888,
                 BufferObjectFlags::empty(),
             )
-            .map_err(Into::<AllocateBufferError>::into)?
+            .map_err(Into::<AllocateBuffersError>::into)?
             .export()
-            .map_err(Into::<AllocateBufferError>::into)?;
+            .map_err(Into::<AllocateBuffersError>::into)?;
 
         Ok(X11Surface {
             connection: Arc::downgrade(connection),
@@ -403,7 +344,7 @@ impl X11Surface {
     ///
     /// When the object is dropped, the contents of the buffer are swapped and then presented.
     // TODO: Error type
-    pub fn present(&mut self) -> Result<Present<'_>, AllocateBufferError> {
+    pub fn present(&mut self) -> Result<Present<'_>, AllocateBuffersError> {
         if let Some(new_size) = self.resize.try_iter().last() {
             self.resize(new_size)?;
         }
@@ -412,7 +353,7 @@ impl X11Surface {
     }
 
     // TODO: Error type.
-    fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), AllocateBufferError> {
+    fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), AllocateBuffersError> {
         self.width = size.w;
         self.height = size.h;
 
@@ -499,30 +440,6 @@ impl Drop for Present<'_> {
                 );
             }
         }
-    }
-}
-
-/// An error when allocating buffers for an X11 surface.
-#[derive(Debug, thiserror::Error)]
-pub enum AllocateBufferError {
-    /// Creating the buffers failed.
-    #[error("Creating the buffers failed")]
-    CreateBuffer(io::Error),
-
-    /// Exporting a buffer as a dmabuf failed.
-    #[error("Exporting a buffer as a dmabuf failed")]
-    ExportDmabuf(GbmConvertError),
-}
-
-impl From<io::Error> for AllocateBufferError {
-    fn from(e: io::Error) -> Self {
-        Self::CreateBuffer(e)
-    }
-}
-
-impl From<GbmConvertError> for AllocateBufferError {
-    fn from(e: GbmConvertError) -> Self {
-        Self::ExportDmabuf(e)
     }
 }
 
