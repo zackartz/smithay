@@ -22,32 +22,28 @@ DRI3 protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto
 mod buffer;
 mod drm;
 mod event_source;
+pub mod gbm;
 pub mod input;
 pub mod window;
 
-use self::window::WindowInner;
+use self::window::{Window, WindowInner};
 use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
-use crate::backend::x11::drm::{get_drm_node_type, DRM_NODE_RENDER};
 use crate::backend::x11::event_source::X11Source;
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
-use nix::fcntl;
 use slog::{error, info, o, Logger};
 use std::io;
-use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
-use x11rb::connection::{Connection, RequestConnection};
+use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
-use x11rb::protocol::dri3::{self, ConnectionExt};
 use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt as _, Depth, VisualClass};
 use x11rb::rust_connection::{ReplyOrIdError, RustConnection};
 use x11rb::x11_utils::X11Error as ImplError;
 use x11rb::{atom_manager, protocol as x11};
 
-pub use self::input::*;
-pub use self::window::Window;
+pub use crate::backend::x11::input::*;
 
 /// An error that may occur when initializing the backend.
 #[derive(Debug, thiserror::Error)]
@@ -145,11 +141,10 @@ pub struct X11Backend {
     pub(crate) connection: Arc<RustConnection>,
     source: X11Source,
     screen_number: usize,
-    window: WindowInner,
+    window: Arc<WindowInner>,
     key_counter: Arc<AtomicU32>,
     depth: Depth,
     visual_id: u32,
-    device: ::gbm::Device<RawFd>,
 }
 
 atom_manager! {
@@ -203,9 +198,8 @@ impl X11Backend {
         connection.create_colormap(ColormapAlloc::NONE, colormap, screen.root, visual_id)?;
 
         let atoms = Atoms::new(&*connection)?.reply()?;
-        let device = X11Backend::open_device(&*connection, screen_number)?;
 
-        let window = WindowInner::new(
+        let window = Arc::new(WindowInner::new(
             Arc::downgrade(&connection),
             screen,
             properties,
@@ -213,12 +207,11 @@ impl X11Backend {
             depth.clone(),
             visual_id,
             colormap,
-            device.clone(),
-        )?;
+        )?);
 
         let source = X11Source::new(
             connection.clone(),
-            window.id,
+            window.inner,
             atoms._SMITHAY_X11_BACKEND_CLOSE,
             logger.clone(),
         );
@@ -234,7 +227,6 @@ impl X11Backend {
             depth,
             visual_id,
             screen_number,
-            device,
         })
     }
 
@@ -250,7 +242,7 @@ impl X11Backend {
 
     /// Returns a handle to the X11 window this input backend handles inputs for.
     pub fn window(&self) -> Window {
-        Window { inner: self.window.clone() }
+        self.window.clone().into()
     }
 }
 
@@ -276,13 +268,13 @@ impl EventSource for X11Backend {
         let window = self.window.clone();
         let key_counter = self.key_counter.clone();
         let log = self.log.clone();
-        let mut event_window = Window { inner: window.clone() };
+        let mut event_window = window.clone().into();
 
         self.source
             .process_events(readiness, token, |event, _| {
                 match event {
                     x11::Event::ButtonPress(button_press) => {
-                        if button_press.event == window.id {
+                        if button_press.event == window.inner {
                             // X11 decided to associate scroll wheel with a button, 4, 5, 6 and 7 for
                             // up, down, right and left. For scrolling, a press event is emitted and a
                             // release is them immediately followed for scrolling. This means we can
@@ -370,7 +362,7 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::ButtonRelease(button_release) => {
-                        if button_release.event == window.id {
+                        if button_release.event == window.inner {
                             match button_release.detail {
                                 1..=3 => {
                                     // Releasing a button.
@@ -413,7 +405,7 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::KeyPress(key_press) => {
-                        if key_press.event == window.id {
+                        if key_press.event == window.inner {
                             callback(
                                 Input(InputEvent::Keyboard {
                                     event: X11KeyboardInputEvent {
@@ -434,7 +426,7 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::KeyRelease(key_release) => {
-                        if key_release.event == window.id {
+                        if key_release.event == window.inner {
                             // atomic u32 has no checked_sub, so load and store to do the same.
                             let mut key_counter_val = key_counter.load(Ordering::SeqCst);
                             key_counter_val = key_counter_val.saturating_sub(1);
@@ -460,7 +452,7 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::MotionNotify(motion_notify) => {
-                        if motion_notify.event == window.id {
+                        if motion_notify.event == window.inner {
                             // Use event_x/y since those are relative the the window receiving events.
                             let x = motion_notify.event_x as f64;
                             let y = motion_notify.event_y as f64;
@@ -480,7 +472,7 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::ConfigureNotify(configure_notify) => {
-                        if configure_notify.window == window.id {
+                        if configure_notify.window == window.inner {
                             let previous_size = { *window.size.lock().unwrap() };
 
                             // Did the size of the window change?
@@ -502,7 +494,7 @@ impl EventSource for X11Backend {
 
                     x11::Event::ClientMessage(client_message) => {
                         if client_message.data.as_data32()[0] == window.atoms.WM_DELETE_WINDOW // Destroy the window?
-                            && client_message.window == window.id
+                            && client_message.window == window.inner
                         // Same window
                         {
                             (callback)(X11Event::CloseRequested, &mut event_window);
@@ -511,7 +503,7 @@ impl EventSource for X11Backend {
 
                     x11::Event::Expose(expose) => {
                         // TODO: Use details of expose event to tell the the compositor what has been damaged?
-                        if expose.window == window.id && expose.count == 0 {
+                        if expose.window == window.inner && expose.count == 0 {
                             (callback)(X11Event::Refresh, &mut event_window);
                         }
                     }
@@ -541,63 +533,5 @@ impl EventSource for X11Backend {
 
     fn unregister(&mut self, poll: &mut Poll) -> io::Result<()> {
         self.source.unregister(poll)
-    }
-}
-
-impl X11Backend {
-    fn open_device(connection: &RustConnection, screen: usize) -> Result<::gbm::Device<RawFd>, X11Error> {
-        if connection
-            .extension_information(dri3::X11_EXTENSION_NAME)?
-            .is_none()
-        {
-            todo!("DRI3 is not present")
-        }
-
-        // Does the X server support dri3?
-        let (dri3_major, dri3_minor) = {
-            // DRI3 will only return the highest version we request.
-            // TODO: We might need to request a higher version?
-            let version = connection.dri3_query_version(1, 2)?.reply()?;
-
-            if version.minor_version < 2 {
-                todo!("DRI3 version too low")
-            }
-
-            (version.major_version, version.minor_version)
-        };
-
-        dbg!("DRI3 {}.{}", dri3_major, dri3_minor);
-
-        // Determine which drm-device the Display is using.
-        let screen = &connection.setup().roots[screen];
-        let dri3 = connection.dri3_open(screen.root, 0)?.reply()?;
-
-        let drm_device_fd = dri3.device_fd;
-        // Duplicate the drm_device_fd
-        let drm_device_fd: RawFd = fcntl::fcntl(
-            drm_device_fd.as_raw_fd(),
-            fcntl::FcntlArg::F_DUPFD_CLOEXEC(3), // Set to 3 so the fd cannot become stdin, stdout or stderr
-        )
-        .expect("TODO");
-
-        let fd_flags =
-            nix::fcntl::fcntl(drm_device_fd.as_raw_fd(), nix::fcntl::F_GETFD).expect("Handle this error");
-        // No need to check if ret == 1 since nix handles that.
-
-        // Enable the close-on-exec flag.
-        nix::fcntl::fcntl(
-            drm_device_fd.as_raw_fd(),
-            nix::fcntl::F_SETFD(
-                nix::fcntl::FdFlag::from_bits_truncate(fd_flags) | nix::fcntl::FdFlag::FD_CLOEXEC,
-            ),
-        )
-        .expect("Handle this result");
-
-        if get_drm_node_type(drm_device_fd.as_raw_fd()).expect("TODO") != DRM_NODE_RENDER {
-            todo!("Attempt to get the render device by name for the DRM node that isn't a render node")
-        }
-
-        // Finally create a GBMDevice to manage the buffers.
-        Ok(::gbm::Device::new(drm_device_fd.as_raw_fd()).expect("Failed to create gbm device"))
     }
 }

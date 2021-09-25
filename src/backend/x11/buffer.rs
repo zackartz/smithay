@@ -115,12 +115,12 @@ where
 
         connection.dri3_pixmap_from_buffer(
             xid,
-            window.inner.id,
+            window.id(),
             dmabuf.height() * stride,
             dmabuf.width() as u16,
             dmabuf.height() as u16,
             stride as u16,
-            window.inner.depth.depth,
+            window.depth(),
             32, // TODO: Stop hardcoding this
             fds.remove(0),
         )?;
@@ -133,19 +133,19 @@ pub fn present<C: Connection>(
     connection: &C,
     pixmap: &PixmapWrapper<'_, C>,
     window: &Window,
+    width: u16,
+    height: u16,
 ) -> Result<(), X11Error> {
-    let size = window.size();
-
     connection.copy_area(
         pixmap.pixmap(),
-        window.inner.id,
-        window.inner.gc,
+        window.id(),
+        window.gc(),
         0,
         0,
         0,
         0,
-        size.w,
-        size.h,
+        width,
+        height,
     )?;
 
     Ok(())
