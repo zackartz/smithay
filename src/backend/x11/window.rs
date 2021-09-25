@@ -62,7 +62,7 @@ impl PartialEq for Window {
     fn eq(&self, other: &Self) -> bool {
         match (self.0.upgrade(), other.0.upgrade()) {
             (Some(self_), Some(other)) => self_ == other,
-            _ => false
+            _ => false,
         }
     }
 }

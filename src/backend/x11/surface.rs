@@ -1,4 +1,8 @@
-use std::{mem, os::unix::prelude::{AsRawFd, RawFd}, sync::{Arc, Weak, mpsc::Receiver}};
+use std::{
+    mem,
+    os::unix::prelude::{AsRawFd, RawFd},
+    sync::{mpsc::Receiver, Arc, Weak},
+};
 
 use drm_fourcc::DrmFourcc;
 use gbm::{BufferObjectFlags, Device};
@@ -40,7 +44,10 @@ pub struct X11Surface {
 }
 
 impl X11Surface {
-    pub(crate) fn new(backend: &X11Backend, resize: Receiver<Size<u16, Logical>>) -> Result<X11Surface, X11Error> {
+    pub(crate) fn new(
+        backend: &X11Backend,
+        resize: Receiver<Size<u16, Logical>>,
+    ) -> Result<X11Surface, X11Error> {
         let connection = &backend.connection;
         let window = backend.window();
 
@@ -145,7 +152,7 @@ impl X11Surface {
     // TODO: Error type
     pub fn present(&mut self) -> Result<Present<'_>, ()> {
         if let Some(new_size) = self.resize.try_iter().last() {
-            self.resize(new_size);
+            self.resize(new_size)?;
         }
 
         Ok(Present { surface: self })
@@ -214,9 +221,7 @@ impl Drop for Present<'_> {
             // Swap the buffers
             mem::swap(&mut surface.next, &mut surface.current);
 
-            if let Ok(pixmap) =
-                PixmapWrapper::with_dmabuf(&*connection, &surface.window, &surface.current)
-            {
+            if let Ok(pixmap) = PixmapWrapper::with_dmabuf(&*connection, &surface.window, &surface.current) {
                 // Now present the current buffer
                 let _ = present(
                     &*connection,

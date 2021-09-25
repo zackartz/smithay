@@ -47,7 +47,8 @@ pub fn run_x11(log: Logger) {
         ..WindowProperties::default()
     };
 
-    let (backend, surface) = X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
+    let (backend, surface) =
+        X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
 
     // Initialize EGL using the GBM device setup earlier.
     let egl = EGLDisplay::new(&surface.device(), log.clone()).expect("TODO");

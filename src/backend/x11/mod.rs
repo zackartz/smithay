@@ -22,8 +22,8 @@ DRI3 protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto
 mod buffer;
 mod drm;
 mod event_source;
-pub mod surface;
 pub mod input;
+pub mod surface;
 pub mod window;
 
 use self::surface::X11Surface;
@@ -36,8 +36,8 @@ use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use slog::{error, info, o, Logger};
 use std::io;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, mpsc};
 use std::sync::mpsc::Sender;
+use std::sync::{mpsc, Arc};
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt as _, Depth, VisualClass};
