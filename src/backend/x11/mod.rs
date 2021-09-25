@@ -1,7 +1,13 @@
 //! Implementation of the backend types using X11.
 //!
-//! This backend provides the appropriate backend implementations to run a Wayland compositor
-//! directly as an X11 client.
+//! This backend provides the appropriate backend implementations to run a Wayland compositor as an
+//! X11 client.
+//!
+//! The backend is initialized using [X11Backend::new](self::X11Backend::new). The function will
+//! return two objects:
+//!
+//! - an [`X11Backend`], which you will insert into an [EventLoop](calloop::EventLoop) to process input events.
+//! - an [`X11Surface`], which represents a surface that buffers are presented to for display.
 //!
 
 /*
@@ -21,7 +27,6 @@ DRI3 protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto
 
 mod buffer;
 mod drm;
-mod event_source;
 mod input;
 mod window_inner;
 
@@ -31,7 +36,7 @@ use super::allocator::dmabuf::{AsDmabuf, Dmabuf};
 use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
 use crate::backend::x11::drm::{get_drm_node_type, DRM_NODE_RENDER};
-use crate::backend::x11::event_source::X11Source;
+use crate::utils::x11rb::X11Source;
 use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use drm_fourcc::DrmFourcc;
@@ -99,7 +104,7 @@ impl From<ReplyOrIdError> for X11Error {
     }
 }
 
-/// Properties defining information about the window created by the X11 backend.
+/// Properties defining initial information about the window created by the X11 backend.
 #[derive(Debug, Clone, Copy)]
 #[allow(missing_docs)] // Self explanatory fields
 pub struct WindowProperties<'a> {
@@ -128,16 +133,15 @@ pub enum X11Event {
     /// The window was resized.
     Resized(Size<u16, Logical>),
 
-    /// The window was requested to be closed.
+    /// The window has received a request to be closed.
     CloseRequested,
 }
 
-/// An abstraction representing a connection to the X11 server.
+/// Represents an active connection to the X to manage events on the Window provided by the backend.
 #[derive(Debug)]
 pub struct X11Backend {
     log: Logger,
-    // TODO: Narrow access once the presentation is part of the window.
-    pub(crate) connection: Arc<RustConnection>,
+    connection: Arc<RustConnection>,
     source: X11Source,
     screen_number: usize,
     window: Arc<WindowInner>,
@@ -378,8 +382,7 @@ impl X11Surface {
         Ok(Present { surface: self })
     }
 
-    /// Resizes the surface, and recreates the internal buffers to match the new size.
-    // TODO: Error type, cannot resize while presenting.
+    // TODO: Error type.
     fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), ()> {
         self.width = size.w;
         self.height = size.h;
@@ -519,6 +522,7 @@ impl PartialEq for Window {
 impl EventSource for X11Backend {
     type Event = X11Event;
 
+    /// The window the incoming events are applicable to.
     type Metadata = Window;
 
     type Ret = ();
@@ -541,258 +545,254 @@ impl EventSource for X11Backend {
         let mut event_window = window.clone().into();
         let resize = &self.resize;
 
-        self.source
-            .process_events(readiness, token, |event, _| {
-                match event {
-                    x11::Event::ButtonPress(button_press) => {
-                        if button_press.event == window.id {
-                            // X11 decided to associate scroll wheel with a button, 4, 5, 6 and 7 for
-                            // up, down, right and left. For scrolling, a press event is emitted and a
-                            // release is them immediately followed for scrolling. This means we can
-                            // ignore release for scrolling.
+        self.source.process_events(readiness, token, |event, _| {
+            match event {
+                x11::Event::ButtonPress(button_press) => {
+                    if button_press.event == window.id {
+                        // X11 decided to associate scroll wheel with a button, 4, 5, 6 and 7 for
+                        // up, down, right and left. For scrolling, a press event is emitted and a
+                        // release is them immediately followed for scrolling. This means we can
+                        // ignore release for scrolling.
 
-                            // Ideally we would use `ButtonIndex` from XCB, however it does not cover 6 and 7
-                            // for horizontal scroll and does not work nicely in match statements, so we
-                            // use magic constants here:
-                            //
-                            // 1 => MouseButton::Left
-                            // 2 => MouseButton::Middle
-                            // 3 => MouseButton::Right
-                            // 4 => Axis::Vertical +1.0
-                            // 5 => Axis::Vertical -1.0
-                            // 6 => Axis::Horizontal -1.0
-                            // 7 => Axis::Horizontal +1.0
-                            // Others => ??
-                            match button_press.detail {
-                                1..=3 => {
-                                    // Clicking a button.
-                                    callback(
-                                        Input(InputEvent::PointerButton {
-                                            event: X11MouseInputEvent {
-                                                time: button_press.time,
-                                                button: match button_press.detail {
-                                                    1 => MouseButton::Left,
-
-                                                    // Confusion: XCB docs for ButtonIndex and what plasma does don't match?
-                                                    2 => MouseButton::Middle,
-
-                                                    3 => MouseButton::Right,
-
-                                                    _ => unreachable!(),
-                                                },
-                                                state: ButtonState::Pressed,
-                                            },
-                                        }),
-                                        &mut event_window,
-                                    )
-                                }
-
-                                4..=7 => {
-                                    // Scrolling
-                                    callback(
-                                        Input(InputEvent::PointerAxis {
-                                            event: X11MouseWheelEvent {
-                                                time: button_press.time,
-                                                axis: match button_press.detail {
-                                                    // Up | Down
-                                                    4 | 5 => Axis::Vertical,
-
-                                                    // Right | Left
-                                                    6 | 7 => Axis::Horizontal,
-
-                                                    _ => unreachable!(),
-                                                },
-                                                amount: match button_press.detail {
-                                                    // Up | Right
-                                                    4 | 7 => 1.0,
-
-                                                    // Down | Left
-                                                    5 | 6 => -1.0,
-
-                                                    _ => unreachable!(),
-                                                },
-                                            },
-                                        }),
-                                        &mut event_window,
-                                    )
-                                }
-
-                                // Unknown mouse button
-                                _ => callback(
+                        // Ideally we would use `ButtonIndex` from XCB, however it does not cover 6 and 7
+                        // for horizontal scroll and does not work nicely in match statements, so we
+                        // use magic constants here:
+                        //
+                        // 1 => MouseButton::Left
+                        // 2 => MouseButton::Middle
+                        // 3 => MouseButton::Right
+                        // 4 => Axis::Vertical +1.0
+                        // 5 => Axis::Vertical -1.0
+                        // 6 => Axis::Horizontal -1.0
+                        // 7 => Axis::Horizontal +1.0
+                        // Others => ??
+                        match button_press.detail {
+                            1..=3 => {
+                                // Clicking a button.
+                                callback(
                                     Input(InputEvent::PointerButton {
                                         event: X11MouseInputEvent {
                                             time: button_press.time,
-                                            button: MouseButton::Other(button_press.detail),
+                                            button: match button_press.detail {
+                                                1 => MouseButton::Left,
+
+                                                // Confusion: XCB docs for ButtonIndex and what plasma does don't match?
+                                                2 => MouseButton::Middle,
+
+                                                3 => MouseButton::Right,
+
+                                                _ => unreachable!(),
+                                            },
                                             state: ButtonState::Pressed,
                                         },
                                     }),
                                     &mut event_window,
-                                ),
+                                )
                             }
+
+                            4..=7 => {
+                                // Scrolling
+                                callback(
+                                    Input(InputEvent::PointerAxis {
+                                        event: X11MouseWheelEvent {
+                                            time: button_press.time,
+                                            axis: match button_press.detail {
+                                                // Up | Down
+                                                4 | 5 => Axis::Vertical,
+
+                                                // Right | Left
+                                                6 | 7 => Axis::Horizontal,
+
+                                                _ => unreachable!(),
+                                            },
+                                            amount: match button_press.detail {
+                                                // Up | Right
+                                                4 | 7 => 1.0,
+
+                                                // Down | Left
+                                                5 | 6 => -1.0,
+
+                                                _ => unreachable!(),
+                                            },
+                                        },
+                                    }),
+                                    &mut event_window,
+                                )
+                            }
+
+                            // Unknown mouse button
+                            _ => callback(
+                                Input(InputEvent::PointerButton {
+                                    event: X11MouseInputEvent {
+                                        time: button_press.time,
+                                        button: MouseButton::Other(button_press.detail),
+                                        state: ButtonState::Pressed,
+                                    },
+                                }),
+                                &mut event_window,
+                            ),
                         }
                     }
+                }
 
-                    x11::Event::ButtonRelease(button_release) => {
-                        if button_release.event == window.id {
-                            match button_release.detail {
-                                1..=3 => {
-                                    // Releasing a button.
-                                    callback(
-                                        Input(InputEvent::PointerButton {
-                                            event: X11MouseInputEvent {
-                                                time: button_release.time,
-                                                button: match button_release.detail {
-                                                    1 => MouseButton::Left,
-
-                                                    2 => MouseButton::Middle,
-
-                                                    3 => MouseButton::Right,
-
-                                                    _ => unreachable!(),
-                                                },
-                                                state: ButtonState::Released,
-                                            },
-                                        }),
-                                        &mut event_window,
-                                    )
-                                }
-
-                                // We may ignore the release tick for scrolling, as the X server will
-                                // always emit this immediately after press.
-                                4..=7 => (),
-
-                                _ => callback(
+                x11::Event::ButtonRelease(button_release) => {
+                    if button_release.event == window.id {
+                        match button_release.detail {
+                            1..=3 => {
+                                // Releasing a button.
+                                callback(
                                     Input(InputEvent::PointerButton {
                                         event: X11MouseInputEvent {
                                             time: button_release.time,
-                                            button: MouseButton::Other(button_release.detail),
+                                            button: match button_release.detail {
+                                                1 => MouseButton::Left,
+
+                                                2 => MouseButton::Middle,
+
+                                                3 => MouseButton::Right,
+
+                                                _ => unreachable!(),
+                                            },
                                             state: ButtonState::Released,
                                         },
                                     }),
                                     &mut event_window,
-                                ),
+                                )
                             }
-                        }
-                    }
 
-                    x11::Event::KeyPress(key_press) => {
-                        if key_press.event == window.id {
-                            callback(
-                                Input(InputEvent::Keyboard {
-                                    event: X11KeyboardInputEvent {
-                                        time: key_press.time,
-                                        // X11's keycodes are +8 relative to the libinput keycodes
-                                        // that are expected, so subtract 8 from each keycode to
-                                        // match libinput.
-                                        //
-                                        // https://github.com/freedesktop/xorg-xf86-input-libinput/blob/master/src/xf86libinput.c#L54
-                                        key: key_press.detail as u32 - 8,
-                                        count: key_counter.fetch_add(1, Ordering::SeqCst) + 1,
-                                        state: KeyState::Pressed,
+                            // We may ignore the release tick for scrolling, as the X server will
+                            // always emit this immediately after press.
+                            4..=7 => (),
+
+                            _ => callback(
+                                Input(InputEvent::PointerButton {
+                                    event: X11MouseInputEvent {
+                                        time: button_release.time,
+                                        button: MouseButton::Other(button_release.detail),
+                                        state: ButtonState::Released,
                                     },
                                 }),
                                 &mut event_window,
-                            )
+                            ),
                         }
                     }
-
-                    x11::Event::KeyRelease(key_release) => {
-                        if key_release.event == window.id {
-                            // atomic u32 has no checked_sub, so load and store to do the same.
-                            let mut key_counter_val = key_counter.load(Ordering::SeqCst);
-                            key_counter_val = key_counter_val.saturating_sub(1);
-                            key_counter.store(key_counter_val, Ordering::SeqCst);
-
-                            callback(
-                                Input(InputEvent::Keyboard {
-                                    event: X11KeyboardInputEvent {
-                                        time: key_release.time,
-                                        // X11's keycodes are +8 relative to the libinput keycodes
-                                        // that are expected, so subtract 8 from each keycode to
-                                        // match libinput.
-                                        //
-                                        // https://github.com/freedesktop/xorg-xf86-input-libinput/blob/master/src/xf86libinput.c#L54
-                                        key: key_release.detail as u32 - 8,
-                                        count: key_counter_val,
-                                        state: KeyState::Released,
-                                    },
-                                }),
-                                &mut event_window,
-                            );
-                        }
-                    }
-
-                    x11::Event::MotionNotify(motion_notify) => {
-                        if motion_notify.event == window.id {
-                            // Use event_x/y since those are relative the the window receiving events.
-                            let x = motion_notify.event_x as f64;
-                            let y = motion_notify.event_y as f64;
-
-                            callback(
-                                Input(InputEvent::PointerMotionAbsolute {
-                                    event: X11MouseMovedEvent {
-                                        time: motion_notify.time,
-                                        x,
-                                        y,
-                                        size: window.size(),
-                                    },
-                                }),
-                                &mut event_window,
-                            )
-                        }
-                    }
-
-                    x11::Event::ConfigureNotify(configure_notify) => {
-                        if configure_notify.window == window.id {
-                            let previous_size = { *window.size.lock().unwrap() };
-
-                            // Did the size of the window change?
-                            let configure_notify_size: Size<u16, Logical> =
-                                (configure_notify.width, configure_notify.height).into();
-
-                            if configure_notify_size != previous_size {
-                                // Intentionally drop the lock on the size mutex incase a user
-                                // requests a resize or does something which causes a resize
-                                // inside the callback.
-                                {
-                                    *window.size.lock().unwrap() = configure_notify_size;
-                                }
-
-                                (callback)(X11Event::Resized(configure_notify_size), &mut event_window);
-                                let _ = resize.send(configure_notify_size);
-                            }
-                        }
-                    }
-
-                    x11::Event::ClientMessage(client_message) => {
-                        if client_message.data.as_data32()[0] == window.atoms.WM_DELETE_WINDOW // Destroy the window?
-                            && client_message.window == window.id
-                        // Same window
-                        {
-                            (callback)(X11Event::CloseRequested, &mut event_window);
-                        }
-                    }
-
-                    x11::Event::Expose(expose) => {
-                        // TODO: Use details of expose event to tell the the compositor what has been damaged?
-                        if expose.window == window.id && expose.count == 0 {
-                            (callback)(X11Event::Refresh, &mut event_window);
-                        }
-                    }
-
-                    x11::Event::Error(e) => {
-                        error!(log, "X11 error: {:?}", e);
-                    }
-
-                    _ => (),
                 }
 
-                // Flush the connection so changes to the window state during callbacks can be emitted.
-                let _ = connection.flush();
-            })
-            .expect("TODO");
+                x11::Event::KeyPress(key_press) => {
+                    if key_press.event == window.id {
+                        callback(
+                            Input(InputEvent::Keyboard {
+                                event: X11KeyboardInputEvent {
+                                    time: key_press.time,
+                                    // X11's keycodes are +8 relative to the libinput keycodes
+                                    // that are expected, so subtract 8 from each keycode to
+                                    // match libinput.
+                                    //
+                                    // https://github.com/freedesktop/xorg-xf86-input-libinput/blob/master/src/xf86libinput.c#L54
+                                    key: key_press.detail as u32 - 8,
+                                    count: key_counter.fetch_add(1, Ordering::SeqCst) + 1,
+                                    state: KeyState::Pressed,
+                                },
+                            }),
+                            &mut event_window,
+                        )
+                    }
+                }
 
-        Ok(PostAction::Continue)
+                x11::Event::KeyRelease(key_release) => {
+                    if key_release.event == window.id {
+                        // atomic u32 has no checked_sub, so load and store to do the same.
+                        let mut key_counter_val = key_counter.load(Ordering::SeqCst);
+                        key_counter_val = key_counter_val.saturating_sub(1);
+                        key_counter.store(key_counter_val, Ordering::SeqCst);
+
+                        callback(
+                            Input(InputEvent::Keyboard {
+                                event: X11KeyboardInputEvent {
+                                    time: key_release.time,
+                                    // X11's keycodes are +8 relative to the libinput keycodes
+                                    // that are expected, so subtract 8 from each keycode to
+                                    // match libinput.
+                                    //
+                                    // https://github.com/freedesktop/xorg-xf86-input-libinput/blob/master/src/xf86libinput.c#L54
+                                    key: key_release.detail as u32 - 8,
+                                    count: key_counter_val,
+                                    state: KeyState::Released,
+                                },
+                            }),
+                            &mut event_window,
+                        );
+                    }
+                }
+
+                x11::Event::MotionNotify(motion_notify) => {
+                    if motion_notify.event == window.id {
+                        // Use event_x/y since those are relative the the window receiving events.
+                        let x = motion_notify.event_x as f64;
+                        let y = motion_notify.event_y as f64;
+
+                        callback(
+                            Input(InputEvent::PointerMotionAbsolute {
+                                event: X11MouseMovedEvent {
+                                    time: motion_notify.time,
+                                    x,
+                                    y,
+                                    size: window.size(),
+                                },
+                            }),
+                            &mut event_window,
+                        )
+                    }
+                }
+
+                x11::Event::ConfigureNotify(configure_notify) => {
+                    if configure_notify.window == window.id {
+                        let previous_size = { *window.size.lock().unwrap() };
+
+                        // Did the size of the window change?
+                        let configure_notify_size: Size<u16, Logical> =
+                            (configure_notify.width, configure_notify.height).into();
+
+                        if configure_notify_size != previous_size {
+                            // Intentionally drop the lock on the size mutex incase a user
+                            // requests a resize or does something which causes a resize
+                            // inside the callback.
+                            {
+                                *window.size.lock().unwrap() = configure_notify_size;
+                            }
+
+                            (callback)(X11Event::Resized(configure_notify_size), &mut event_window);
+                            let _ = resize.send(configure_notify_size);
+                        }
+                    }
+                }
+
+                x11::Event::ClientMessage(client_message) => {
+                    if client_message.data.as_data32()[0] == window.atoms.WM_DELETE_WINDOW // Destroy the window?
+                            && client_message.window == window.id
+                    // Same window
+                    {
+                        (callback)(X11Event::CloseRequested, &mut event_window);
+                    }
+                }
+
+                x11::Event::Expose(expose) => {
+                    // TODO: Use details of expose event to tell the the compositor what has been damaged?
+                    if expose.window == window.id && expose.count == 0 {
+                        (callback)(X11Event::Refresh, &mut event_window);
+                    }
+                }
+
+                x11::Event::Error(e) => {
+                    error!(log, "X11 error: {:?}", e);
+                }
+
+                _ => (),
+            }
+
+            // Flush the connection so changes to the window state during callbacks can be emitted.
+            let _ = connection.flush();
+        })
     }
 
     fn register(&mut self, poll: &mut Poll, token_factory: &mut TokenFactory) -> io::Result<()> {

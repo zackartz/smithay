@@ -2,11 +2,7 @@ use std::{
     cell::RefCell, collections::HashMap, convert::TryFrom, os::unix::net::UnixStream, rc::Rc, sync::Arc,
 };
 
-use smithay::{
-    reexports::wayland_server::{protocol::wl_surface::WlSurface, Client},
-    utils::{Logical, Point},
-    wayland::compositor::give_role,
-};
+use smithay::{reexports::wayland_server::{protocol::wl_surface::WlSurface, Client}, utils::{Logical, Point, x11rb::X11Source}, wayland::compositor::give_role};
 
 use x11rb::{
     connection::Connection as _,
@@ -26,10 +22,6 @@ use crate::{
     window_map::{Kind, WindowMap},
     AnvilState,
 };
-
-use x11rb_event_source::X11Source;
-
-mod x11rb_event_source;
 
 impl<BackendData: 'static> AnvilState<BackendData> {
     pub fn start_xwayland(&mut self) {
