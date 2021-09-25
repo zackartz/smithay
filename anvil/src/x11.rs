@@ -5,7 +5,7 @@ use smithay::{
     backend::{
         egl::{EGLContext, EGLDisplay},
         renderer::{gles2::Gles2Renderer, Bind, ImportEgl, Renderer, Transform, Unbind},
-        x11::{surface::X11Surface, WindowProperties, X11Backend, X11Event},
+        x11::{WindowProperties, X11Backend, X11Event, X11Surface},
         SwapBuffersError,
     },
     reexports::{

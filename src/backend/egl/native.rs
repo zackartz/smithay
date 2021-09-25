@@ -17,7 +17,7 @@ use winit::{platform::unix::WindowExtUnix, window::Window as WinitWindow};
 use gbm::{AsRaw, Device as GbmDevice};
 
 #[cfg(feature = "backend_x11")]
-use crate::backend::x11::surface::X11Surface;
+use crate::backend::x11::X11Surface;
 
 /// Create a `EGLPlatform<'a>` for the provided platform.
 ///
@@ -173,9 +173,17 @@ impl EGLNativeDisplay for X11Surface {
     fn supported_platforms(&self) -> Vec<EGLPlatform<'_>> {
         vec![
             // see: https://www.khronos.org/registry/EGL/extensions/KHR/EGL_KHR_platform_gbm.txt
-            egl_platform!(PLATFORM_GBM_KHR, self.device().as_raw(), &["EGL_KHR_platform_gbm"]),
+            egl_platform!(
+                PLATFORM_GBM_KHR,
+                self.device().as_raw(),
+                &["EGL_KHR_platform_gbm"]
+            ),
             // see: https://www.khronos.org/registry/EGL/extensions/MESA/EGL_MESA_platform_gbm.txt
-            egl_platform!(PLATFORM_GBM_MESA, self.device().as_raw(), &["EGL_MESA_platform_gbm"]),
+            egl_platform!(
+                PLATFORM_GBM_MESA,
+                self.device().as_raw(),
+                &["EGL_MESA_platform_gbm"]
+            ),
             // todo: https://www.khronos.org/registry/EGL/extensions/EXT/EGL_EXT_platform_device.txt
         ]
     }
