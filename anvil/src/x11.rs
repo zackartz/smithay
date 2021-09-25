@@ -51,7 +51,7 @@ pub fn run_x11(log: Logger) {
         X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
 
     // Initialize EGL using the GBM device setup earlier.
-    let egl = EGLDisplay::new(&surface.device(), log.clone()).expect("TODO");
+    let egl = EGLDisplay::new(&surface, log.clone()).expect("TODO");
     let context = EGLContext::new(&egl, log.clone()).expect("TODO");
     let mut renderer =
         unsafe { Gles2Renderer::new(context, log.clone()) }.expect("Failed to initialize renderer");
