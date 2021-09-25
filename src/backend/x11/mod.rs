@@ -22,10 +22,11 @@ DRI3 protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto
 mod buffer;
 mod drm;
 mod event_source;
-pub mod gbm;
+pub mod surface;
 pub mod input;
 pub mod window;
 
+use self::surface::X11Surface;
 use self::window::{Window, WindowInner};
 use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
@@ -160,7 +161,7 @@ atom_manager! {
 
 impl X11Backend {
     /// Initializes the X11 backend, connecting to the X server and creating the window the compositor may output to.
-    pub fn new<L>(properties: WindowProperties<'_>, logger: L) -> Result<X11Backend, X11Error>
+    pub fn new<L>(properties: WindowProperties<'_>, logger: L) -> Result<(X11Backend, X11Surface), X11Error>
     where
         L: Into<Option<slog::Logger>>,
     {
@@ -211,14 +212,14 @@ impl X11Backend {
 
         let source = X11Source::new(
             connection.clone(),
-            window.inner,
+            window.id,
             atoms._SMITHAY_X11_BACKEND_CLOSE,
             logger.clone(),
         );
 
         info!(logger, "Window created");
 
-        Ok(X11Backend {
+        let backend = X11Backend {
             log: logger,
             source,
             connection,
@@ -227,7 +228,11 @@ impl X11Backend {
             depth,
             visual_id,
             screen_number,
-        })
+        };
+
+        let surface = X11Surface::new(&backend)?;
+
+        Ok((backend, surface))
     }
 
     /// Returns the default screen number of the X server.
@@ -274,7 +279,7 @@ impl EventSource for X11Backend {
             .process_events(readiness, token, |event, _| {
                 match event {
                     x11::Event::ButtonPress(button_press) => {
-                        if button_press.event == window.inner {
+                        if button_press.event == window.id {
                             // X11 decided to associate scroll wheel with a button, 4, 5, 6 and 7 for
                             // up, down, right and left. For scrolling, a press event is emitted and a
                             // release is them immediately followed for scrolling. This means we can
@@ -362,7 +367,7 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::ButtonRelease(button_release) => {
-                        if button_release.event == window.inner {
+                        if button_release.event == window.id {
                             match button_release.detail {
                                 1..=3 => {
                                     // Releasing a button.
@@ -405,7 +410,7 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::KeyPress(key_press) => {
-                        if key_press.event == window.inner {
+                        if key_press.event == window.id {
                             callback(
                                 Input(InputEvent::Keyboard {
                                     event: X11KeyboardInputEvent {
@@ -426,7 +431,7 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::KeyRelease(key_release) => {
-                        if key_release.event == window.inner {
+                        if key_release.event == window.id {
                             // atomic u32 has no checked_sub, so load and store to do the same.
                             let mut key_counter_val = key_counter.load(Ordering::SeqCst);
                             key_counter_val = key_counter_val.saturating_sub(1);
@@ -452,7 +457,7 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::MotionNotify(motion_notify) => {
-                        if motion_notify.event == window.inner {
+                        if motion_notify.event == window.id {
                             // Use event_x/y since those are relative the the window receiving events.
                             let x = motion_notify.event_x as f64;
                             let y = motion_notify.event_y as f64;
@@ -472,7 +477,7 @@ impl EventSource for X11Backend {
                     }
 
                     x11::Event::ConfigureNotify(configure_notify) => {
-                        if configure_notify.window == window.inner {
+                        if configure_notify.window == window.id {
                             let previous_size = { *window.size.lock().unwrap() };
 
                             // Did the size of the window change?
@@ -494,7 +499,7 @@ impl EventSource for X11Backend {
 
                     x11::Event::ClientMessage(client_message) => {
                         if client_message.data.as_data32()[0] == window.atoms.WM_DELETE_WINDOW // Destroy the window?
-                            && client_message.window == window.inner
+                            && client_message.window == window.id
                         // Same window
                         {
                             (callback)(X11Event::CloseRequested, &mut event_window);
@@ -503,7 +508,7 @@ impl EventSource for X11Backend {
 
                     x11::Event::Expose(expose) => {
                         // TODO: Use details of expose event to tell the the compositor what has been damaged?
-                        if expose.window == window.inner && expose.count == 0 {
+                        if expose.window == window.id && expose.count == 0 {
                             (callback)(X11Event::Refresh, &mut event_window);
                         }
                     }

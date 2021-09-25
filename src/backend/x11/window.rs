@@ -44,7 +44,7 @@ impl Window {
 
     /// Returns the XID of the window.
     pub fn id(&self) -> u32 {
-        self.0.upgrade().map(|inner| inner.inner).unwrap_or(0)
+        self.0.upgrade().map(|inner| inner.id).unwrap_or(0)
     }
 
     /// Returns the depth id of this window.
@@ -58,6 +58,15 @@ impl Window {
     }
 }
 
+impl PartialEq for Window {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.0.upgrade(), other.0.upgrade()) {
+            (Some(self_), Some(other)) => self_ == other,
+            _ => false
+        }
+    }
+}
+
 impl From<Arc<WindowInner>> for Window {
     fn from(inner: Arc<WindowInner>) -> Self {
         Window(Arc::downgrade(&inner))
@@ -68,7 +77,7 @@ impl From<Arc<WindowInner>> for Window {
 pub(crate) struct WindowInner {
     // TODO: Consider future x11rb WindowWrapper
     pub connection: Weak<RustConnection>,
-    pub inner: x11::Window,
+    pub id: x11::Window,
     root: x11::Window,
     pub atoms: Atoms,
     pub size: Mutex<Size<u16, Logical>>,
@@ -121,7 +130,7 @@ impl WindowInner {
             .border_pixel(0)
             .colormap(colormap);
 
-        let cookie = connection.create_window(
+        let _ = connection.create_window(
             depth.depth,
             window,
             screen.root,
@@ -138,7 +147,7 @@ impl WindowInner {
         // Send requests to change window properties while we wait for the window creation request to complete.
         let mut window = WindowInner {
             connection: weak,
-            inner: window,
+            id: window,
             root: screen.root,
             atoms,
             size: Mutex::new((properties.width, properties.height).into()),
@@ -147,13 +156,13 @@ impl WindowInner {
         };
 
         let gc = connection.generate_id()?;
-        connection.create_gc(gc, window.inner, &CreateGCAux::new())?;
+        connection.create_gc(gc, window.id, &CreateGCAux::new())?;
         window.gc = gc;
 
         // Enable WM_DELETE_WINDOW so our client is not disconnected upon our toplevel window being destroyed.
         connection.change_property32(
             PropMode::REPLACE,
-            window.inner,
+            window.id,
             atoms.WM_PROTOCOLS,
             AtomEnum::ATOM,
             &[atoms.WM_DELETE_WINDOW],
@@ -162,7 +171,7 @@ impl WindowInner {
         // WM class cannot be safely changed later.
         let _ = connection.change_property8(
             PropMode::REPLACE,
-            window.inner,
+            window.id,
             atoms.WM_CLASS,
             AtomEnum::STRING,
             b"Smithay\0Wayland_Compositor\0",
@@ -179,7 +188,7 @@ impl WindowInner {
 
     pub fn map(&self) {
         self.connection.upgrade().map(|connection| {
-            let _ = connection.map_window(self.inner);
+            let _ = connection.map_window(self.id);
         });
     }
 
@@ -189,18 +198,18 @@ impl WindowInner {
             //
             // Normal -> Withdrawn - The client should unmap the window and follow it with a synthetic
             // UnmapNotify event as described later in this section.
-            connection.unmap_window(self.inner);
+            let _ = connection.unmap_window(self.id);
 
             // Send a synthetic UnmapNotify event to make the ICCCM happy
             let _ = connection.send_event(
                 false,
-                self.inner,
+                self.id,
                 EventMask::STRUCTURE_NOTIFY | EventMask::SUBSTRUCTURE_NOTIFY,
                 UnmapNotifyEvent {
                     response_type: x11rb::protocol::xproto::UNMAP_NOTIFY_EVENT,
                     sequence: 0, // Ignored by X server
                     event: self.root,
-                    window: self.inner,
+                    window: self.id,
                     from_configure: false,
                 },
             );
@@ -216,7 +225,7 @@ impl WindowInner {
             // _NET_WM_NAME should be preferred by window managers, but set both properties.
             let _ = connection.change_property8(
                 PropMode::REPLACE,
-                self.inner,
+                self.id,
                 AtomEnum::WM_NAME,
                 AtomEnum::STRING,
                 title.as_bytes(),
@@ -224,7 +233,7 @@ impl WindowInner {
 
             let _ = connection.change_property8(
                 PropMode::REPLACE,
-                self.inner,
+                self.id,
                 self.atoms._NET_WM_NAME,
                 self.atoms.UTF8_STRING,
                 title.as_bytes(),
@@ -233,10 +242,16 @@ impl WindowInner {
     }
 }
 
+impl PartialEq for WindowInner {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
 impl Drop for WindowInner {
     fn drop(&mut self) {
-        let _ = self.connection.upgrade().map(|connection| {
-            let _ = connection.destroy_window(self.inner);
+        self.connection.upgrade().map(|connection| {
+            let _ = connection.destroy_window(self.id);
         });
     }
 }

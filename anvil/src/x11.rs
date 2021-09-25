@@ -5,7 +5,7 @@ use smithay::{
     backend::{
         egl::{EGLContext, EGLDisplay},
         renderer::{gles2::Gles2Renderer, Bind, ImportEgl, Renderer, Transform, Unbind},
-        x11::{gbm::GbmBufferingX11Surface, WindowProperties, X11Backend, X11Event},
+        x11::{surface::X11Surface, WindowProperties, X11Backend, X11Event},
         SwapBuffersError,
     },
     reexports::{
@@ -25,7 +25,7 @@ pub const OUTPUT_NAME: &str = "x11";
 #[derive(Debug)]
 pub struct X11Data {
     mode: Mode,
-    surface: GbmBufferingX11Surface,
+    surface: X11Surface,
     #[cfg(feature = "debug")]
     fps_texture: Gles2Texture,
     #[cfg(feature = "debug")]
@@ -48,8 +48,7 @@ pub fn run_x11(log: Logger) {
         title: "Anvil",
     };
 
-    let backend = X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
-    let surface = GbmBufferingX11Surface::new(&backend).expect("TODO");
+    let (backend, surface) = X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
 
     // Initialize EGL using the GBM device setup earlier.
     let egl = EGLDisplay::new(&surface.device(), log.clone()).expect("TODO");

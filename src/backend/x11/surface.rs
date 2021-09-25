@@ -1,7 +1,7 @@
 use std::{
     mem,
     os::unix::prelude::{AsRawFd, RawFd},
-    sync::Arc,
+    sync::{Arc, Weak},
 };
 
 use drm_fourcc::DrmFourcc;
@@ -32,8 +32,8 @@ use super::{
 
 /// An X11 surface which uses GBM to allocate and present buffers.
 #[derive(Debug)]
-pub struct GbmBufferingX11Surface {
-    connection: Arc<RustConnection>,
+pub struct X11Surface {
+    connection: Weak<RustConnection>,
     window: Window,
     device: Device<RawFd>,
     width: u16,
@@ -42,9 +42,8 @@ pub struct GbmBufferingX11Surface {
     next: Dmabuf,
 }
 
-impl GbmBufferingX11Surface {
-    /// Returns a new surface which allows allocating Dmabufs and presenting them to an X11 window.
-    pub fn new(backend: &X11Backend) -> Result<GbmBufferingX11Surface, X11Error> {
+impl X11Surface {
+    pub(crate) fn new(backend: &X11Backend) -> Result<X11Surface, X11Error> {
         let connection = &backend.connection;
         let window = backend.window();
 
@@ -126,8 +125,8 @@ impl GbmBufferingX11Surface {
             .export()
             .unwrap();
 
-        Ok(GbmBufferingX11Surface {
-            connection: connection.clone(),
+        Ok(X11Surface {
+            connection: Arc::downgrade(&connection),
             window,
             device,
             width: size.w,
@@ -193,7 +192,7 @@ impl GbmBufferingX11Surface {
 /// Upon dropping this object, the contents of the Dmabuf are immediately presented to the window.
 #[derive(Debug)]
 pub struct Present<'a> {
-    surface: &'a mut GbmBufferingX11Surface,
+    surface: &'a mut X11Surface,
 }
 
 impl Present<'_> {
@@ -209,20 +208,22 @@ impl Drop for Present<'_> {
     fn drop(&mut self) {
         let surface = &mut self.surface;
 
-        // Swap the buffers
-        mem::swap(&mut surface.next, &mut surface.current);
+        if let Some(connection) = surface.connection.upgrade() {
+            // Swap the buffers
+            mem::swap(&mut surface.next, &mut surface.current);
 
-        if let Ok(pixmap) =
-            PixmapWrapper::with_dmabuf(&*surface.connection, &surface.window, &surface.current)
-        {
-            // Now present the current buffer
-            let _ = present(
-                &*surface.connection,
-                &pixmap,
-                &surface.window,
-                surface.width,
-                surface.height,
-            );
+            if let Ok(pixmap) =
+                PixmapWrapper::with_dmabuf(&*connection, &surface.window, &surface.current)
+            {
+                // Now present the current buffer
+                let _ = present(
+                    &*connection,
+                    &pixmap,
+                    &surface.window,
+                    surface.width,
+                    surface.height,
+                );
+            }
         }
     }
 }
