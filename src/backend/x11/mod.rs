@@ -462,17 +462,23 @@ pub struct Window(Weak<WindowInner>);
 impl Window {
     /// Sets the title of the window.
     pub fn set_title(&self, title: &str) {
-        if let Some(inner) = self.0.upgrade() { inner.set_title(title); }
+        if let Some(inner) = self.0.upgrade() {
+            inner.set_title(title);
+        }
     }
 
     /// Maps the window, making it visible.
     pub fn map(&self) {
-        if let Some(inner) = self.0.upgrade() { inner.map(); }
+        if let Some(inner) = self.0.upgrade() {
+            inner.map();
+        }
     }
 
     /// Unmaps the window, making it invisible.
     pub fn unmap(&self) {
-        if let Some(inner) = self.0.upgrade() { inner.unmap(); }
+        if let Some(inner) = self.0.upgrade() {
+            inner.unmap();
+        }
     }
 
     /// Returns the size of this window.
