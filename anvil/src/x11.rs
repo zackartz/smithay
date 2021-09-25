@@ -51,8 +51,8 @@ pub fn run_x11(log: Logger) {
         X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
 
     // Initialize EGL using the GBM device setup earlier.
-    let egl = EGLDisplay::new(&surface, log.clone()).expect("TODO");
-    let context = EGLContext::new(&egl, log.clone()).expect("TODO");
+    let egl = EGLDisplay::new(&surface, log.clone()).expect("Failed to create EGLDisplay");
+    let context = EGLContext::new(&egl, log.clone()).expect("Failed to create EGLContext");
     let mut renderer =
         unsafe { Gles2Renderer::new(context, log.clone()) }.expect("Failed to initialize renderer");
 
@@ -169,7 +169,9 @@ pub fn run_x11(log: Logger) {
             #[cfg(feature = "debug")]
             let fps_texture = &backend_data.fps_texture;
 
-            renderer.bind(present.buffer()).expect("TODO");
+            if let Err(err) = renderer.bind(present.buffer()) {
+                error!(log, "Error while binding buffer: {}", err);
+            }
 
             // drawing logic
             match renderer
@@ -203,12 +205,16 @@ pub fn run_x11(log: Logger) {
             {
                 Ok(()) => {
                     // Unbind the buffer and now let the scope end to present.
-                    renderer.unbind().expect("Unbind");
+                    if let Err(err) = renderer.unbind() {
+                        error!(log, "Error while unbinding buffer: {}", err);
+                    }
                 }
 
                 Err(err) => {
-                    // TODO:
-                    panic!("Swap buffers");
+                    if let SwapBuffersError::ContextLost(err) = err {
+                        error!(log, "Critical Rendering Error: {}", err);
+                        state.running.store(false, Ordering::SeqCst);
+                    }
                 }
             }
         }

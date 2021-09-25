@@ -419,9 +419,28 @@ impl X11Surface {
     }
 }
 
-/// An RAII scope holding a Dmabuf to be bound to a renderer.
+/// An RAII scope containing the next buffer that will be presented to the window. Presentation
+/// occurs when the `Present` is dropped.
 ///
-/// Upon dropping this object, the contents of the Dmabuf are immediately presented to the window.
+/// The provided buffer may be bound to a [Renderer](crate::backend::renderer::Renderer) to draw to
+/// the window.
+///
+/// ```rust,no_run
+/// # use crate::backend::renderer::gles2::Gles2Renderer;
+/// # let mut renderer: Gles2Renderer = ...;
+/// # let mut surface: X11Surface = ...;
+/// let present = surface.present()?;
+///
+/// // Bind the buffer to the renderer in order to render.
+/// renderer.bind(present.buffer())?;
+///
+/// // Rendering here!
+///
+/// // Make sure to unbind the buffer when done.
+/// renderer.unbind()?;
+///
+/// // When the `present` is dropped, whatever was rendered will be shown in the window.
+/// ```
 #[derive(Debug)]
 pub struct Present<'a> {
     surface: &'a mut X11Surface,
