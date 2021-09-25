@@ -15,7 +15,7 @@ use nix::sys::stat::{fstat, major, minor, SFlag};
 use super::AllocateBuffersError;
 
 /// This function is a copy of `drmGetNodeTypeFromFd` from libdrm.
-pub fn get_drm_node_type(fd: RawFd) -> Result<u64, AllocateBuffersError> {
+pub fn get_drm_node_type_from_fd(fd: RawFd) -> Result<u64, AllocateBuffersError> {
     // Obtain major and minor numbers of the file descriptor
     let stat_buf = fstat(fd)?;
 
@@ -31,10 +31,10 @@ pub fn get_drm_node_type(fd: RawFd) -> Result<u64, AllocateBuffersError> {
         // Then check if we have a character device by seeing if the leftover is equal to S_IFCHR
         || (stat_flags & SFlag::S_IFMT) != SFlag::S_IFCHR
     {
-        todo!("Non drm-node")
+        return Err(AllocateBuffersError::UnsupportedDrmNode);
     }
 
-    Ok(drm_get_minor_type(major, minor).expect("TODO"))
+    Ok(drm_get_minor_type(major, minor)?)
 }
 
 // These are actually in use.

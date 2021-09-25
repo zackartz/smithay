@@ -42,7 +42,7 @@ use super::{
 use crate::{
     backend::{
         input::InputEvent,
-        x11::drm::{get_drm_node_type, DRM_NODE_RENDER},
+        x11::drm::{get_drm_node_type_from_fd, DRM_NODE_RENDER},
     },
     utils::{x11rb::X11Source, Logical, Size},
 };
@@ -292,7 +292,7 @@ impl X11Surface {
         )
         .map_err(AllocateBuffersError::from)?;
 
-        if get_drm_node_type(drm_device_fd.as_raw_fd())? != DRM_NODE_RENDER {
+        if get_drm_node_type_from_fd(drm_device_fd.as_raw_fd())? != DRM_NODE_RENDER {
             todo!("Attempt to get the render device by name for the DRM node that isn't a render node")
         }
 
