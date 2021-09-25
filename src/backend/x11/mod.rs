@@ -36,7 +36,8 @@ use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use slog::{error, info, o, Logger};
 use std::io;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
+use std::sync::mpsc::Sender;
 use x11rb::connection::Connection;
 use x11rb::errors::{ConnectError, ConnectionError, ReplyError};
 use x11rb::protocol::xproto::{ColormapAlloc, ConnectionExt as _, Depth, VisualClass};
@@ -45,10 +46,6 @@ use x11rb::x11_utils::X11Error as ImplError;
 use x11rb::{atom_manager, protocol as x11};
 
 pub use crate::backend::x11::input::*;
-
-/// An error that may occur when initializing the backend.
-#[derive(Debug, thiserror::Error)]
-pub enum InitializationError {}
 
 /// An error emitted by the X11 backend.
 #[derive(Debug, thiserror::Error)]
@@ -100,16 +97,14 @@ impl From<ReplyOrIdError> for X11Error {
 #[derive(Debug, Clone, Copy)]
 #[allow(missing_docs)] // Self explanatory fields
 pub struct WindowProperties<'a> {
-    pub width: u16,
-    pub height: u16,
+    pub size: Size<u16, Logical>,
     pub title: &'a str,
 }
 
 impl Default for WindowProperties<'_> {
     fn default() -> Self {
         WindowProperties {
-            width: 1280,
-            height: 800,
+            size: (1280, 800).into(),
             title: "Smithay",
         }
     }
@@ -143,6 +138,7 @@ pub struct X11Backend {
     source: X11Source,
     screen_number: usize,
     window: Arc<WindowInner>,
+    resize: Sender<Size<u16, Logical>>,
     key_counter: Arc<AtomicU32>,
     depth: Depth,
     visual_id: u32,
@@ -219,6 +215,8 @@ impl X11Backend {
 
         info!(logger, "Window created");
 
+        let (resize_send, resize_recv) = mpsc::channel();
+
         let backend = X11Backend {
             log: logger,
             source,
@@ -228,9 +226,10 @@ impl X11Backend {
             depth,
             visual_id,
             screen_number,
+            resize: resize_send,
         };
 
-        let surface = X11Surface::new(&backend)?;
+        let surface = X11Surface::new(&backend, resize_recv)?;
 
         Ok((backend, surface))
     }
@@ -274,6 +273,7 @@ impl EventSource for X11Backend {
         let key_counter = self.key_counter.clone();
         let log = self.log.clone();
         let mut event_window = window.clone().into();
+        let resize = &self.resize;
 
         self.source
             .process_events(readiness, token, |event, _| {
@@ -493,6 +493,7 @@ impl EventSource for X11Backend {
                                 }
 
                                 (callback)(X11Event::Resized(configure_notify_size), &mut event_window);
+                                let _ = resize.send(configure_notify_size);
                             }
                         }
                     }

@@ -43,9 +43,8 @@ pub fn run_x11(log: Logger) {
     let display = Rc::new(RefCell::new(Display::new()));
 
     let window_properties = WindowProperties {
-        width: 1280,
-        height: 800,
         title: "Anvil",
+        ..WindowProperties::default()
     };
 
     let (backend, surface) = X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
@@ -118,8 +117,6 @@ pub fn run_x11(log: Logger) {
             }
 
             X11Event::Resized(size) => {
-                state.backend_data.surface.resize(size).expect("TODO");
-
                 let size = { (size.w as i32, size.h as i32).into() };
 
                 state.backend_data.mode = Mode {

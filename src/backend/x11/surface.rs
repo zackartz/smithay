@@ -1,8 +1,4 @@
-use std::{
-    mem,
-    os::unix::prelude::{AsRawFd, RawFd},
-    sync::{Arc, Weak},
-};
+use std::{mem, os::unix::prelude::{AsRawFd, RawFd}, sync::{Arc, Weak, mpsc::Receiver}};
 
 use drm_fourcc::DrmFourcc;
 use gbm::{BufferObjectFlags, Device};
@@ -35,6 +31,7 @@ use super::{
 pub struct X11Surface {
     connection: Weak<RustConnection>,
     window: Window,
+    resize: Receiver<Size<u16, Logical>>,
     device: Device<RawFd>,
     width: u16,
     height: u16,
@@ -43,7 +40,7 @@ pub struct X11Surface {
 }
 
 impl X11Surface {
-    pub(crate) fn new(backend: &X11Backend) -> Result<X11Surface, X11Error> {
+    pub(crate) fn new(backend: &X11Backend, resize: Receiver<Size<u16, Logical>>) -> Result<X11Surface, X11Error> {
         let connection = &backend.connection;
         let window = backend.window();
 
@@ -133,6 +130,7 @@ impl X11Surface {
             height: size.h,
             current,
             next,
+            resize,
         })
     }
 
@@ -146,12 +144,16 @@ impl X11Surface {
     /// When the object is dropped, the contents of the buffer are swapped and then presented.
     // TODO: Error type
     pub fn present(&mut self) -> Result<Present<'_>, ()> {
+        if let Some(new_size) = self.resize.try_iter().last() {
+            self.resize(new_size);
+        }
+
         Ok(Present { surface: self })
     }
 
     /// Resizes the surface, and recreates the internal buffers to match the new size.
     // TODO: Error type, cannot resize while presenting.
-    pub fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), ()> {
+    fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), ()> {
         self.width = size.w;
         self.height = size.h;
 
