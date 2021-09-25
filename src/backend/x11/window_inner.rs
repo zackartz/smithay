@@ -2,7 +2,7 @@
 
 use crate::utils::{Logical, Size};
 
-use super::{Atoms, WindowProperties, X11Error};
+use super::{Atoms, Window, WindowProperties, X11Error};
 use std::sync::{Arc, Mutex, Weak};
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
@@ -11,61 +11,6 @@ use x11rb::protocol::xproto::{
 use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
 use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt;
-
-/// An X11 window.
-#[derive(Debug)]
-pub struct Window(Weak<WindowInner>);
-
-impl Window {
-    /// Sets the title of the window.
-    pub fn set_title(&self, title: &str) {
-        self.0.upgrade().map(|inner| inner.set_title(title));
-    }
-
-    /// Maps the window, making it visible.
-    pub fn map(&self) {
-        self.0.upgrade().map(|inner| inner.map());
-    }
-
-    /// Unmaps the window, making it invisible.
-    pub fn unmap(&self) {
-        self.0.upgrade().map(|inner| inner.unmap());
-    }
-
-    /// Returns the size of this window.
-    ///
-    /// If the window has been destroyed, the size is `0 x 0`.
-    pub fn size(&self) -> Size<u16, Logical> {
-        self.0
-            .upgrade()
-            .map(|inner| inner.size())
-            .unwrap_or((0, 0).into())
-    }
-
-    /// Returns the XID of the window.
-    pub fn id(&self) -> u32 {
-        self.0.upgrade().map(|inner| inner.id).unwrap_or(0)
-    }
-
-    /// Returns the depth id of this window.
-    pub fn depth(&self) -> u8 {
-        self.0.upgrade().map(|inner| inner.depth.depth).unwrap_or(0)
-    }
-
-    /// Returns the graphics context used to draw to this window.
-    pub fn gc(&self) -> u32 {
-        self.0.upgrade().map(|inner| inner.gc).unwrap_or(0)
-    }
-}
-
-impl PartialEq for Window {
-    fn eq(&self, other: &Self) -> bool {
-        match (self.0.upgrade(), other.0.upgrade()) {
-            (Some(self_), Some(other)) => self_ == other,
-            _ => false,
-        }
-    }
-}
 
 impl From<Arc<WindowInner>> for Window {
     fn from(inner: Arc<WindowInner>) -> Self {
@@ -187,9 +132,9 @@ impl WindowInner {
     }
 
     pub fn map(&self) {
-        self.connection.upgrade().map(|connection| {
+        if let Some(connection) = self.connection.upgrade() {
             let _ = connection.map_window(self.id);
-        });
+        }
     }
 
     pub fn unmap(&self) {
@@ -250,8 +195,8 @@ impl PartialEq for WindowInner {
 
 impl Drop for WindowInner {
     fn drop(&mut self) {
-        self.connection.upgrade().map(|connection| {
+        if let Some(connection) = self.connection.upgrade() {
             let _ = connection.destroy_window(self.id);
-        });
+        }
     }
 }
