@@ -162,59 +162,68 @@ pub fn run_x11(log: Logger) {
 
         {
             let backend_data = &mut state.backend_data;
-            let present = backend_data.surface.present().expect("TODO");
-            let window_map = state.window_map.borrow();
-            #[cfg(feature = "debug")]
-            let fps = backend_data.fps.avg().round() as u32;
-            #[cfg(feature = "debug")]
-            let fps_texture = &backend_data.fps_texture;
 
-            if let Err(err) = renderer.bind(present.buffer()) {
-                error!(log, "Error while binding buffer: {}", err);
-            }
+            match backend_data.surface.present() {
+                Ok(present) => {
+                    let window_map = state.window_map.borrow();
+                    #[cfg(feature = "debug")]
+                    let fps = backend_data.fps.avg().round() as u32;
+                    #[cfg(feature = "debug")]
+                    let fps_texture = &backend_data.fps_texture;
 
-            // drawing logic
-            match renderer
-                // Apparently X11 is upside down
-                .render(
-                    backend_data.mode.size,
-                    Transform::Flipped180,
-                    |renderer, frame| {
-                        render_layers_and_windows(
-                            renderer,
-                            frame,
-                            &*window_map,
-                            output_geometry,
-                            output_scale,
-                            &log,
-                        )?;
+                    if let Err(err) = renderer.bind(present.buffer()) {
+                        error!(log, "Error while binding buffer: {}", err);
+                    }
 
-                        #[cfg(feature = "debug")]
-                        {
-                            use crate::drawing::draw_fps;
+                    // drawing logic
+                    match renderer
+                        // Apparently X11 is upside down
+                        .render(
+                            backend_data.mode.size,
+                            Transform::Flipped180,
+                            |renderer, frame| {
+                                render_layers_and_windows(
+                                    renderer,
+                                    frame,
+                                    &*window_map,
+                                    output_geometry,
+                                    output_scale,
+                                    &log,
+                                )?;
 
-                            draw_fps(renderer, frame, fps_texture, output_scale as f64, fps)?;
+                                #[cfg(feature = "debug")]
+                                {
+                                    use crate::drawing::draw_fps;
+
+                                    draw_fps(renderer, frame, fps_texture, output_scale as f64, fps)?;
+                                }
+
+                                Ok(())
+                            },
+                        )
+                        .map_err(Into::<SwapBuffersError>::into)
+                        .and_then(|x| x)
+                        .map_err(Into::<SwapBuffersError>::into)
+                    {
+                        Ok(()) => {
+                            // Unbind the buffer and now let the scope end to present.
+                            if let Err(err) = renderer.unbind() {
+                                error!(log, "Error while unbinding buffer: {}", err);
+                            }
                         }
 
-                        Ok(())
-                    },
-                )
-                .map_err(Into::<SwapBuffersError>::into)
-                .and_then(|x| x)
-                .map_err(Into::<SwapBuffersError>::into)
-            {
-                Ok(()) => {
-                    // Unbind the buffer and now let the scope end to present.
-                    if let Err(err) = renderer.unbind() {
-                        error!(log, "Error while unbinding buffer: {}", err);
+                        Err(err) => {
+                            if let SwapBuffersError::ContextLost(err) = err {
+                                error!(log, "Critical Rendering Error: {}", err);
+                                state.running.store(false, Ordering::SeqCst);
+                            }
+                        }
                     }
                 }
 
                 Err(err) => {
-                    if let SwapBuffersError::ContextLost(err) = err {
-                        error!(log, "Critical Rendering Error: {}", err);
-                        state.running.store(false, Ordering::SeqCst);
-                    }
+                    error!(log, "Failed to allocate buffers to present to window: {}", err);
+                    state.running.store(false, Ordering::SeqCst);
                 }
             }
         }

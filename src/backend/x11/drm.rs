@@ -4,7 +4,11 @@
 About certain this needs checking
 */
 
-use std::os::unix::prelude::RawFd;
+use std::{
+    error::Error,
+    fmt::{self, Display, Formatter},
+    os::unix::prelude::RawFd,
+};
 
 use nix::{
     errno::Errno,
@@ -42,7 +46,18 @@ pub const DRM_NODE_CONTROL: u64 = 1;
 #[allow(dead_code)]
 pub const DRM_NODE_RENDER: u64 = 2;
 
-pub fn drm_get_minor_type(_major: u64, minor: u64) -> Result<u64, ()> {
+#[derive(Debug)]
+pub struct UnsupportedDrmNodeType;
+
+impl Display for UnsupportedDrmNodeType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "the drm node type is not supported")
+    }
+}
+
+impl Error for UnsupportedDrmNodeType {}
+
+pub fn drm_get_minor_type(_major: u64, minor: u64) -> Result<u64, UnsupportedDrmNodeType> {
     #[cfg(target_os = "freebsd")]
     compile_error!("FreeBSD is not implemented yet!");
 
@@ -52,7 +67,7 @@ pub fn drm_get_minor_type(_major: u64, minor: u64) -> Result<u64, ()> {
 
     match ty {
         DRM_NODE_PRIMARY | DRM_NODE_CONTROL | DRM_NODE_RENDER => Ok(ty),
-        _ => Err(()),
+        _ => Err(UnsupportedDrmNodeType),
     }
 }
 

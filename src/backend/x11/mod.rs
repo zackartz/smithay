@@ -31,8 +31,10 @@ mod input;
 mod window_inner;
 
 use self::buffer::{present, PixmapWrapperExt};
+use self::drm::UnsupportedDrmNodeType;
 use self::window_inner::WindowInner;
 use super::allocator::dmabuf::{AsDmabuf, Dmabuf};
+use super::allocator::gbm::GbmConvertError;
 use super::input::{Axis, ButtonState, KeyState, MouseButton};
 use crate::backend::input::InputEvent;
 use crate::backend::x11::drm::{get_drm_node_type, DRM_NODE_RENDER};
@@ -41,6 +43,7 @@ use crate::utils::{Logical, Size};
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use drm_fourcc::DrmFourcc;
 use gbm::BufferObjectFlags;
+use nix::errno::Errno;
 use nix::fcntl;
 use slog::{error, info, o, Logger};
 use std::os::unix::prelude::{AsRawFd, RawFd};
@@ -65,13 +68,29 @@ pub enum X11Error {
     #[error("Connecting to the X server failed")]
     ConnectionFailed(ConnectError),
 
-    /// An X11 error packet was encountered.
-    #[error("An X11 error packet was encountered.")]
+    /// An X11 protocol error occured during initialization.
+    #[error("An X11 protocol error occured during initialization.")]
     Protocol(ReplyOrIdError),
 
-    /// The window was destroyed.
-    #[error("The window was destroyed")]
-    WindowDestroyed,
+    /// Opening the DRM device to allocate buffers with failed.
+    #[error("Failed to open DRM device to use as an allocator")]
+    OpenDevice(Errno),
+
+    /// The DRM node of the DRM device is not supported.
+    #[error("DRM node does not have proper node type")]
+    UnsupportedDrmNode(UnsupportedDrmNodeType),
+
+    /// No depth meeting the pixel format requirements was found.
+    #[error("No depth meeting the requirements was found")]
+    NoDepth, // TODO: Include requirements?
+
+    /// No visual meeting the pixel format requirements was found.
+    #[error("No visual meeting the requirements was found")]
+    NoVisual, // TODO: Include requirements?
+
+    /// Allocating buffers used to present to the window failed.
+    #[error("Allocating buffers used to present to the window failed.")]
+    AllocateBuffers(AllocateBufferError),
 }
 
 impl From<ConnectError> for X11Error {
@@ -101,6 +120,18 @@ impl From<ReplyError> for X11Error {
 impl From<ReplyOrIdError> for X11Error {
     fn from(e: ReplyOrIdError) -> Self {
         X11Error::Protocol(e)
+    }
+}
+
+impl From<AllocateBufferError> for X11Error {
+    fn from(e: AllocateBufferError) -> Self {
+        X11Error::AllocateBuffers(e)
+    }
+}
+
+impl From<Errno> for X11Error {
+    fn from(e: Errno) -> Self {
+        X11Error::OpenDevice(e)
     }
 }
 
@@ -184,14 +215,14 @@ impl X11Backend {
             .iter()
             .find(|depth| depth.depth == 32)
             .cloned()
-            .expect("TODO");
+            .ok_or(X11Error::NoDepth)?;
 
         // Next find a visual using the supported depth
         let visual_id = depth
             .visuals
             .iter()
             .find(|visual| visual.class == VisualClass::TRUE_COLOR)
-            .expect("TODO")
+            .ok_or(X11Error::NoVisual)?
             .visual_id;
 
         // Find a supported format.
@@ -306,8 +337,7 @@ impl X11Surface {
         let drm_device_fd: RawFd = fcntl::fcntl(
             drm_device_fd.as_raw_fd(),
             fcntl::FcntlArg::F_DUPFD_CLOEXEC(3), // Set to 3 so the fd cannot become stdin, stdout or stderr
-        )
-        .expect("TODO");
+        )?;
 
         let fd_flags =
             nix::fcntl::fcntl(drm_device_fd.as_raw_fd(), nix::fcntl::F_GETFD).expect("Handle this error");
@@ -319,16 +349,14 @@ impl X11Surface {
             nix::fcntl::F_SETFD(
                 nix::fcntl::FdFlag::from_bits_truncate(fd_flags) | nix::fcntl::FdFlag::FD_CLOEXEC,
             ),
-        )
-        .expect("Handle this result");
+        )?;
 
-        if get_drm_node_type(drm_device_fd.as_raw_fd()).expect("TODO") != DRM_NODE_RENDER {
+        if get_drm_node_type(drm_device_fd.as_raw_fd())? != DRM_NODE_RENDER {
             todo!("Attempt to get the render device by name for the DRM node that isn't a render node")
         }
 
         // Finally create a GBMDevice to manage the buffers.
-        let device = crate::backend::allocator::gbm::GbmDevice::new(drm_device_fd.as_raw_fd())
-            .expect("Failed to create gbm device");
+        let device = gbm::Device::new(drm_device_fd.as_raw_fd()).expect("Failed to create gbm device");
 
         let size = backend.window().size();
         // TODO: Dont hardcode format.
@@ -339,9 +367,10 @@ impl X11Surface {
                 DrmFourcc::Argb8888,
                 BufferObjectFlags::empty(),
             )
-            .expect("Failed to allocate presented buffer")
+            .map_err(Into::<AllocateBufferError>::into)?
             .export()
-            .unwrap();
+            .map_err(Into::<AllocateBufferError>::into)?;
+
         let next = device
             .create_buffer_object::<()>(
                 size.w as u32,
@@ -349,9 +378,9 @@ impl X11Surface {
                 DrmFourcc::Argb8888,
                 BufferObjectFlags::empty(),
             )
-            .expect("Failed to allocate back buffer")
+            .map_err(Into::<AllocateBufferError>::into)?
             .export()
-            .unwrap();
+            .map_err(Into::<AllocateBufferError>::into)?;
 
         Ok(X11Surface {
             connection: Arc::downgrade(connection),
@@ -374,7 +403,7 @@ impl X11Surface {
     ///
     /// When the object is dropped, the contents of the buffer are swapped and then presented.
     // TODO: Error type
-    pub fn present(&mut self) -> Result<Present<'_>, ()> {
+    pub fn present(&mut self) -> Result<Present<'_>, AllocateBufferError> {
         if let Some(new_size) = self.resize.try_iter().last() {
             self.resize(new_size)?;
         }
@@ -383,7 +412,7 @@ impl X11Surface {
     }
 
     // TODO: Error type.
-    fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), ()> {
+    fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), AllocateBufferError> {
         self.width = size.w;
         self.height = size.h;
 
@@ -395,10 +424,8 @@ impl X11Surface {
                 size.h as u32,
                 DrmFourcc::Argb8888,
                 BufferObjectFlags::empty(),
-            )
-            .expect("Failed to allocate presented buffer")
-            .export()
-            .unwrap();
+            )?
+            .export()?;
 
         let next = self
             .device
@@ -407,10 +434,8 @@ impl X11Surface {
                 size.h as u32,
                 DrmFourcc::Argb8888,
                 BufferObjectFlags::empty(),
-            )
-            .expect("Failed to allocate back buffer")
-            .export()
-            .unwrap();
+            )?
+            .export()?;
 
         self.current = current;
         self.next = next;
@@ -474,6 +499,30 @@ impl Drop for Present<'_> {
                 );
             }
         }
+    }
+}
+
+/// An error when allocating buffers for an X11 surface.
+#[derive(Debug, thiserror::Error)]
+pub enum AllocateBufferError {
+    /// Creating the buffers failed.
+    #[error("Creating the buffers failed")]
+    CreateBuffer(io::Error),
+
+    /// Exporting a buffer as a dmabuf failed.
+    #[error("Exporting a buffer as a dmabuf failed")]
+    ExportDmabuf(GbmConvertError),
+}
+
+impl From<io::Error> for AllocateBufferError {
+    fn from(e: io::Error) -> Self {
+        Self::CreateBuffer(e)
+    }
+}
+
+impl From<GbmConvertError> for AllocateBufferError {
+    fn from(e: GbmConvertError) -> Self {
+        Self::ExportDmabuf(e)
     }
 }
 
