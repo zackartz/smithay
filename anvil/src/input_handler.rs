@@ -511,7 +511,7 @@ impl AnvilState<X11Data> {
     pub fn process_input_event<B: InputBackend>(&mut self, event: InputEvent<B>) {
         match event {
             InputEvent::Keyboard { event } => match self.keyboard_key_to_action::<B>(event) {
-                KeyAction::None | KeyAction::Forward => (),
+                KeyAction::None => (),
 
                 KeyAction::Quit => {
                     info!(self.log, "Quitting.");
