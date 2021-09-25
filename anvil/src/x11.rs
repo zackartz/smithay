@@ -1,21 +1,17 @@
 use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
-use smithay::{
-    backend::{
+use smithay::{backend::{
         egl::{EGLContext, EGLDisplay},
         renderer::{gles2::Gles2Renderer, Bind, ImportEgl, Renderer, Transform, Unbind},
         x11::{WindowProperties, X11Backend, X11Event, X11Surface},
         SwapBuffersError,
-    },
-    reexports::{
+    }, reexports::{
         calloop::EventLoop,
         wayland_server::{protocol::wl_output, Display},
-    },
-    wayland::output::{Mode, PhysicalProperties},
-};
+    }, wayland::{output::{Mode, PhysicalProperties}, seat::CursorImageStatus}};
 
-use crate::{render::render_layers_and_windows, state::Backend, AnvilState};
+use crate::{AnvilState, drawing::{draw_cursor, draw_dnd_icon}, render::render_layers_and_windows, state::Backend};
 
 #[cfg(feature = "debug")]
 use smithay::backend::renderer::gles2::Gles2Texture;
@@ -165,7 +161,11 @@ pub fn run_x11(log: Logger) {
 
             match backend_data.surface.present() {
                 Ok(present) => {
+                    // We need to borrow everything we want to refer to inside the renderer callback otherwise rustc is unhappy.
                     let window_map = state.window_map.borrow();
+                    let (x, y) = state.pointer_location.into();
+                    let dnd_icon = &state.dnd_icon;
+                    let cursor_status = &state.cursor_status;
                     #[cfg(feature = "debug")]
                     let fps = backend_data.fps.avg().round() as u32;
                     #[cfg(feature = "debug")]
@@ -177,7 +177,7 @@ pub fn run_x11(log: Logger) {
 
                     // drawing logic
                     match renderer
-                        // Apparently X11 is upside down
+                        // X11 scanout for a Dmabuf is upside down
                         .render(
                             backend_data.mode.size,
                             Transform::Flipped180,
@@ -190,6 +190,53 @@ pub fn run_x11(log: Logger) {
                                     output_scale,
                                     &log,
                                 )?;
+
+                                // draw the dnd icon if any
+                                {
+                                    let guard = dnd_icon.lock().unwrap();
+                                    if let Some(ref surface) = *guard {
+                                        if surface.as_ref().is_alive() {
+                                            draw_dnd_icon(
+                                                renderer,
+                                                frame,
+                                                surface,
+                                                (x as i32, y as i32).into(),
+                                                output_scale,
+                                                &log,
+                                            )?;
+                                        }
+                                    }
+                                }
+
+                                // draw the cursor as relevant
+                                {
+                                    let mut guard = cursor_status.lock().unwrap();
+                                    // reset the cursor if the surface is no longer alive
+                                    let mut reset = false;
+
+                                    if let CursorImageStatus::Image(ref surface) = *guard {
+                                        reset = !surface.as_ref().is_alive();
+                                    }
+
+                                    if reset {
+                                        *guard = CursorImageStatus::Default;
+                                    }
+
+                                    // draw as relevant
+                                    if let CursorImageStatus::Image(ref surface) = *guard {
+                                        cursor_visible = false;
+                                        draw_cursor(
+                                            renderer,
+                                            frame,
+                                            surface,
+                                              (x as i32, y as i32).into(),
+                                            output_scale,
+                                            &log,
+                                        )?;
+                                    } else {
+                                        cursor_visible = true;
+                                    }
+                                }
 
                                 #[cfg(feature = "debug")]
                                 {
@@ -226,52 +273,9 @@ pub fn run_x11(log: Logger) {
                     state.running.store(false, Ordering::SeqCst);
                 }
             }
+
+            // TODO: Set cursor visibility on X11 window.
         }
-
-        //             let (x, y) = state.pointer_location.into();
-        //             // draw the dnd icon if any
-        //             {
-        //                 let guard = state.dnd_icon.lock().unwrap();
-        //                 if let Some(ref surface) = *guard {
-        //                     if surface.as_ref().is_alive() {
-        //                         draw_dnd_icon(
-        //                             renderer,
-        //                             frame,
-        //                             surface,
-        //                             (x as i32, y as i32).into(),
-        //                             output_scale,
-        //                             &log,
-        //                         )?;
-        //                     }
-        //                 }
-        //             }
-        //             // draw the cursor as relevant
-        //             {
-        //                 let mut guard = state.cursor_status.lock().unwrap();
-        //                 // reset the cursor if the surface is no longer alive
-        //                 let mut reset = false;
-        //                 if let CursorImageStatus::Image(ref surface) = *guard {
-        //                     reset = !surface.as_ref().is_alive();
-        //                 }
-        //                 if reset {
-        //                     *guard = CursorImageStatus::Default;
-        //                 }
-
-        //                 // draw as relevant
-        //                 if let CursorImageStatus::Image(ref surface) = *guard {
-        //                     cursor_visible = false;
-        //                     draw_cursor(
-        //                         renderer,
-        //                         frame,
-        //                         surface,
-        //                         (x as i32, y as i32).into(),
-        //                         output_scale,
-        //                         &log,
-        //                     )?;
-        //                 } else {
-        //                     cursor_visible = true;
-        //                 }
-        //             }
 
         // Send frame events so that client start drawing their next frame
         state

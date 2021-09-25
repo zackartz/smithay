@@ -172,6 +172,7 @@ impl EGLNativeDisplay for WinitWindow {
 impl EGLNativeDisplay for X11Surface {
     fn supported_platforms(&self) -> Vec<EGLPlatform<'_>> {
         vec![
+            // todo: https://www.khronos.org/registry/EGL/extensions/EXT/EGL_EXT_platform_device.txt
             // see: https://www.khronos.org/registry/EGL/extensions/KHR/EGL_KHR_platform_gbm.txt
             egl_platform!(
                 PLATFORM_GBM_KHR,
@@ -184,7 +185,6 @@ impl EGLNativeDisplay for X11Surface {
                 self.device().as_raw(),
                 &["EGL_MESA_platform_gbm"]
             ),
-            // todo: https://www.khronos.org/registry/EGL/extensions/EXT/EGL_EXT_platform_device.txt
         ]
     }
 }
