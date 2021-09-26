@@ -82,7 +82,7 @@ use std::{
 };
 use x11rb::{
     atom_manager,
-    connection::{Connection, RequestConnection},
+    connection::Connection,
     protocol::{
         self as x11,
         dri3::{self, ConnectionExt},
@@ -187,6 +187,8 @@ impl X11Backend {
         let visual_id = depth
             .visuals
             .iter()
+            // Ensure the visual is little endian to comply with the format needed with X/ARGB8888
+            .filter(|visual| visual.red_mask == 0xff0000)
             .find(|visual| visual.class == VisualClass::TRUE_COLOR)
             .ok_or(CreateWindowError::NoVisual)?
             .visual_id;
@@ -282,6 +284,7 @@ impl X11Surface {
 
         // Determine which drm-device the Display is using.
         let screen = &connection.setup().roots[backend.screen()];
+        // provider being NONE tells the X server to use the RandR provider.
         let dri3 = connection.dri3_open(screen.root, x11rb::NONE)?.reply()?;
 
         let drm_device_fd = dri3.device_fd;
@@ -809,81 +812,94 @@ impl EventSource for X11Backend {
 fn check_for_extensions(connection: &RustConnection, logger: &Logger) -> Result<(), X11Error> {
     // Xfixes
     {
-        if connection
-            .extension_information(xfixes::X11_EXTENSION_NAME)?
-            .is_none()
-        {
-            error!(logger, "Xfixes extension not found");
-            return Err(MissingExtensionError::NotFound {
-                name: xfixes::X11_EXTENSION_NAME,
-                major: XFIXES_MAJOR_VERSION,
-                minor: XFIXES_MINOR_VERSION,
-            }
-            .into());
-        }
+        find_extension(
+            connection,
+            xfixes::X11_EXTENSION_NAME,
+            (XFIXES_MAJOR_VERSION, XFIXES_MINOR_VERSION),
+            logger,
+        )?;
 
         let version = connection
             .xfixes_query_version(XFIXES_MAJOR_VERSION, XFIXES_MINOR_VERSION)?
             .reply()?;
 
-        if version.major_version < XFIXES_MAJOR_VERSION {
-            error!(
-                logger,
-                "XFixes extension version is too low (have {}.{}, expected {}.{})",
-                version.major_version,
-                version.minor_version,
-                XFIXES_MAJOR_VERSION,
-                XFIXES_MINOR_VERSION
-            );
-            return Err(MissingExtensionError::WrongVersion {
-                name: xfixes::X11_EXTENSION_NAME,
-                required_major: XFIXES_MAJOR_VERSION,
-                required_minor: XFIXES_MINOR_VERSION,
-                available_major: version.major_version,
-                available_minor: version.minor_version,
-            }
-            .into());
-        }
+        compare_versions(
+            xfixes::X11_EXTENSION_NAME,
+            (version.major_version, version.minor_version),
+            (XFIXES_MAJOR_VERSION, XFIXES_MINOR_VERSION),
+            logger,
+        )?;
     }
 
     // DRI3
     {
-        if connection
-            .extension_information(dri3::X11_EXTENSION_NAME)?
-            .is_none()
-        {
-            error!(logger, "DRI3 extension not found");
-            return Err(MissingExtensionError::NotFound {
-                name: dri3::X11_EXTENSION_NAME,
-                major: DRI3_MAJOR_VERSION,
-                minor: DRI3_MINOR_VERSION,
-            }
-            .into());
-        }
+        find_extension(
+            connection,
+            dri3::X11_EXTENSION_NAME,
+            (DRI3_MAJOR_VERSION, DRI3_MINOR_VERSION),
+            logger,
+        )?;
 
         let version = connection
             .dri3_query_version(DRI3_MAJOR_VERSION, DRI3_MINOR_VERSION)?
             .reply()?;
 
-        if version.minor_version < DRI3_MINOR_VERSION {
-            error!(
-                logger,
-                "DRI3 extension version is too low (have {}.{}, expected {}.{})",
-                version.major_version,
-                version.minor_version,
-                DRI3_MAJOR_VERSION,
-                DRI3_MAJOR_VERSION
-            );
-            return Err(MissingExtensionError::WrongVersion {
-                name: dri3::X11_EXTENSION_NAME,
-                required_major: DRI3_MAJOR_VERSION,
-                required_minor: DRI3_MINOR_VERSION,
-                available_major: version.major_version,
-                available_minor: version.minor_version,
-            }
-            .into());
-        }
+        compare_versions(
+            dri3::X11_EXTENSION_NAME,
+            (version.major_version, version.minor_version),
+            (DRI3_MAJOR_VERSION, DRI3_MINOR_VERSION),
+            logger,
+        )?;
     }
 
     Ok(())
+}
+
+fn find_extension<C: Connection>(
+    connection: &C,
+    name: &'static str,
+    version: (u32, u32),
+    logger: &Logger,
+) -> Result<(), X11Error> {
+    if connection.extension_information(name)?.is_some() {
+        Ok(())
+    } else {
+        error!(logger, "{} extension not found", name);
+
+        Err(MissingExtensionError::NotFound {
+            name,
+            major: version.0,
+            minor: version.1,
+        }
+        .into())
+    }
+}
+
+fn compare_versions(
+    name: &'static str,
+    available: (u32, u32),
+    required: (u32, u32),
+    logger: &Logger,
+) -> Result<(), MissingExtensionError> {
+    if available.0 > required.0 || (available.0 == required.0 && available.1 > required.1) {
+        Ok(())
+    } else {
+        error!(
+            logger,
+            "{} extension version is too low (have {}.{}, expected {}.{})",
+            name,
+            available.0,
+            available.1,
+            required.0,
+            required.1
+        );
+
+        Err(MissingExtensionError::WrongVersion {
+            name,
+            required_major: required.0,
+            required_minor: required.1,
+            available_major: available.0,
+            available_minor: available.1,
+        })
+    }
 }
