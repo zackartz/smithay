@@ -1,17 +1,29 @@
 use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
-use smithay::{backend::{
+use smithay::{
+    backend::{
         egl::{EGLContext, EGLDisplay},
         renderer::{gles2::Gles2Renderer, Bind, ImportEgl, Renderer, Transform, Unbind},
         x11::{WindowProperties, X11Backend, X11Event, X11Surface},
         SwapBuffersError,
-    }, reexports::{
+    },
+    reexports::{
         calloop::EventLoop,
         wayland_server::{protocol::wl_output, Display},
-    }, wayland::{output::{Mode, PhysicalProperties}, seat::CursorImageStatus}};
+    },
+    wayland::{
+        output::{Mode, PhysicalProperties},
+        seat::CursorImageStatus,
+    },
+};
 
-use crate::{AnvilState, drawing::{draw_cursor, draw_dnd_icon}, render::render_layers_and_windows, state::Backend};
+use crate::{
+    drawing::{draw_cursor, draw_dnd_icon},
+    render::render_layers_and_windows,
+    state::Backend,
+    AnvilState,
+};
 
 #[cfg(feature = "debug")]
 use smithay::backend::renderer::gles2::Gles2Texture;
@@ -45,6 +57,7 @@ pub fn run_x11(log: Logger) {
 
     let (backend, surface) =
         X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
+    let window = backend.window();
 
     // Initialize EGL using the GBM device setup earlier.
     let egl = EGLDisplay::new(&surface, log.clone()).expect("Failed to create EGLDisplay");
@@ -229,7 +242,7 @@ pub fn run_x11(log: Logger) {
                                             renderer,
                                             frame,
                                             surface,
-                                              (x as i32, y as i32).into(),
+                                            (x as i32, y as i32).into(),
                                             output_scale,
                                             &log,
                                         )?;
@@ -274,7 +287,7 @@ pub fn run_x11(log: Logger) {
                 }
             }
 
-            // TODO: Set cursor visibility on X11 window.
+            window.set_cursor_visible(cursor_visible);
         }
 
         // Send frame events so that client start drawing their next frame

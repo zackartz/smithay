@@ -66,6 +66,7 @@ use x11rb::{
     protocol::{
         self as x11,
         dri3::{self, ConnectionExt},
+        xfixes::{self, ConnectionExt as _},
         xproto::{ColormapAlloc, ConnectionExt as _, Depth, PixmapWrapper, VisualClass},
     },
     rust_connection::RustConnection,
@@ -145,6 +146,33 @@ impl X11Backend {
         let (connection, screen_number) = RustConnection::connect(None)?;
         let connection = Arc::new(connection);
         info!(logger, "Connected to screen {}", screen_number);
+
+        if connection
+            .extension_information(xfixes::X11_EXTENSION_NAME)?
+            .is_none()
+        {
+            // TODO: Emit error in log
+            return Err(MissingExtensionError::NotFound {
+                name: xfixes::X11_EXTENSION_NAME,
+                major: 4,
+                minor: 0,
+            }
+            .into());
+        }
+
+        let xfixes_extension = connection.xfixes_query_version(4, 0)?.reply()?;
+
+        if xfixes_extension.major_version < 4 {
+            // TODO: Emit error in log
+            return Err(MissingExtensionError::WrongVersion {
+                name: xfixes::X11_EXTENSION_NAME,
+                required_major: 4,
+                required_minor: 0,
+                available_major: xfixes_extension.major_version,
+                available_minor: xfixes_extension.minor_version,
+            }
+            .into());
+        }
 
         let screen = &connection.setup().roots[screen_number];
 
@@ -249,7 +277,13 @@ impl X11Surface {
             .extension_information(dri3::X11_EXTENSION_NAME)?
             .is_none()
         {
-            todo!("DRI3 is not present")
+            // TODO: Emit error in log
+            return Err(MissingExtensionError::NotFound {
+                name: dri3::X11_EXTENSION_NAME,
+                major: 1,
+                minor: 2,
+            }
+            .into());
         }
 
         // Does the X server support dri3?
@@ -259,13 +293,19 @@ impl X11Surface {
             let version = connection.dri3_query_version(1, 2)?.reply()?;
 
             if version.minor_version < 2 {
-                todo!("DRI3 version too low")
+                // TODO: Emit error in log
+                return Err(MissingExtensionError::WrongVersion {
+                    name: dri3::X11_EXTENSION_NAME,
+                    required_major: 1,
+                    required_minor: 2,
+                    available_major: version.major_version,
+                    available_minor: version.minor_version,
+                }
+                .into());
             }
 
             (version.major_version, version.minor_version)
         };
-
-        dbg!("DRI3 {}.{}", dri3_major, dri3_minor);
 
         // Determine which drm-device the Display is using.
         let screen = &connection.setup().roots[backend.screen()];
@@ -477,6 +517,15 @@ impl Window {
             .upgrade()
             .map(|inner| inner.size())
             .unwrap_or_else(|| (0, 0).into())
+    }
+
+    /// Changes the visibility of the cursor within the confines of the window.
+    ///
+    /// If `false`, this will hide the cursor. If `true`, this will show the cursor.
+    pub fn set_cursor_visible(&self, visible: bool) {
+        if let Some(inner) = self.0.upgrade() {
+            inner.set_cursor_visible(visible);
+        }
     }
 
     /// Returns the XID of the window.

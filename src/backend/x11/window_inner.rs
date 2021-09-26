@@ -3,14 +3,22 @@
 use crate::utils::{Logical, Size};
 
 use super::{Atoms, Window, WindowProperties, X11Error};
-use std::sync::{Arc, Mutex, Weak};
-use x11rb::connection::Connection;
-use x11rb::protocol::xproto::{
-    self as x11, AtomEnum, CreateGCAux, CreateWindowAux, Depth, EventMask, PropMode, Screen, WindowClass,
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex, Weak,
 };
-use x11rb::protocol::xproto::{ConnectionExt as _, UnmapNotifyEvent};
-use x11rb::rust_connection::RustConnection;
-use x11rb::wrapper::ConnectionExt;
+use x11rb::{
+    connection::Connection,
+    protocol::{
+        xfixes::ConnectionExt,
+        xproto::{
+            self as x11, AtomEnum, ConnectionExt as _, CreateGCAux, CreateWindowAux, Depth, EventMask,
+            PropMode, Screen, UnmapNotifyEvent, WindowClass,
+        },
+    },
+    rust_connection::RustConnection,
+    wrapper::ConnectionExt as _,
+};
 
 impl From<Arc<WindowInner>> for Window {
     fn from(inner: Arc<WindowInner>) -> Self {
@@ -26,6 +34,10 @@ pub(crate) struct WindowInner {
     root: x11::Window,
     pub atoms: Atoms,
     pub size: Mutex<Size<u16, Logical>>,
+    /// Maintains the current cursor visibility state.
+    ///
+    /// Required since we cannot enable an already enabled cursor in xfixes.
+    cursor_visible: Arc<AtomicBool>,
     pub depth: Depth,
     pub gc: x11::Gcontext,
 }
@@ -95,6 +107,7 @@ impl WindowInner {
             id: window,
             root: screen.root,
             atoms,
+            cursor_visible: Arc::new(AtomicBool::new(true)),
             size: Mutex::new((properties.size.w, properties.size.h).into()),
             depth,
             gc: 0,
@@ -183,6 +196,20 @@ impl WindowInner {
                 self.atoms.UTF8_STRING,
                 title.as_bytes(),
             );
+        }
+    }
+
+    pub fn set_cursor_visible(&self, visible: bool) {
+        if let Some(connection) = self.connection.upgrade() {
+            let current_visibility = self.cursor_visible.load(Ordering::SeqCst);
+
+            if current_visibility != visible {
+                self.cursor_visible.store(visible, Ordering::SeqCst);
+                let _ = match visible {
+                    true => connection.xfixes_show_cursor(self.id),
+                    false => connection.xfixes_hide_cursor(self.id),
+                };
+            }
         }
     }
 }

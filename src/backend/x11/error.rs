@@ -12,6 +12,10 @@ pub enum X11Error {
     #[error("Connecting to the X server failed")]
     ConnectionFailed(ConnectError),
 
+    /// A required X11 extension was not present or has the right version.
+    #[error("{0}")]
+    MissingExtension(MissingExtensionError),
+
     /// Some protocol error occured during setup.
     #[error("Some protocol error occured during setup")]
     ProtocolError(ReplyOrIdError),
@@ -45,6 +49,42 @@ impl From<ConnectionError> for X11Error {
 impl From<ReplyOrIdError> for X11Error {
     fn from(err: ReplyOrIdError) -> Self {
         Self::ProtocolError(err)
+    }
+}
+
+/// An error that occurs when a required X11 extension is not present.
+#[derive(Debug, thiserror::Error)]
+pub enum MissingExtensionError {
+    /// An extension was not found.
+    #[error("Extension \"{name}\" version {major}.{minor} was not found.")]
+    NotFound {
+        /// The name of the required extension.
+        name: &'static str,
+        /// The minimum required major version of extension.
+        major: u32,
+        /// The minimum required minor version of extension.
+        minor: u32,
+    },
+
+    /// An extension was present, but the version is too low.
+    #[error("Extension \"{name}\" version {required_major}.{required_minor} is required but only version {available_major}.{available_minor} is available.")]
+    WrongVersion {
+        /// The name of the extension.
+        name: &'static str,
+        /// The minimum required major version of extension.
+        required_major: u32,
+        /// The minimum required minor version of extension.
+        required_minor: u32,
+        /// The major version of the extension available on the X server.
+        available_major: u32,
+        /// The minor version of the extension available on the X server.
+        available_minor: u32,
+    },
+}
+
+impl From<MissingExtensionError> for X11Error {
+    fn from(err: MissingExtensionError) -> Self {
+        Self::MissingExtension(err)
     }
 }
 
