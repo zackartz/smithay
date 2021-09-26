@@ -6,7 +6,6 @@ use std::os::unix::prelude::RawFd;
 
 use super::{Window, X11Error};
 use nix::fcntl;
-use wayland_server::protocol::wl_buffer::WlBuffer;
 use x11rb::connection::Connection;
 use x11rb::protocol::dri3::ConnectionExt as _;
 use x11rb::protocol::xproto::{ConnectionExt as _, PixmapWrapper};
@@ -53,15 +52,6 @@ pub trait PixmapWrapperExt<'c, C>
 where
     C: Connection,
 {
-    /// Creates a new Pixmap from the supplied [WlBuffer].
-    ///
-    /// The returned Pixmap is freed when dropped.
-    fn with_buffer(
-        connection: &'c C,
-        window: &Window,
-        buffer: &WlBuffer,
-    ) -> Result<PixmapWrapper<'c, C>, CreatePixmapError>;
-
     /// Creates a new Pixmap using the supplied Dmabuf.
     ///
     /// The returned Pixmap is freed when dropped.
@@ -76,14 +66,6 @@ impl<'c, C> PixmapWrapperExt<'c, C> for PixmapWrapper<'c, C>
 where
     C: Connection,
 {
-    fn with_buffer(
-        _connection: &'c C,
-        _window: &Window,
-        _buffer: &WlBuffer,
-    ) -> Result<PixmapWrapper<'c, C>, CreatePixmapError> {
-        todo!("Get the buffer data and create the appropriate buffer")
-    }
-
     fn with_dmabuf(
         connection: &'c C,
         window: &Window,

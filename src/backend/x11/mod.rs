@@ -151,7 +151,6 @@ atom_manager! {
     pub(crate) Atoms: AtomCollectionCookie {
         WM_PROTOCOLS,
         WM_DELETE_WINDOW,
-        WM_CLASS,
         _NET_WM_NAME,
         UTF8_STRING,
         _SMITHAY_X11_BACKEND_CLOSE,
@@ -175,42 +174,13 @@ impl X11Backend {
         check_for_extensions(&*connection, &logger)?;
 
         let screen = &connection.setup().roots[screen_number];
-        let mut best_depth = None;
 
-        for depth in screen
+        let depth = screen
             .allowed_depths
             .iter()
-            .filter(|depth| depth.depth == 32 || depth.depth == 24) // Prefer 32 bit color
+            .find(|depth| depth.depth == 32) // Prefer 32-bit color
+            .or_else(|| screen.allowed_depths.iter().find(|depth| depth.depth == 24)) // 24-bit fallback for Xrgb8888
             .cloned()
-        {
-            match depth.depth {
-                // ARGB8888
-                32 => {
-                    match best_depth {
-                        Some((v, _)) => {
-                            // If the depth value is higher, it is the new best depth
-                            if 32 > v {
-                                best_depth = Some((32, depth));
-                            }
-                        }
-                        None => best_depth = Some((32, depth)),
-                    }
-                }
-
-                // XRGB8888
-                24 => {
-                    // Keep the existing depth as it may be 32 bit or already 24 bit
-                    if best_depth.is_none() {
-                        best_depth = Some((24, depth))
-                    }
-                }
-
-                _ => unreachable!(),
-            }
-        }
-
-        let depth = best_depth
-            .map(|(_, depth)| depth)
             .ok_or(CreateWindowError::NoDepth)?;
 
         // Next find a visual using the supported depth
@@ -312,7 +282,7 @@ impl X11Surface {
 
         // Determine which drm-device the Display is using.
         let screen = &connection.setup().roots[backend.screen()];
-        let dri3 = connection.dri3_open(screen.root, 0)?.reply()?;
+        let dri3 = connection.dri3_open(screen.root, x11rb::NONE)?.reply()?;
 
         let drm_device_fd = dri3.device_fd;
         // Duplicate the drm_device_fd
@@ -382,7 +352,6 @@ impl X11Surface {
     /// Returns an RAII scoped object which provides the next buffer.
     ///
     /// When the object is dropped, the contents of the buffer are swapped and then presented.
-    // TODO: Error type
     pub fn present(&mut self) -> Result<Present<'_>, AllocateBuffersError> {
         if let Some(new_size) = self.resize.try_iter().last() {
             self.resize(new_size)?;
@@ -391,7 +360,6 @@ impl X11Surface {
         Ok(Present { surface: self })
     }
 
-    // TODO: Error type.
     fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), AllocateBuffersError> {
         self.width = size.w;
         self.height = size.h;

@@ -12,10 +12,7 @@ A link to the ICCCM Section 4: https://tronche.com/gui/x/icccm/sec-4.html
 use crate::utils::{Logical, Size};
 
 use super::{Atoms, Window, WindowProperties, X11Error};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc, Mutex, Weak,
-};
+use std::sync::{Arc, Mutex, Weak};
 use x11rb::{
     connection::Connection,
     protocol::{
@@ -37,16 +34,11 @@ impl From<Arc<WindowInner>> for Window {
 
 #[derive(Debug)]
 pub(crate) struct WindowInner {
-    // TODO: Consider future x11rb WindowWrapper
     pub connection: Weak<RustConnection>,
     pub id: x11::Window,
     root: x11::Window,
     pub atoms: Atoms,
     pub size: Mutex<Size<u16, Logical>>,
-    /// Maintains the current cursor visibility state.
-    ///
-    /// Required since we cannot enable an already enabled cursor in xfixes.
-    cursor_visible: Arc<AtomicBool>,
     pub depth: Depth,
     pub gc: x11::Gcontext,
 }
@@ -93,7 +85,7 @@ impl WindowInner {
             | EventMask::NO_EVENT,
             )
             // Border pixel and color map need to be set if our depth may differ from the root depth.
-            .border_pixel(0)
+            .border_pixel(screen.black_pixel)
             .colormap(colormap);
 
         let _ = connection.create_window(
@@ -111,20 +103,17 @@ impl WindowInner {
         )?;
 
         // Send requests to change window properties while we wait for the window creation request to complete.
-        let mut window = WindowInner {
+        let window = WindowInner {
             connection: weak,
             id: window,
             root: screen.root,
             atoms,
-            cursor_visible: Arc::new(AtomicBool::new(true)),
             size: Mutex::new((properties.size.w, properties.size.h).into()),
             depth,
-            gc: 0,
+            gc: connection.generate_id()?,
         };
 
-        let gc = connection.generate_id()?;
-        connection.create_gc(gc, window.id, &CreateGCAux::new())?;
-        window.gc = gc;
+        connection.create_gc(window.gc, window.id, &CreateGCAux::new())?;
 
         // Enable WM_DELETE_WINDOW so our client is not disconnected upon our toplevel window being destroyed.
         connection.change_property32(
@@ -139,7 +128,7 @@ impl WindowInner {
         let _ = connection.change_property8(
             PropMode::REPLACE,
             window.id,
-            atoms.WM_CLASS,
+            AtomEnum::WM_CLASS,
             AtomEnum::STRING,
             b"Smithay\0Wayland_Compositor\0",
         )?;
@@ -210,15 +199,11 @@ impl WindowInner {
 
     pub fn set_cursor_visible(&self, visible: bool) {
         if let Some(connection) = self.connection.upgrade() {
-            let current_visibility = self.cursor_visible.load(Ordering::SeqCst);
-
-            if current_visibility != visible {
-                self.cursor_visible.store(visible, Ordering::SeqCst);
-                let _ = match visible {
-                    true => connection.xfixes_show_cursor(self.id),
-                    false => connection.xfixes_hide_cursor(self.id),
-                };
-            }
+            let _ = match visible {
+                // This generates a Match error if we did not call HideCursor before. Ignore that error.
+                true => connection.xfixes_show_cursor(self.id).map(|c| c.ignore_error()),
+                false => connection.xfixes_hide_cursor(self.id).map(|c| c.ignore_error()),
+            };
         }
     }
 }
