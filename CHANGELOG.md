@@ -24,6 +24,10 @@
 - Support for `xdg_wm_base` protocol version 3
 - Added the option to initialize the dmabuf global with a client filter
 
+#### Backends
+
+- New `x11` backend to run the compositor as an X11 client. Enabled through the `backend_x11` feature.
+
 ### Bugfixes
 
 - EGLBufferReader now checks if buffers are alive before using them.

@@ -3,11 +3,51 @@
 //! This backend provides the appropriate backend implementations to run a Wayland compositor as an
 //! X11 client.
 //!
-//! The backend is initialized using [X11Backend::new](self::X11Backend::new). The function will
+//! The backend is initialized using [`X11Backend::new`](self::X11Backend::new). The function will
 //! return two objects:
 //!
-//! - an [`X11Backend`], which you will insert into an [EventLoop](calloop::EventLoop) to process input events.
+//! - an [`X11Backend`], which you will insert into an [`EventLoop`](calloop::EventLoop) to process events from the backend.
 //! - an [`X11Surface`], which represents a surface that buffers are presented to for display.
+//!
+//! ## Example usage
+//!
+//! ```rust,no_run
+//! # use std::error::Error;
+//! # use smithay::backend::x11::X11Backend;
+//! # struct CompositorState;
+//! fn init_x11_backend(
+//!    handle: calloop::LoopHandle<CompositorState>,
+//!    logger: slog::Logger
+//! ) -> Result<(), Box<dyn Error>> {
+//!     // Create the backend, also yielding a surface that may be used to render to the window.
+//!     let (backend, surface) = X11Backend::new(Default::default(), logger)?;
+//!     // You can get a handle to the window the backend has created for later use.
+//!     let window = backend.window();
+//!
+//!     // Insert the backend into the event loop to receive events.
+//!     handle.insert_source(backend, |event, _window, state| {
+//!         // Process events from the X server that apply to the window.
+//!     })?;
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### EGL
+//!
+//! When using [`EGL`](crate::backend::egl), an [`X11Surface`] may be used to create an [`EGLDisplay`](crate::backend::egl::EGLDisplay).
+//!
+//! ```rust,no_run
+//! # use smithay::backend::{egl::EGLDisplay, x11::X11Backend};
+//! #
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let (backend, surface) = X11Backend::new(Default::default(), None)?;
+//! let display = smithay::backend::egl::EGLDisplay::new(&surface, None)?;
+//!
+//! // Here you may create an EGL context and begin rendering.
+//! # Ok(())
+//! # }
+//! ```
 //!
 
 /*
@@ -93,7 +133,7 @@ impl Default for WindowProperties<'_> {
 /// An event emitted by the X11 backend.
 #[derive(Debug)]
 pub enum X11Event {
-    /// The X server has required the compositor to redraw the window.
+    /// The X server has required the compositor to redraw the contents of window.
     Refresh,
 
     /// An input event occurred.
