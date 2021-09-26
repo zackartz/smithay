@@ -200,7 +200,7 @@ impl WindowInner {
     pub fn set_cursor_visible(&self, visible: bool) {
         if let Some(connection) = self.connection.upgrade() {
             let _ = match visible {
-                // This generates a Match error if we did not call HideCursor before. Ignore that error.
+                // This generates a Match error if we did not call Show/HideCursor before. Ignore that error.
                 true => connection.xfixes_show_cursor(self.id).map(|c| c.ignore_error()),
                 false => connection.xfixes_hide_cursor(self.id).map(|c| c.ignore_error()),
             };

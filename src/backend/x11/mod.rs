@@ -881,7 +881,7 @@ fn compare_versions(
     required: (u32, u32),
     logger: &Logger,
 ) -> Result<(), MissingExtensionError> {
-    if available.0 > required.0 || (available.0 == required.0 && available.1 > required.1) {
+    if available.0 >= required.0 || (available.0 == required.0 && available.1 >= required.1) {
         Ok(())
     } else {
         error!(
