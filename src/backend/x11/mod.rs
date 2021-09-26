@@ -11,16 +11,9 @@
 //!
 
 /*
-A note from i509 for future maintainers and contributors:
+A note for future contributors and maintainers:
 
-Grab yourself the nearest copy of the ICCCM.
-
-You should follow this document religiously, or else you will easily get shot in the foot when doing anything window related.
-Specifically look out for "Section 4: Client to Window Manager Communication"
-
-A link to the ICCCM Section 4: https://tronche.com/gui/x/icccm/sec-4.html
-
-Useful reading:
+Do take a look at some useful reading in order to understand this backend more deeply:
 
 DRI3 protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto/-/blob/master/dri3proto.txt
 */
@@ -74,6 +67,11 @@ use x11rb::{
 
 pub use self::error::*;
 pub use self::input::*;
+
+pub(crate) const DRI3_MAJOR_VERSION: u32 = 1;
+pub(crate) const DRI3_MINOR_VERSION: u32 = 2;
+pub(crate) const XFIXES_MAJOR_VERSION: u32 = 4;
+pub(crate) const XFIXES_MINOR_VERSION: u32 = 0;
 
 /// Properties defining initial information about the window created by the X11 backend.
 #[derive(Debug, Clone, Copy)]
@@ -147,32 +145,7 @@ impl X11Backend {
         let connection = Arc::new(connection);
         info!(logger, "Connected to screen {}", screen_number);
 
-        if connection
-            .extension_information(xfixes::X11_EXTENSION_NAME)?
-            .is_none()
-        {
-            // TODO: Emit error in log
-            return Err(MissingExtensionError::NotFound {
-                name: xfixes::X11_EXTENSION_NAME,
-                major: 4,
-                minor: 0,
-            }
-            .into());
-        }
-
-        let xfixes_extension = connection.xfixes_query_version(4, 0)?.reply()?;
-
-        if xfixes_extension.major_version < 4 {
-            // TODO: Emit error in log
-            return Err(MissingExtensionError::WrongVersion {
-                name: xfixes::X11_EXTENSION_NAME,
-                required_major: 4,
-                required_minor: 0,
-                available_major: xfixes_extension.major_version,
-                available_minor: xfixes_extension.minor_version,
-            }
-            .into());
-        }
+        check_for_extensions(&*connection, &logger)?;
 
         let screen = &connection.setup().roots[screen_number];
 
@@ -272,40 +245,6 @@ impl X11Surface {
     fn new(backend: &X11Backend, resize: Receiver<Size<u16, Logical>>) -> Result<X11Surface, X11Error> {
         let connection = &backend.connection;
         let window = backend.window();
-
-        if connection
-            .extension_information(dri3::X11_EXTENSION_NAME)?
-            .is_none()
-        {
-            // TODO: Emit error in log
-            return Err(MissingExtensionError::NotFound {
-                name: dri3::X11_EXTENSION_NAME,
-                major: 1,
-                minor: 2,
-            }
-            .into());
-        }
-
-        // Does the X server support dri3?
-        let (dri3_major, dri3_minor) = {
-            // DRI3 will only return the highest version we request.
-            // TODO: We might need to request a higher version?
-            let version = connection.dri3_query_version(1, 2)?.reply()?;
-
-            if version.minor_version < 2 {
-                // TODO: Emit error in log
-                return Err(MissingExtensionError::WrongVersion {
-                    name: dri3::X11_EXTENSION_NAME,
-                    required_major: 1,
-                    required_minor: 2,
-                    available_major: version.major_version,
-                    available_minor: version.minor_version,
-                }
-                .into());
-            }
-
-            (version.major_version, version.minor_version)
-        };
 
         // Determine which drm-device the Display is using.
         let screen = &connection.setup().roots[backend.screen()];
@@ -840,4 +779,86 @@ impl EventSource for X11Backend {
     fn unregister(&mut self, poll: &mut Poll) -> io::Result<()> {
         self.source.unregister(poll)
     }
+}
+
+fn check_for_extensions(connection: &RustConnection, logger: &Logger) -> Result<(), X11Error> {
+    // Xfixes
+    {
+        if connection
+            .extension_information(xfixes::X11_EXTENSION_NAME)?
+            .is_none()
+        {
+            error!(logger, "Xfixes extension not found");
+            return Err(MissingExtensionError::NotFound {
+                name: xfixes::X11_EXTENSION_NAME,
+                major: XFIXES_MAJOR_VERSION,
+                minor: XFIXES_MINOR_VERSION,
+            }
+            .into());
+        }
+
+        let version = connection
+            .xfixes_query_version(XFIXES_MAJOR_VERSION, XFIXES_MINOR_VERSION)?
+            .reply()?;
+
+        if version.major_version < XFIXES_MAJOR_VERSION {
+            error!(
+                logger,
+                "XFixes extension version is too low (have {}.{}, expected {}.{})",
+                version.major_version,
+                version.minor_version,
+                XFIXES_MAJOR_VERSION,
+                XFIXES_MINOR_VERSION
+            );
+            return Err(MissingExtensionError::WrongVersion {
+                name: xfixes::X11_EXTENSION_NAME,
+                required_major: XFIXES_MAJOR_VERSION,
+                required_minor: XFIXES_MINOR_VERSION,
+                available_major: version.major_version,
+                available_minor: version.minor_version,
+            }
+            .into());
+        }
+    }
+
+    // DRI3
+    {
+        if connection
+            .extension_information(dri3::X11_EXTENSION_NAME)?
+            .is_none()
+        {
+            error!(logger, "DRI3 extension not found");
+            return Err(MissingExtensionError::NotFound {
+                name: dri3::X11_EXTENSION_NAME,
+                major: DRI3_MAJOR_VERSION,
+                minor: DRI3_MINOR_VERSION,
+            }
+            .into());
+        }
+
+        let version = connection
+            .dri3_query_version(DRI3_MAJOR_VERSION, DRI3_MINOR_VERSION)?
+            .reply()?;
+
+        if version.minor_version < DRI3_MINOR_VERSION {
+            error!(
+                logger,
+                "DRI3 extension version is too low (have {}.{}, expected {}.{})",
+                version.major_version,
+                version.minor_version,
+                DRI3_MAJOR_VERSION,
+                DRI3_MAJOR_VERSION
+            );
+            return Err(MissingExtensionError::WrongVersion {
+                name: dri3::X11_EXTENSION_NAME,
+                required_major: DRI3_MAJOR_VERSION,
+                required_minor: DRI3_MINOR_VERSION,
+                available_major: version.major_version,
+                available_minor: version.minor_version,
+            }
+            .into());
+        }
+    }
+
+    Ok(())
 }
