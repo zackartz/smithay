@@ -188,13 +188,42 @@ impl X11Backend {
         check_for_extensions(&*connection, &logger)?;
 
         let screen = &connection.setup().roots[screen_number];
+        let mut best_depth = None;
 
-        // We want 32 bit color
-        let depth = screen
+        for depth in screen
             .allowed_depths
             .iter()
-            .find(|depth| depth.depth == 32)
+            .filter(|depth| depth.depth == 32 || depth.depth == 24) // Prefer 32 bit color
             .cloned()
+        {
+            match depth.depth {
+                // ARGB8888
+                32 => {
+                    match best_depth {
+                        Some((v, _)) => {
+                            // If the depth value is higher, it is the new best depth
+                            if 32 > v {
+                                best_depth = Some((32, depth));
+                            }
+                        },
+                        None => best_depth = Some((32, depth)),
+                    }
+                }
+
+                // XRGB8888
+                24 => {
+                    // Keep the existing depth as it may be 32 bit or already 24 bit
+                    if best_depth.is_none() {
+                        best_depth = Some((24, depth))
+                    }
+                }
+
+                _ => unreachable!(),
+            }
+        }
+
+        let depth = best_depth
+            .map(|(_, depth)| depth)
             .ok_or(CreateWindowError::NoDepth)?;
 
         // Next find a visual using the supported depth
@@ -205,8 +234,11 @@ impl X11Backend {
             .ok_or(CreateWindowError::NoVisual)?
             .visual_id;
 
-        // Find a supported format.
-        // TODO
+        let format = match depth.depth {
+            24 => DrmFourcc::Xrgb8888,
+            32 => DrmFourcc::Argb8888,
+            _ => unreachable!(),
+        };
 
         // Make a colormap
         let colormap = connection.generate_id()?;
@@ -247,7 +279,7 @@ impl X11Backend {
             resize: resize_send,
         };
 
-        let surface = X11Surface::new(&backend, resize_recv)?;
+        let surface = X11Surface::new(&backend, format, resize_recv)?;
 
         Ok((backend, surface))
     }
@@ -275,6 +307,7 @@ pub struct X11Surface {
     window: Window,
     resize: Receiver<Size<u16, Logical>>,
     device: gbm::Device<RawFd>,
+    format: DrmFourcc,
     width: u16,
     height: u16,
     current: Dmabuf,
@@ -282,7 +315,7 @@ pub struct X11Surface {
 }
 
 impl X11Surface {
-    fn new(backend: &X11Backend, resize: Receiver<Size<u16, Logical>>) -> Result<X11Surface, X11Error> {
+    fn new(backend: &X11Backend, format: DrmFourcc, resize: Receiver<Size<u16, Logical>>) -> Result<X11Surface, X11Error> {
         let connection = &backend.connection;
         let window = backend.window();
 
@@ -324,7 +357,7 @@ impl X11Surface {
             .create_buffer_object::<()>(
                 size.w as u32,
                 size.h as u32,
-                DrmFourcc::Argb8888,
+                format,
                 BufferObjectFlags::empty(),
             )
             .map_err(Into::<AllocateBuffersError>::into)?
@@ -335,7 +368,7 @@ impl X11Surface {
             .create_buffer_object::<()>(
                 size.w as u32,
                 size.h as u32,
-                DrmFourcc::Argb8888,
+                format,
                 BufferObjectFlags::empty(),
             )
             .map_err(Into::<AllocateBuffersError>::into)?
@@ -346,6 +379,7 @@ impl X11Surface {
             connection: Arc::downgrade(connection),
             window,
             device,
+            format,
             width: size.w,
             height: size.h,
             current,
@@ -357,6 +391,11 @@ impl X11Surface {
     /// Returns a handle to the GBM device used to allocate buffers.
     pub fn device(&self) -> gbm::Device<RawFd> {
         self.device.clone()
+    }
+
+    /// Returns the format of the buffers the surface accepts.
+    pub fn format(&self) -> DrmFourcc {
+        self.format
     }
 
     /// Returns an RAII scoped object which provides the next buffer.
@@ -382,7 +421,7 @@ impl X11Surface {
             .create_buffer_object::<()>(
                 size.w as u32,
                 size.h as u32,
-                DrmFourcc::Argb8888,
+                self.format,
                 BufferObjectFlags::empty(),
             )?
             .export()?;
@@ -392,7 +431,7 @@ impl X11Surface {
             .create_buffer_object::<()>(
                 size.w as u32,
                 size.h as u32,
-                DrmFourcc::Argb8888,
+                self.format,
                 BufferObjectFlags::empty(),
             )?
             .export()?;

@@ -93,11 +93,11 @@ impl From<MissingExtensionError> for X11Error {
 pub enum CreateWindowError {
     /// No depth fulfilling the pixel format requirements was found.
     #[error("No depth fulfilling the requirements was found")]
-    NoDepth, // TODO: Include requirements?
+    NoDepth,
 
     /// No visual fulfilling the pixel format requirements was found.
     #[error("No visual fulfilling the requirements was found")]
-    NoVisual, // TODO: Include requirements?
+    NoVisual,
 }
 
 impl From<CreateWindowError> for X11Error {

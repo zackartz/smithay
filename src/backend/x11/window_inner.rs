@@ -9,6 +9,7 @@ Pay particular attention to "Section 4: Client to Window Manager Communication"
 
 A link to the ICCCM Section 4: https://tronche.com/gui/x/icccm/sec-4.html
 */
+
 use crate::utils::{Logical, Size};
 
 use super::{Atoms, Window, WindowProperties, X11Error};
