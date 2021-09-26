@@ -34,7 +34,7 @@ pub fn get_drm_node_type_from_fd(fd: RawFd) -> Result<u64, AllocateBuffersError>
         return Err(AllocateBuffersError::UnsupportedDrmNode);
     }
 
-    Ok(drm_get_minor_type(major, minor)?)
+    drm_get_minor_type(major, minor)
 }
 
 // These are actually in use.
