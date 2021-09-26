@@ -1,10 +1,13 @@
 use std::{process::Command, sync::atomic::Ordering};
 
+use crate::AnvilState;
+
 #[cfg(feature = "udev")]
 use crate::udev::UdevData;
 #[cfg(feature = "winit")]
 use crate::winit::WinitData;
-use crate::{x11::X11Data, AnvilState};
+#[cfg(feature = "x11")]
+use crate::x11::X11Data;
 
 use smithay::{
     backend::input::{
@@ -18,7 +21,7 @@ use smithay::{
     },
 };
 
-#[cfg(feature = "winit")]
+#[cfg(any(feature = "winit", feature = "x11"))]
 use smithay::{backend::input::PointerMotionAbsoluteEvent, wayland::output::Mode};
 
 #[cfg(feature = "udev")]
@@ -507,6 +510,7 @@ impl AnvilState<UdevData> {
     }
 }
 
+#[cfg(feature = "x11")]
 impl AnvilState<X11Data> {
     pub fn process_input_event<B: InputBackend>(&mut self, event: InputEvent<B>) {
         match event {
