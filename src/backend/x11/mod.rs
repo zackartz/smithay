@@ -33,22 +33,9 @@
 //! }
 //! ```
 //!
-//! ### EGL
+//! ## EGL
 //!
 //! When using [`EGL`](crate::backend::egl), an [`X11Surface`] may be used to create an [`EGLDisplay`](crate::backend::egl::EGLDisplay).
-//!
-//! ```rust,no_run
-//! # use smithay::backend::{egl::EGLDisplay, x11::X11Backend};
-//! #
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let (backend, surface) = X11Backend::new(Default::default(), None)?;
-//! let display = smithay::backend::egl::EGLDisplay::new(&surface, None)?;
-//!
-//! // Here you may create an EGL context and begin rendering.
-//! # Ok(())
-//! # }
-//! ```
-//!
 
 /*
 A note for future contributors and maintainers:
