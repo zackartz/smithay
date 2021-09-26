@@ -205,7 +205,7 @@ impl X11Backend {
                             if 32 > v {
                                 best_depth = Some((32, depth));
                             }
-                        },
+                        }
                         None => best_depth = Some((32, depth)),
                     }
                 }
@@ -315,7 +315,11 @@ pub struct X11Surface {
 }
 
 impl X11Surface {
-    fn new(backend: &X11Backend, format: DrmFourcc, resize: Receiver<Size<u16, Logical>>) -> Result<X11Surface, X11Error> {
+    fn new(
+        backend: &X11Backend,
+        format: DrmFourcc,
+        resize: Receiver<Size<u16, Logical>>,
+    ) -> Result<X11Surface, X11Error> {
         let connection = &backend.connection;
         let window = backend.window();
 
@@ -354,23 +358,13 @@ impl X11Surface {
         let size = backend.window().size();
         // TODO: Dont hardcode format.
         let current = device
-            .create_buffer_object::<()>(
-                size.w as u32,
-                size.h as u32,
-                format,
-                BufferObjectFlags::empty(),
-            )
+            .create_buffer_object::<()>(size.w as u32, size.h as u32, format, BufferObjectFlags::empty())
             .map_err(Into::<AllocateBuffersError>::into)?
             .export()
             .map_err(Into::<AllocateBuffersError>::into)?;
 
         let next = device
-            .create_buffer_object::<()>(
-                size.w as u32,
-                size.h as u32,
-                format,
-                BufferObjectFlags::empty(),
-            )
+            .create_buffer_object::<()>(size.w as u32, size.h as u32, format, BufferObjectFlags::empty())
             .map_err(Into::<AllocateBuffersError>::into)?
             .export()
             .map_err(Into::<AllocateBuffersError>::into)?;
