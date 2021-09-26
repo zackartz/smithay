@@ -371,9 +371,15 @@ impl X11Surface {
 /// the window.
 ///
 /// ```rust,no_run
-/// # use crate::backend::renderer::gles2::Gles2Renderer;
-/// # let mut renderer: Gles2Renderer = ...;
-/// # let mut surface: X11Surface = ...;
+/// # use smithay::backend::renderer::Renderer;
+/// # use smithay::backend::renderer::Unbind;
+/// # use smithay::backend::renderer::Bind;
+/// # use smithay::backend::renderer::gles2::Gles2Renderer;
+/// # use smithay::backend::x11::X11Surface;
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let mut renderer: Gles2Renderer = unimplemented!();
+/// # let mut surface: X11Surface = unimplemented!();
+/// // Instantiate a new present object to start the process of presenting.
 /// let present = surface.present()?;
 ///
 /// // Bind the buffer to the renderer in order to render.
@@ -384,7 +390,9 @@ impl X11Surface {
 /// // Make sure to unbind the buffer when done.
 /// renderer.unbind()?;
 ///
-/// // When the `present` is dropped, whatever was rendered will be shown in the window.
+/// // When the `present` is dropped, what was rendered will be presented to the window.
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Debug)]
 pub struct Present<'a> {
