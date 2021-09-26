@@ -447,6 +447,9 @@ impl Drop for Present<'_> {
                     surface.height,
                 );
             }
+
+            // Flush the connection after presenting to the window to ensure we don't run out of buffer space in the X11 connection.
+            let _ = connection.flush();
         }
     }
 }
