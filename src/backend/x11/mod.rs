@@ -798,7 +798,6 @@ impl EventSource for X11Backend {
                 }
 
                 x11::Event::Expose(expose) => {
-                    // TODO: Use details of expose event to tell the the compositor what has been damaged?
                     if expose.window == window.id && expose.count == 0 {
                         (callback)(X11Event::Refresh, &mut event_window);
                     }
