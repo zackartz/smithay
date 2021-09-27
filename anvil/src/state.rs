@@ -28,6 +28,7 @@ use smithay::xwayland::{XWayland, XWaylandEvent};
 
 use crate::shell::init_shell;
 
+#[derive(Debug)]
 pub struct AnvilState<BackendData> {
     pub backend_data: BackendData,
     pub socket_name: Option<String>,
