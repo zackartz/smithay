@@ -365,10 +365,6 @@ impl X11Surface {
     }
 
     fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), AllocateBuffersError> {
-        self.width = size.w;
-        self.height = size.h;
-
-        // Create new buffers
         let current = self
             .device
             .create_buffer_object::<()>(
@@ -389,6 +385,8 @@ impl X11Surface {
             )?
             .export()?;
 
+        self.width = size.w;
+        self.height = size.h;
         self.current = current;
         self.next = next;
 
