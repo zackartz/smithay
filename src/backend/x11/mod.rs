@@ -772,6 +772,18 @@ impl EventSource for X11Backend {
                     }
                 }
 
+                x11::Event::EnterNotify(enter_notify) => {
+                    if enter_notify.event == window.id {
+                        window.cursor_enter();
+                    }
+                }
+
+                x11::Event::LeaveNotify(leave_notify) => {
+                    if leave_notify.event == window.id {
+                        window.cursor_leave();
+                    }
+                }
+
                 x11::Event::ClientMessage(client_message) => {
                     if client_message.data.as_data32()[0] == window.atoms.WM_DELETE_WINDOW // Destroy the window?
                             && client_message.window == window.id

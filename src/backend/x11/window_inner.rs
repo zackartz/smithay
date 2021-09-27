@@ -33,11 +33,27 @@ impl From<Arc<WindowInner>> for Window {
 }
 
 #[derive(Debug)]
+pub struct CursorState {
+    pub inside_window: bool,
+    pub visible: bool,
+}
+
+impl Default for CursorState {
+    fn default() -> Self {
+        CursorState {
+            inside_window: false,
+            visible: true,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub(crate) struct WindowInner {
     pub connection: Weak<RustConnection>,
     pub id: x11::Window,
     root: x11::Window,
     pub atoms: Atoms,
+    pub cursor_state: Arc<Mutex<CursorState>>,
     pub size: Mutex<Size<u16, Logical>>,
     pub depth: Depth,
     pub gc: x11::Gcontext,
@@ -108,6 +124,7 @@ impl WindowInner {
             id: window,
             root: screen.root,
             atoms,
+            cursor_state: Arc::new(Mutex::new(CursorState::default())),
             size: Mutex::new((properties.size.w, properties.size.h).into()),
             depth,
             gc: connection.generate_id()?,
@@ -199,12 +216,42 @@ impl WindowInner {
 
     pub fn set_cursor_visible(&self, visible: bool) {
         if let Some(connection) = self.connection.upgrade() {
-            let _ = match visible {
-                // This generates a Match error if we did not call Show/HideCursor before. Ignore that error.
-                true => connection.xfixes_show_cursor(self.id).map(|c| c.ignore_error()),
-                false => connection.xfixes_hide_cursor(self.id).map(|c| c.ignore_error()),
-            };
+            let mut state = self.cursor_state.lock().unwrap();
+            let changed = state.visible != visible;
+
+            if changed && state.inside_window {
+                state.visible = visible;
+                self.update_cursor(&*connection, state.visible);
+            }
         }
+    }
+
+    pub fn cursor_enter(&self) {
+        if let Some(connection) = self.connection.upgrade() {
+            let mut state = self.cursor_state.lock().unwrap();
+            state.inside_window = true;
+            self.update_cursor(&*connection, state.visible);
+        }
+    }
+
+    pub fn cursor_leave(&self) {
+        if let Some(connection) = self.connection.upgrade() {
+            let mut state = self.cursor_state.lock().unwrap();
+            state.inside_window = false;
+            self.update_cursor(&*connection, true);
+        }
+    }
+
+    fn update_cursor<C: ConnectionExt>(&self, connection: &C, visible: bool) {
+        let _ = match visible {
+            // This generates a Match error if we did not call Show/HideCursor before. Ignore that error.
+            true => connection
+                .xfixes_show_cursor(self.id)
+                .map(|cookie| cookie.ignore_error()),
+            false => connection
+                .xfixes_hide_cursor(self.id)
+                .map(|cookie| cookie.ignore_error()),
+        };
     }
 }
 
