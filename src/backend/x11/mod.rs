@@ -288,7 +288,8 @@ impl X11Surface {
         let dri3 = connection.dri3_open(screen.root, x11rb::NONE)?.reply()?;
 
         let drm_device_fd = dri3.device_fd;
-        // Duplicate the drm_device_fd
+
+        // Duplicate the drm_device_fd otherwise we will segfault.
         let drm_device_fd: RawFd = fcntl::fcntl(
             drm_device_fd.as_raw_fd(),
             fcntl::FcntlArg::F_DUPFD_CLOEXEC(3), // Set to 3 so the fd cannot become stdin, stdout or stderr
