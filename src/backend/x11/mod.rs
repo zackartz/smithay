@@ -344,8 +344,8 @@ impl X11Surface {
     }
 
     /// Returns a handle to the GBM device used to allocate buffers.
-    pub fn device(&self) -> gbm::Device<RawFd> {
-        self.device.clone()
+    pub fn device(&self) -> &gbm::Device<RawFd> {
+        &self.device
     }
 
     /// Returns the format of the buffers the surface accepts.
