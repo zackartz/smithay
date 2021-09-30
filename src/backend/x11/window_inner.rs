@@ -98,6 +98,8 @@ impl WindowInner {
             | EventMask::BUTTON_PRESS // Mouse button press and release
             | EventMask::BUTTON_RELEASE
             | EventMask::POINTER_MOTION // Mouse movement
+            | EventMask::ENTER_WINDOW // Track whether the cursor enters of leaves the window.
+            | EventMask::LEAVE_WINDOW
             | EventMask::NO_EVENT,
             )
             // Border pixel and color map need to be set if our depth may differ from the root depth.
