@@ -28,7 +28,19 @@ impl EGLContext {
     where
         L: Into<Option<::slog::Logger>>,
     {
-        Self::new_internal(display, None, None, log)
+        Self::new_internal(display, None, None, None, log)
+    }
+
+    /// Create a new [`EGLContext`] from a given `EGLDisplay` and context attributes.
+    pub fn new_with_attributes<L>(
+        display: &EGLDisplay,
+        attributes: GlAttributes,
+        log: L,
+    ) -> Result<EGLContext, Error>
+    where
+        L: Into<Option<::slog::Logger>>,
+    {
+        Self::new_internal(display, None, Some(attributes), None, log)
     }
 
     /// Create a new [`EGLContext`] from a given `EGLDisplay` and configuration requirements
@@ -41,7 +53,7 @@ impl EGLContext {
     where
         L: Into<Option<::slog::Logger>>,
     {
-        Self::new_internal(display, None, Some((attributes, reqs)), log)
+        Self::new_internal(display, None, Some(attributes), Some(reqs), log)
     }
 
     /// Create a new configless `EGLContext` from a given `EGLDisplay` sharing resources with another context
@@ -49,7 +61,7 @@ impl EGLContext {
     where
         L: Into<Option<::slog::Logger>>,
     {
-        Self::new_internal(display, Some(share), None, log)
+        Self::new_internal(display, Some(share), None, None, log)
     }
 
     /// Create a new `EGLContext` from a given `EGLDisplay` and configuration requirements sharing resources with another context
@@ -63,13 +75,14 @@ impl EGLContext {
     where
         L: Into<Option<::slog::Logger>>,
     {
-        Self::new_internal(display, Some(share), Some((attributes, reqs)), log)
+        Self::new_internal(display, Some(share), Some(attributes), Some(reqs), log)
     }
 
     fn new_internal<L>(
         display: &EGLDisplay,
         shared: Option<&EGLContext>,
-        config: Option<(GlAttributes, PixelFormatRequirements)>,
+        attributes: Option<GlAttributes>,
+        reqs: Option<PixelFormatRequirements>,
         log: L,
     ) -> Result<EGLContext, Error>
     where
@@ -77,12 +90,8 @@ impl EGLContext {
     {
         let log = crate::slog_or_fallback(log.into()).new(o!("smithay_module" => "backend_egl"));
 
-        let (pixel_format, config_id) = match config {
-            Some((attributes, reqs)) => {
-                let (format, config_id) = display.choose_config(attributes, reqs)?;
-                (Some(format), config_id)
-            }
-            None => {
+        let (pixel_format, config_id) = match (attributes, reqs) {
+            (None, None) => {
                 if !display
                     .extensions
                     .iter()
@@ -104,11 +113,16 @@ impl EGLContext {
                 }
                 (None, ffi::egl::NO_CONFIG_KHR)
             }
+
+            (attributes, reqs) => {
+                let (format, config_id) = display.choose_config_impl(attributes, reqs)?;
+                (Some(format), config_id)
+            }
         };
 
         let mut context_attributes = Vec::with_capacity(10);
 
-        if let Some((attributes, _)) = config {
+        if let Some(attributes) = attributes {
             let version = attributes.version;
 
             if display.egl_version >= (1, 5)

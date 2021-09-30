@@ -213,6 +213,15 @@ impl EGLDisplay {
         attributes: GlAttributes,
         reqs: PixelFormatRequirements,
     ) -> Result<(PixelFormat, ffi::egl::types::EGLConfig), Error> {
+        self.choose_config_impl(Some(attributes), Some(reqs))
+    }
+
+    pub(crate) fn choose_config_impl(
+        &self,
+        // One of the two must be `Some`
+        attributes: Option<GlAttributes>,
+        reqs: Option<PixelFormatRequirements>,
+    ) -> Result<(PixelFormat, ffi::egl::types::EGLConfig), Error> {
         let descriptor = {
             let mut out: Vec<c_int> = Vec::with_capacity(37);
 
@@ -227,43 +236,48 @@ impl EGLDisplay {
             out.push(ffi::egl::SURFACE_TYPE as c_int);
             out.push(self.surface_type);
 
-            match attributes.version {
-                (3, _) => {
-                    if self.egl_version < (1, 3) {
-                        error!(
-                            self.logger,
-                            "OpenglES 3.* is not supported on EGL Versions lower then 1.3"
-                        );
-                        return Err(Error::NoAvailablePixelFormat);
+            if let Some(attributes) = attributes {
+                match attributes.version {
+                    (3, _) => {
+                        if self.egl_version < (1, 3) {
+                            error!(
+                                self.logger,
+                                "OpenglES 3.* is not supported on EGL Versions lower then 1.3"
+                            );
+                            return Err(Error::NoAvailablePixelFormat);
+                        }
+                        trace!(self.logger, "Setting RENDERABLE_TYPE to OPENGL_ES3");
+                        out.push(ffi::egl::RENDERABLE_TYPE as c_int);
+                        out.push(ffi::egl::OPENGL_ES3_BIT as c_int);
+                        trace!(self.logger, "Setting CONFORMANT to OPENGL_ES3");
+                        out.push(ffi::egl::CONFORMANT as c_int);
+                        out.push(ffi::egl::OPENGL_ES3_BIT as c_int);
                     }
-                    trace!(self.logger, "Setting RENDERABLE_TYPE to OPENGL_ES3");
-                    out.push(ffi::egl::RENDERABLE_TYPE as c_int);
-                    out.push(ffi::egl::OPENGL_ES3_BIT as c_int);
-                    trace!(self.logger, "Setting CONFORMANT to OPENGL_ES3");
-                    out.push(ffi::egl::CONFORMANT as c_int);
-                    out.push(ffi::egl::OPENGL_ES3_BIT as c_int);
-                }
-                (2, _) => {
-                    if self.egl_version < (1, 3) {
-                        error!(
-                            self.logger,
-                            "OpenglES 2.* is not supported on EGL Versions lower then 1.3"
-                        );
-                        return Err(Error::NoAvailablePixelFormat);
+                    (2, _) => {
+                        if self.egl_version < (1, 3) {
+                            error!(
+                                self.logger,
+                                "OpenglES 2.* is not supported on EGL Versions lower then 1.3"
+                            );
+                            return Err(Error::NoAvailablePixelFormat);
+                        }
+                        trace!(self.logger, "Setting RENDERABLE_TYPE to OPENGL_ES2");
+                        out.push(ffi::egl::RENDERABLE_TYPE as c_int);
+                        out.push(ffi::egl::OPENGL_ES2_BIT as c_int);
+                        trace!(self.logger, "Setting CONFORMANT to OPENGL_ES2");
+                        out.push(ffi::egl::CONFORMANT as c_int);
+                        out.push(ffi::egl::OPENGL_ES2_BIT as c_int);
                     }
-                    trace!(self.logger, "Setting RENDERABLE_TYPE to OPENGL_ES2");
-                    out.push(ffi::egl::RENDERABLE_TYPE as c_int);
-                    out.push(ffi::egl::OPENGL_ES2_BIT as c_int);
-                    trace!(self.logger, "Setting CONFORMANT to OPENGL_ES2");
-                    out.push(ffi::egl::CONFORMANT as c_int);
-                    out.push(ffi::egl::OPENGL_ES2_BIT as c_int);
-                }
-                ver => {
-                    return Err(Error::OpenGlVersionNotSupported(ver));
-                }
-            };
+                    ver => {
+                        return Err(Error::OpenGlVersionNotSupported(ver));
+                    }
+                };
+            }
 
-            reqs.create_attributes(&mut out, &self.logger);
+            if let Some(reqs) = reqs {
+                reqs.create_attributes(&mut out, &self.logger);
+            }
+
             out.push(ffi::egl::NONE as c_int);
             out
         };
@@ -303,7 +317,9 @@ impl EGLDisplay {
             return Err(Error::NoAvailablePixelFormat);
         }
 
-        let desired_swap_interval = if attributes.vsync { 1 } else { 0 };
+        let desired_swap_interval = attributes
+            .map(|attributes| if attributes.vsync { 1 } else { 0 })
+            .unwrap_or(0);
         // try to select a config with the desired_swap_interval
         // (but don't fail, as the margin might be very small on some cards and most configs are fine)
         let config_id = config_ids
