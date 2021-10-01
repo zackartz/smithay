@@ -1,6 +1,8 @@
 use std::{cell::RefCell, rc::Rc, sync::atomic::Ordering, time::Duration};
 
 use slog::Logger;
+#[cfg(feature = "egl")]
+use smithay::{backend::renderer::ImportDma, wayland::dmabuf::init_dmabuf_global};
 use smithay::{
     backend::{
         egl::{EGLContext, EGLDisplay},
@@ -62,13 +64,26 @@ pub fn run_x11(log: Logger) {
     // Initialize EGL using the GBM device setup earlier.
     let egl = EGLDisplay::new(&surface, log.clone()).expect("Failed to create EGLDisplay");
     let context = EGLContext::new(&egl, log.clone()).expect("Failed to create EGLContext");
-    let mut renderer =
+    let renderer =
         unsafe { Gles2Renderer::new(context, log.clone()) }.expect("Failed to initialize renderer");
+    let renderer = Rc::new(RefCell::new(renderer));
 
     #[cfg(feature = "egl")]
     {
-        if renderer.bind_wl_display(&*display.borrow()).is_ok() {
+        if renderer.borrow_mut().bind_wl_display(&*display.borrow()).is_ok() {
             info!(log, "EGL hardware-acceleration enabled");
+            let dmabuf_formats = renderer
+                .borrow_mut()
+                .dmabuf_formats()
+                .cloned()
+                .collect::<Vec<_>>();
+            let renderer = renderer.clone();
+            init_dmabuf_global(
+                &mut *display.borrow_mut(),
+                dmabuf_formats,
+                move |buffer, _| renderer.borrow_mut().import_dmabuf(buffer).is_ok(),
+                log.clone(),
+            );
         }
     }
 
@@ -174,6 +189,8 @@ pub fn run_x11(log: Logger) {
 
             match backend_data.surface.present() {
                 Ok(present) => {
+                    let mut renderer = renderer.borrow_mut();
+
                     // We need to borrow everything we want to refer to inside the renderer callback otherwise rustc is unhappy.
                     let window_map = state.window_map.borrow();
                     let (x, y) = state.pointer_location.into();
