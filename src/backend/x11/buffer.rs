@@ -3,12 +3,14 @@
 //! Buffers imported into X11 are represented as X pixmaps which are then presented to the window.
 
 use std::os::unix::prelude::RawFd;
+use std::sync::atomic::Ordering;
 
 use super::{Window, X11Error};
 use nix::fcntl;
 use x11rb::connection::Connection;
 use x11rb::protocol::dri3::ConnectionExt as _;
-use x11rb::protocol::xproto::{ConnectionExt as _, PixmapWrapper};
+use x11rb::protocol::present::{self, ConnectionExt};
+use x11rb::protocol::xproto::PixmapWrapper;
 use x11rb::rust_connection::{ConnectionError, ReplyOrIdError};
 use x11rb::utils::RawFdContainer;
 
@@ -60,6 +62,8 @@ where
         window: &Window,
         dmabuf: &Dmabuf,
     ) -> Result<PixmapWrapper<'c, C>, CreatePixmapError>;
+
+    fn present(self, connection: &C, window: &Window) -> Result<u32, X11Error>;
 }
 
 impl<'c, C> PixmapWrapperExt<'c, C> for PixmapWrapper<'c, C>
@@ -109,26 +113,37 @@ where
 
         Ok(PixmapWrapper::for_pixmap(connection, xid))
     }
-}
 
-pub fn present<C: Connection>(
-    connection: &C,
-    pixmap: &PixmapWrapper<'_, C>,
-    window: &Window,
-    width: u16,
-    height: u16,
-) -> Result<(), X11Error> {
-    connection.copy_area(
-        pixmap.pixmap(),
-        window.id(),
-        window.gc(),
-        0,
-        0,
-        0,
-        0,
-        width,
-        height,
-    )?;
+    fn present(
+        self,
+        connection: &C,
+        window: &Window,
+        // present_state: &mut PresentState,
+    ) -> Result<u32, X11Error> {
+        let window_inner = window.0.upgrade().unwrap(); // We have the connection and window alive.
+        let next_serial = window_inner.next_serial.fetch_add(1, Ordering::SeqCst);
+        let msc = window_inner.last_msc.load(Ordering::SeqCst) + 1;
 
-    Ok(())
+        const OPTIONS: present::Option = present::Option::NONE;
+
+        connection.present_pixmap(
+            window.id(),
+            self.pixmap(),
+            next_serial,
+            x11rb::NONE, // Update the entire window
+            x11rb::NONE, // Update the entire window
+            0,           // No offsets
+            0,
+            x11rb::NONE,    // Let the X server pick the most suitable crtc
+            x11rb::NONE,    // Do not wait to present
+            x11rb::NONE,    // We will wait for the X server to tell us when it is done with our pixmap.
+            OPTIONS.into(), // No special presentation options.
+            msc,            // TODO: Handle target msc
+            0,
+            0,
+            &[], // We don't need to notify any other windows.
+        )?;
+
+        Ok(self.into_pixmap())
+    }
 }

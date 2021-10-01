@@ -34,6 +34,7 @@ pub const OUTPUT_NAME: &str = "x11";
 
 #[derive(Debug)]
 pub struct X11Data {
+    render: bool,
     mode: Mode,
     surface: X11Surface,
     #[cfg(feature = "debug")]
@@ -99,6 +100,7 @@ pub fn run_x11(log: Logger) {
     };
 
     let data = X11Data {
+        render: true,
         mode,
         surface,
         #[cfg(feature = "debug")]
@@ -106,7 +108,7 @@ pub fn run_x11(log: Logger) {
             use crate::drawing::{import_bitmap, FPS_NUMBERS_PNG};
 
             import_bitmap(
-                &mut renderer,
+                &mut *renderer.borrow_mut(),
                 &image::io::Reader::with_format(
                     std::io::Cursor::new(FPS_NUMBERS_PNG),
                     image::ImageFormat::Png,
@@ -160,11 +162,14 @@ pub fn run_x11(log: Logger) {
                 let output = output_mut.find_by_name(OUTPUT_NAME).unwrap();
 
                 state.window_map.borrow_mut().layers.arange_layers(output);
+                state.backend_data.render = true;
+            }
+
+            X11Event::PresentCompleted | X11Event::Refresh => {
+                state.backend_data.render = true;
             }
 
             X11Event::Input(event) => state.process_input_event(event),
-
-            _ => (),
         })
         .expect("Failed to insert X11 Backend into event loop");
 
@@ -184,7 +189,8 @@ pub fn run_x11(log: Logger) {
             .map(|output| (output.geometry(), output.scale()))
             .unwrap();
 
-        {
+        if state.backend_data.render {
+            state.backend_data.render = false;
             let backend_data = &mut state.backend_data;
 
             match backend_data.surface.present() {
@@ -304,6 +310,8 @@ pub fn run_x11(log: Logger) {
                 }
             }
 
+            #[cfg(feature = "debug")]
+            state.backend_data.fps.tick();
             window.set_cursor_visible(cursor_visible);
         }
 
@@ -324,9 +332,6 @@ pub fn run_x11(log: Logger) {
             state.window_map.borrow_mut().refresh();
             state.output_map.borrow_mut().refresh();
         }
-
-        #[cfg(feature = "debug")]
-        state.backend_data.fps.tick();
     }
 
     // Cleanup stuff

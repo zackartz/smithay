@@ -12,14 +12,18 @@ A link to the ICCCM Section 4: https://tronche.com/gui/x/icccm/sec-4.html
 use crate::utils::{Logical, Size};
 
 use super::{Atoms, Window, WindowProperties, X11Error};
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{
+    atomic::{AtomicU32, AtomicU64},
+    Arc, Mutex, Weak,
+};
 use x11rb::{
     connection::Connection,
     protocol::{
-        xfixes::ConnectionExt,
+        present::{self, ConnectionExt as _},
+        xfixes::ConnectionExt as _,
         xproto::{
-            self as x11, AtomEnum, ConnectionExt as _, CreateGCAux, CreateWindowAux, Depth, EventMask,
-            PropMode, Screen, UnmapNotifyEvent, WindowClass,
+            self as x11, AtomEnum, ConnectionExt, CreateWindowAux, Depth, EventMask, PropMode, Screen,
+            UnmapNotifyEvent, WindowClass,
         },
     },
     rust_connection::RustConnection,
@@ -52,11 +56,13 @@ pub(crate) struct WindowInner {
     pub connection: Weak<RustConnection>,
     pub id: x11::Window,
     root: x11::Window,
+    present_event_id: u32,
     pub atoms: Atoms,
     pub cursor_state: Arc<Mutex<CursorState>>,
     pub size: Mutex<Size<u16, Logical>>,
+    pub next_serial: AtomicU32,
+    pub last_msc: Arc<AtomicU64>,
     pub depth: Depth,
-    pub gc: x11::Gcontext,
 }
 
 impl WindowInner {
@@ -100,6 +106,7 @@ impl WindowInner {
             | EventMask::POINTER_MOTION // Mouse movement
             | EventMask::ENTER_WINDOW // Track whether the cursor enters of leaves the window.
             | EventMask::LEAVE_WINDOW
+            | EventMask::EXPOSURE
             | EventMask::NO_EVENT,
             )
             // Border pixel and color map need to be set if our depth may differ from the root depth.
@@ -120,19 +127,26 @@ impl WindowInner {
             &window_aux,
         )?;
 
+        let present_event_id = connection.generate_id()?;
+        connection.present_select_input(
+            present_event_id,
+            window,
+            present::EventMask::COMPLETE_NOTIFY | present::EventMask::IDLE_NOTIFY,
+        )?;
+
         // Send requests to change window properties while we wait for the window creation request to complete.
         let window = WindowInner {
             connection: weak,
             id: window,
             root: screen.root,
+            present_event_id,
             atoms,
             cursor_state: Arc::new(Mutex::new(CursorState::default())),
             size: Mutex::new((properties.size.w, properties.size.h).into()),
+            next_serial: AtomicU32::new(0),
+            last_msc: Arc::new(AtomicU64::new(0)),
             depth,
-            gc: connection.generate_id()?,
         };
-
-        connection.create_gc(window.gc, window.id, &CreateGCAux::new())?;
 
         // Enable WM_DELETE_WINDOW so our client is not disconnected upon our toplevel window being destroyed.
         connection.change_property32(

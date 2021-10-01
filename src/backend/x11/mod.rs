@@ -51,10 +51,7 @@ mod error;
 mod input;
 mod window_inner;
 
-use self::{
-    buffer::{present, PixmapWrapperExt},
-    window_inner::WindowInner,
-};
+use self::{buffer::PixmapWrapperExt, window_inner::WindowInner};
 use super::{
     allocator::dmabuf::{AsDmabuf, Dmabuf},
     input::{Axis, ButtonState, KeyState, MouseButton},
@@ -85,20 +82,14 @@ use x11rb::{
     connection::Connection,
     protocol::{
         self as x11,
-        dri3::{self, ConnectionExt},
-        xfixes::{self, ConnectionExt as _},
-        xproto::{ColormapAlloc, ConnectionExt as _, Depth, PixmapWrapper, VisualClass},
+        dri3::ConnectionExt as _,
+        xproto::{ColormapAlloc, ConnectionExt, Depth, PixmapWrapper, VisualClass},
     },
     rust_connection::RustConnection,
 };
 
 pub use self::error::*;
 pub use self::input::*;
-
-pub(crate) const DRI3_MAJOR_VERSION: u32 = 1;
-pub(crate) const DRI3_MINOR_VERSION: u32 = 2;
-pub(crate) const XFIXES_MAJOR_VERSION: u32 = 4;
-pub(crate) const XFIXES_MINOR_VERSION: u32 = 0;
 
 /// Properties defining initial information about the window created by the X11 backend.
 #[derive(Debug, Clone, Copy)]
@@ -128,6 +119,11 @@ pub enum X11Event {
 
     /// The window was resized.
     Resized(Size<u16, Logical>),
+
+    /// The last buffer presented to the window has been displayed.
+    ///
+    /// When this event is scheduled, the next frame may be rendered.
+    PresentCompleted,
 
     /// The window has received a request to be closed.
     CloseRequested,
@@ -438,13 +434,7 @@ impl Drop for Present<'_> {
 
             if let Ok(pixmap) = PixmapWrapper::with_dmabuf(&*connection, &surface.window, &surface.current) {
                 // Now present the current buffer
-                let _ = present(
-                    &*connection,
-                    &pixmap,
-                    &surface.window,
-                    surface.width,
-                    surface.height,
-                );
+                let _ = pixmap.present(&*connection, &surface.window);
             }
 
             // Flush the connection after presenting to the window to ensure we don't run out of buffer space in the X11 connection.
@@ -506,11 +496,6 @@ impl Window {
     /// Returns the depth id of this window.
     pub fn depth(&self) -> u8 {
         self.0.upgrade().map(|inner| inner.depth.depth).unwrap_or(0)
-    }
-
-    /// Returns the graphics context used to draw to this window.
-    pub fn gc(&self) -> u32 {
-        self.0.upgrade().map(|inner| inner.gc).unwrap_or(0)
     }
 }
 
@@ -798,6 +783,22 @@ impl EventSource for X11Backend {
                     }
                 }
 
+                x11::Event::PresentCompleteNotify(complete_notify) => {
+                    if complete_notify.window == window.id {
+                        // TODO: Clean up pixmaps?
+                        window.last_msc.store(complete_notify.msc, Ordering::SeqCst);
+
+                        (callback)(X11Event::PresentCompleted, &mut event_window);
+                    }
+                }
+
+                x11::Event::PresentIdleNotify(idle_notify) => {
+                    if idle_notify.window == window.id {
+                        // Take ownership and drop.
+                        let _ = PixmapWrapper::for_pixmap(&*connection, idle_notify.pixmap);
+                    }
+                }
+
                 x11::Event::Error(e) => {
                     error!(log, "X11 error: {:?}", e);
                 }
@@ -823,97 +824,116 @@ impl EventSource for X11Backend {
     }
 }
 
+pub(crate) const DRI3_MAJOR_VERSION: u32 = 1;
+pub(crate) const DRI3_MINOR_VERSION: u32 = 2;
+pub(crate) const XFIXES_MAJOR_VERSION: u32 = 4;
+pub(crate) const XFIXES_MINOR_VERSION: u32 = 0;
+pub(crate) const PRESENT_MAJOR_VERSION: u32 = 1;
+pub(crate) const PRESENT_MINOR_VERSION: u32 = 0;
+
 fn check_for_extensions(connection: &RustConnection, logger: &Logger) -> Result<(), X11Error> {
-    // Xfixes
-    {
-        find_extension(
-            connection,
-            xfixes::X11_EXTENSION_NAME,
-            (XFIXES_MAJOR_VERSION, XFIXES_MINOR_VERSION),
-            logger,
-        )?;
+    fn find_extension<C: Connection>(
+        connection: &C,
+        name: &'static str,
+        version: (u32, u32),
+        logger: &Logger,
+    ) -> Result<(), X11Error> {
+        if connection.extension_information(name)?.is_some() {
+            Ok(())
+        } else {
+            error!(logger, "{} extension not found", name);
 
-        let version = connection
-            .xfixes_query_version(XFIXES_MAJOR_VERSION, XFIXES_MINOR_VERSION)?
-            .reply()?;
-
-        compare_versions(
-            xfixes::X11_EXTENSION_NAME,
-            (version.major_version, version.minor_version),
-            (XFIXES_MAJOR_VERSION, XFIXES_MINOR_VERSION),
-            logger,
-        )?;
+            Err(MissingExtensionError::NotFound {
+                name,
+                major: version.0,
+                minor: version.1,
+            }
+            .into())
+        }
     }
 
-    // DRI3
-    {
-        find_extension(
-            connection,
-            dri3::X11_EXTENSION_NAME,
-            (DRI3_MAJOR_VERSION, DRI3_MINOR_VERSION),
-            logger,
-        )?;
+    fn compare_versions(
+        name: &'static str,
+        available: (u32, u32),
+        required: (u32, u32),
+        logger: &Logger,
+    ) -> Result<(), MissingExtensionError> {
+        if available.0 >= required.0 || (available.0 == required.0 && available.1 >= required.1) {
+            Ok(())
+        } else {
+            error!(
+                logger,
+                "{} extension version is too low (have {}.{}, expected {}.{})",
+                name,
+                available.0,
+                available.1,
+                required.0,
+                required.1
+            );
 
-        let version = connection
-            .dri3_query_version(DRI3_MAJOR_VERSION, DRI3_MINOR_VERSION)?
-            .reply()?;
-
-        compare_versions(
-            dri3::X11_EXTENSION_NAME,
-            (version.major_version, version.minor_version),
-            (DRI3_MAJOR_VERSION, DRI3_MINOR_VERSION),
-            logger,
-        )?;
+            Err(MissingExtensionError::WrongVersion {
+                name,
+                required_major: required.0,
+                required_minor: required.1,
+                available_major: available.0,
+                available_minor: available.1,
+            })
+        }
     }
+
+    /// Helper macro to check if an extension is available and is the right version.
+    ///
+    /// ### Example usage
+    /// ```no_run
+    /// extension!(
+    ///     xfixes,
+    ///     xfixes_query_version,
+    ///     major = 4,
+    ///     minor = 0
+    /// );
+    /// ```
+    macro_rules! extension {
+        (
+            $extension:ident,
+            $query_fn:ident,
+            major = $major:expr,
+            minor = $minor:expr,
+        ) => {{
+            use x11rb::protocol::$extension::{ConnectionExt as _, X11_EXTENSION_NAME};
+
+            find_extension(connection, X11_EXTENSION_NAME, ($major, $minor), logger)?;
+
+            let version = connection.$query_fn($major, $minor)?.reply()?;
+
+            compare_versions(
+                X11_EXTENSION_NAME,
+                (version.major_version, version.minor_version),
+                ($major, $minor),
+                logger,
+            )?;
+        }};
+    }
+
+    extension!(
+        xfixes,
+        xfixes_query_version,
+        major = XFIXES_MAJOR_VERSION,
+        minor = XFIXES_MINOR_VERSION,
+    );
+
+    extension!(
+        present,
+        present_query_version,
+        major = PRESENT_MAJOR_VERSION,
+        minor = PRESENT_MINOR_VERSION,
+    );
+
+    extension!(
+        dri3,
+        dri3_query_version,
+        major = DRI3_MAJOR_VERSION,
+        minor = DRI3_MINOR_VERSION,
+    );
 
     Ok(())
-}
-
-fn find_extension<C: Connection>(
-    connection: &C,
-    name: &'static str,
-    version: (u32, u32),
-    logger: &Logger,
-) -> Result<(), X11Error> {
-    if connection.extension_information(name)?.is_some() {
-        Ok(())
-    } else {
-        error!(logger, "{} extension not found", name);
-
-        Err(MissingExtensionError::NotFound {
-            name,
-            major: version.0,
-            minor: version.1,
-        }
-        .into())
-    }
-}
-
-fn compare_versions(
-    name: &'static str,
-    available: (u32, u32),
-    required: (u32, u32),
-    logger: &Logger,
-) -> Result<(), MissingExtensionError> {
-    if available.0 >= required.0 || (available.0 == required.0 && available.1 >= required.1) {
-        Ok(())
-    } else {
-        error!(
-            logger,
-            "{} extension version is too low (have {}.{}, expected {}.{})",
-            name,
-            available.0,
-            available.1,
-            required.0,
-            required.1
-        );
-
-        Err(MissingExtensionError::WrongVersion {
-            name,
-            required_major: required.0,
-            required_minor: required.1,
-            available_major: available.0,
-            available_minor: available.1,
-        })
-    }
 }
