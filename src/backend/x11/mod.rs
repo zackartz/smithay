@@ -61,7 +61,7 @@ use super::{
 use crate::{
     backend::{
         input::InputEvent,
-        x11::drm::{get_drm_node_type_from_fd, DRM_NODE_RENDER},
+        x11::drm::{get_drm_node_type_from_fd, DRM_NODE_PRIMARY, DRM_NODE_RENDER},
     },
     utils::{x11rb::X11Source, Logical, Size},
 };
@@ -309,9 +309,33 @@ impl X11Surface {
         )
         .map_err(AllocateBuffersError::from)?;
 
-        if get_drm_node_type_from_fd(drm_device_fd.as_raw_fd())? != DRM_NODE_RENDER {
-            todo!("Attempt to get the render device by name for the DRM node that isn't a render node")
-        }
+        // Kernel documentation explains why we require the node to be a render node:
+        // https://kernel.readthedocs.io/en/latest/gpu/drm-uapi.html
+        //
+        // > Render nodes solely serve render clients, that is, no modesetting or privileged ioctls
+        // > can be issued on render nodes. Only non-global rendering commands are allowed. If a
+        // > driver supports render nodes, it must advertise it via the DRIVER_RENDER DRM driver
+        // > capability. If not supported, the primary node must be used for render clients together
+        // > with the legacy drmAuth authentication procedure.
+        //
+        // Since giving the X11 backend the ability to do modesetting is a big nono, we should only
+        // ever create a gbm device from a render node.
+        //
+        // Of course if the DRM device does not support render nodes, no DRIVER_RENDER capability, then
+        // get the primary node.
+
+        // TODO: Does X11 return a render node always when available in dri3
+        #[allow(clippy::branches_sharing_code)] // temporary
+        let drm_device_fd = if get_drm_node_type_from_fd(drm_device_fd.as_raw_fd())? != DRM_NODE_RENDER {
+            // FIXME: Do proper lookup for render node before falling to primary
+            if get_drm_node_type_from_fd(drm_device_fd.as_raw_fd())? != DRM_NODE_PRIMARY {
+                todo!("lookup")
+            }
+
+            drm_device_fd
+        } else {
+            drm_device_fd
+        };
 
         // Finally create a GBMDevice to manage the buffers.
         let device = gbm::Device::new(drm_device_fd.as_raw_fd()).expect("Failed to create gbm device");
