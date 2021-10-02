@@ -67,6 +67,7 @@ pub(crate) struct WindowInner {
 }
 
 impl WindowInner {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         connection: Weak<RustConnection>,
         screen: &Screen,
