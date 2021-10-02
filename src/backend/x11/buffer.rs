@@ -75,17 +75,14 @@ where
         window: &Window,
         dmabuf: &Dmabuf,
     ) -> Result<PixmapWrapper<'c, C>, CreatePixmapError> {
-        if dmabuf.num_planes() > 4 {
-            return Err(CreatePixmapError::TooManyPlanes);
-        }
+        let window_inner = window.0.upgrade().unwrap();
 
-        let xid = connection.generate_id()?;
-        let mut strides = dmabuf.strides();
+        // TODO: Verify window and dmabuf have same format?
 
         let mut fds = Vec::new();
 
+        // XCB closes the file descriptor after sending, so duplicate the file descriptors.
         for handle in dmabuf.handles() {
-            // XCB closes the file descriptor after sending, so duplicate the file descriptor.
             let fd: RawFd = fcntl::fcntl(
                 handle,
                 fcntl::FcntlArg::F_DUPFD_CLOEXEC(3), // Set to 3 so the fd cannot become stdin, stdout or stderr
@@ -95,31 +92,64 @@ where
             fds.push(RawFdContainer::new(fd))
         }
 
-        let stride = strides.next().unwrap();
+        let xid = if window_inner.extensions.dri3 >= (1, 2) {
+            if dmabuf.num_planes() > 4 {
+                return Err(CreatePixmapError::TooManyPlanes);
+            }
 
-        // TODO: Use dri3_pixmap_from_buffers where appropriate.
+            let xid = connection.generate_id()?;
+            let mut strides = dmabuf.strides();
+            let mut offsets = dmabuf.offsets();
 
-        connection.dri3_pixmap_from_buffer(
-            xid,
-            window.id(),
-            dmabuf.height() * stride,
-            dmabuf.width() as u16,
-            dmabuf.height() as u16,
-            stride as u16,
-            window.depth(),
-            32, // TODO: Stop hardcoding this
-            fds.remove(0),
-        )?;
+            connection.dri3_pixmap_from_buffers(
+                xid,
+                window.id(),
+                dmabuf.width() as u16,
+                dmabuf.height() as u16,
+                strides.next().unwrap(), // there must be at least one plane.
+                offsets.next().unwrap(),
+                // The other planes are optional, so unwrap_or to NONE if those planes are not available.
+                strides.next().unwrap_or(x11rb::NONE),
+                offsets.next().unwrap_or(x11rb::NONE),
+                strides.next().unwrap_or(x11rb::NONE),
+                offsets.next().unwrap_or(x11rb::NONE),
+                strides.next().unwrap_or(x11rb::NONE),
+                offsets.next().unwrap_or(x11rb::NONE),
+                window.depth(),
+                32, // TODO: Stop hardcoding this
+                dmabuf.format().modifier.into(),
+                fds,
+            )?;
+
+            xid
+        } else {
+            if dmabuf.num_planes() != 1 {
+                return Err(CreatePixmapError::TooManyPlanes); // TODO: Not correct name?
+            }
+
+            let xid = connection.generate_id()?;
+            let mut strides = dmabuf.strides();
+            let stride = strides.next().unwrap();
+
+            connection.dri3_pixmap_from_buffer(
+                xid,
+                window.id(),
+                dmabuf.height() * stride,
+                dmabuf.width() as u16,
+                dmabuf.height() as u16,
+                stride as u16,
+                window.depth(),
+                32, // TODO: Stop hardcoding this
+                fds.remove(0),
+            )?;
+
+            xid
+        };
 
         Ok(PixmapWrapper::for_pixmap(connection, xid))
     }
 
-    fn present(
-        self,
-        connection: &C,
-        window: &Window,
-        // present_state: &mut PresentState,
-    ) -> Result<u32, X11Error> {
+    fn present(self, connection: &C, window: &Window) -> Result<u32, X11Error> {
         let window_inner = window.0.upgrade().unwrap(); // We have the connection and window alive.
         let next_serial = window_inner.next_serial.fetch_add(1, Ordering::SeqCst);
         let msc = window_inner.last_msc.load(Ordering::SeqCst) + 1;
