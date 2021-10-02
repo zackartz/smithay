@@ -11,7 +11,7 @@ A link to the ICCCM Section 4: https://tronche.com/gui/x/icccm/sec-4.html
 */
 use crate::utils::{Logical, Size};
 
-use super::{Atoms, Window, WindowProperties, X11Error};
+use super::{extension::Extensions, Atoms, Window, WindowProperties, X11Error};
 use std::sync::{
     atomic::{AtomicU32, AtomicU64},
     Arc, Mutex, Weak,
@@ -63,6 +63,7 @@ pub(crate) struct WindowInner {
     pub next_serial: AtomicU32,
     pub last_msc: Arc<AtomicU64>,
     pub depth: Depth,
+    pub extensions: Extensions,
 }
 
 impl WindowInner {
@@ -74,6 +75,7 @@ impl WindowInner {
         depth: Depth,
         visual_id: u32,
         colormap: u32,
+        extensions: Extensions,
     ) -> Result<WindowInner, X11Error> {
         let weak = connection;
         let connection = weak.upgrade().unwrap();
@@ -146,6 +148,7 @@ impl WindowInner {
             next_serial: AtomicU32::new(0),
             last_msc: Arc::new(AtomicU64::new(0)),
             depth,
+            extensions,
         };
 
         // Enable WM_DELETE_WINDOW so our client is not disconnected upon our toplevel window being destroyed.

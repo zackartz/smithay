@@ -48,6 +48,8 @@ DRI3 protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto
 mod buffer;
 mod drm;
 mod error;
+#[macro_use]
+mod extension;
 mod input;
 mod window_inner;
 
@@ -90,6 +92,7 @@ use x11rb::{
 
 pub use self::error::*;
 pub use self::input::*;
+use crate::backend::x11::extension::Extensions;
 
 /// Properties defining initial information about the window created by the X11 backend.
 #[derive(Debug, Clone, Copy)]
@@ -167,7 +170,7 @@ impl X11Backend {
         let connection = Arc::new(connection);
         info!(logger, "Connected to screen {}", screen_number);
 
-        check_for_extensions(&*connection, &logger)?;
+        let extensions = Extensions::check_extensions(&*connection, &logger)?;
 
         let screen = &connection.setup().roots[screen_number];
 
@@ -209,6 +212,7 @@ impl X11Backend {
             depth.clone(),
             visual_id,
             colormap,
+            extensions,
         )?);
 
         let source = X11Source::new(
@@ -822,118 +826,4 @@ impl EventSource for X11Backend {
     fn unregister(&mut self, poll: &mut Poll) -> io::Result<()> {
         self.source.unregister(poll)
     }
-}
-
-pub(crate) const DRI3_MAJOR_VERSION: u32 = 1;
-pub(crate) const DRI3_MINOR_VERSION: u32 = 2;
-pub(crate) const XFIXES_MAJOR_VERSION: u32 = 4;
-pub(crate) const XFIXES_MINOR_VERSION: u32 = 0;
-pub(crate) const PRESENT_MAJOR_VERSION: u32 = 1;
-pub(crate) const PRESENT_MINOR_VERSION: u32 = 0;
-
-fn check_for_extensions(connection: &RustConnection, logger: &Logger) -> Result<(), X11Error> {
-    fn find_extension<C: Connection>(
-        connection: &C,
-        name: &'static str,
-        version: (u32, u32),
-        logger: &Logger,
-    ) -> Result<(), X11Error> {
-        if connection.extension_information(name)?.is_some() {
-            Ok(())
-        } else {
-            error!(logger, "{} extension not found", name);
-
-            Err(MissingExtensionError::NotFound {
-                name,
-                major: version.0,
-                minor: version.1,
-            }
-            .into())
-        }
-    }
-
-    fn compare_versions(
-        name: &'static str,
-        available: (u32, u32),
-        required: (u32, u32),
-        logger: &Logger,
-    ) -> Result<(), MissingExtensionError> {
-        if available.0 >= required.0 || (available.0 == required.0 && available.1 >= required.1) {
-            Ok(())
-        } else {
-            error!(
-                logger,
-                "{} extension version is too low (have {}.{}, expected {}.{})",
-                name,
-                available.0,
-                available.1,
-                required.0,
-                required.1
-            );
-
-            Err(MissingExtensionError::WrongVersion {
-                name,
-                required_major: required.0,
-                required_minor: required.1,
-                available_major: available.0,
-                available_minor: available.1,
-            })
-        }
-    }
-
-    /// Helper macro to check if an extension is available and is the right version.
-    ///
-    /// ### Example usage
-    /// ```no_run
-    /// extension!(
-    ///     xfixes,
-    ///     xfixes_query_version,
-    ///     major = 4,
-    ///     minor = 0
-    /// );
-    /// ```
-    macro_rules! extension {
-        (
-            $extension:ident,
-            $query_fn:ident,
-            major = $major:expr,
-            minor = $minor:expr,
-        ) => {{
-            use x11rb::protocol::$extension::{ConnectionExt as _, X11_EXTENSION_NAME};
-
-            find_extension(connection, X11_EXTENSION_NAME, ($major, $minor), logger)?;
-
-            let version = connection.$query_fn($major, $minor)?.reply()?;
-
-            compare_versions(
-                X11_EXTENSION_NAME,
-                (version.major_version, version.minor_version),
-                ($major, $minor),
-                logger,
-            )?;
-        }};
-    }
-
-    extension!(
-        xfixes,
-        xfixes_query_version,
-        major = XFIXES_MAJOR_VERSION,
-        minor = XFIXES_MINOR_VERSION,
-    );
-
-    extension!(
-        present,
-        present_query_version,
-        major = PRESENT_MAJOR_VERSION,
-        minor = PRESENT_MINOR_VERSION,
-    );
-
-    extension!(
-        dri3,
-        dri3_query_version,
-        major = DRI3_MAJOR_VERSION,
-        minor = DRI3_MINOR_VERSION,
-    );
-
-    Ok(())
 }
