@@ -174,6 +174,9 @@ where
             &[], // We don't need to notify any other windows.
         )?;
 
+        // Take the wrapper away since the X server will give us the pixmap's xid back when we
+        // receive notification that presentation is completed. At that point we can reconstruct
+        // the wrapper and drop.
         Ok(self.into_pixmap())
     }
 }
