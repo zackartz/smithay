@@ -53,7 +53,7 @@ mod extension;
 mod input;
 mod window_inner;
 
-use self::{buffer::PixmapWrapperExt, window_inner::WindowInner};
+use self::{buffer::PixmapWrapperExt, drm::DrmNodeType, window_inner::WindowInner};
 use super::{
     allocator::dmabuf::{AsDmabuf, Dmabuf},
     input::{Axis, ButtonState, KeyState, MouseButton},
@@ -61,7 +61,7 @@ use super::{
 use crate::{
     backend::{
         input::InputEvent,
-        x11::drm::{get_drm_node_type_from_fd, DRM_NODE_PRIMARY, DRM_NODE_RENDER},
+        x11::drm::get_drm_node_type_from_fd,
     },
     utils::{x11rb::X11Source, Logical, Size},
 };
@@ -326,10 +326,11 @@ impl X11Surface {
 
         // TODO: Does X11 return a render node always when available in dri3
         #[allow(clippy::branches_sharing_code)] // temporary
-        let drm_device_fd = if get_drm_node_type_from_fd(drm_device_fd.as_raw_fd())? != DRM_NODE_RENDER {
+        let drm_device_fd = if get_drm_node_type_from_fd(drm_device_fd.as_raw_fd())? != DrmNodeType::Render {
             // FIXME: Do proper lookup for render node before falling to primary
-            if get_drm_node_type_from_fd(drm_device_fd.as_raw_fd())? != DRM_NODE_PRIMARY {
-                todo!("lookup")
+            if get_drm_node_type_from_fd(drm_device_fd.as_raw_fd())? != DrmNodeType::Primary {
+                // For now fail if we do not have a primary node.
+                return Err(X11Error::Allocation(AllocateBuffersError::UnsupportedDrmNode));
             }
 
             drm_device_fd

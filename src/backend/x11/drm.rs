@@ -1,21 +1,20 @@
 //! Utilities for checking properties of a drm device.
+//!
+//! Nearly everything in this module is copied from xf86drm.h/c. Ideally we will 
+//!
 
 /*
 About certain this needs checking
 */
 
-use std::{
-    error::Error,
-    fmt::{self, Display, Formatter},
-    os::unix::prelude::RawFd,
-};
+use std::{convert::TryFrom, error::Error, fmt::{self, Display, Formatter}, os::unix::prelude::RawFd};
 
 use nix::sys::stat::{fstat, major, minor, SFlag};
 
 use super::AllocateBuffersError;
 
 /// This function is a copy of `drmGetNodeTypeFromFd` from libdrm.
-pub fn get_drm_node_type_from_fd(fd: RawFd) -> Result<u64, AllocateBuffersError> {
+pub fn get_drm_node_type_from_fd(fd: RawFd) -> Result<DrmNodeType, AllocateBuffersError> {
     // Obtain major and minor numbers of the file descriptor
     let stat_buf = fstat(fd)?;
 
@@ -34,16 +33,32 @@ pub fn get_drm_node_type_from_fd(fd: RawFd) -> Result<u64, AllocateBuffersError>
         return Err(AllocateBuffersError::UnsupportedDrmNode);
     }
 
-    drm_get_minor_type(major, minor)
+    Ok(drm_get_minor_type(major, minor).expect("introduce error"))
 }
 
-// These are actually in use.
-#[allow(dead_code)]
-pub const DRM_NODE_PRIMARY: u64 = 0;
-#[allow(dead_code)]
-pub const DRM_NODE_CONTROL: u64 = 1;
-#[allow(dead_code)]
-pub const DRM_NODE_RENDER: u64 = 2;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DrmNodeType {
+    Primary = 0,
+    Control = 1,
+    Render = 2,
+}
+
+impl TryFrom<u64> for DrmNodeType {
+    type Error = InvalidNodeType;
+
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(DrmNodeType::Primary),
+            1 => Ok(DrmNodeType::Control),
+            2 => Ok(DrmNodeType::Render),
+            _ => Err(InvalidNodeType),
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("The DRM node type is not a valid value.")]
+pub struct InvalidNodeType;
 
 // Again copied from xf86drm.c
 
@@ -76,18 +91,13 @@ impl Display for UnsupportedDrmNodeType {
 impl Error for UnsupportedDrmNodeType {}
 
 /// This function is a copy of `drmGetMinorType` from libdrm
-pub fn drm_get_minor_type(_major: u64, minor: u64) -> Result<u64, AllocateBuffersError> {
+pub fn drm_get_minor_type(_major: u64, minor: u64) -> Result<DrmNodeType, InvalidNodeType> {
     #[cfg(target_os = "freebsd")]
     compile_error!("FreeBSD is not implemented yet!");
 
     // TODO: What on earth is libdrm doing here with bit magic.
     // the stat might already hold this information?
-    let ty = minor >> 6;
-
-    match ty {
-        DRM_NODE_PRIMARY | DRM_NODE_CONTROL | DRM_NODE_RENDER => Ok(ty),
-        _ => Err(AllocateBuffersError::UnsupportedDrmNode),
-    }
+    DrmNodeType::try_from(minor >> 6)
 }
 
 // drmNodeIsDRM has differing implementations on each os
