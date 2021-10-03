@@ -1,13 +1,18 @@
 //! Utilities for checking properties of a drm device.
 //!
-//! Nearly everything in this module is copied from xf86drm.h/c. Ideally we will 
+//! Nearly everything in this module is copied from xf86drm.h/c. Ideally we will
 //!
 
 /*
 About certain this needs checking
 */
 
-use std::{convert::TryFrom, error::Error, fmt::{self, Display, Formatter}, os::unix::prelude::RawFd};
+use std::{
+    convert::TryFrom,
+    error::Error,
+    fmt::{self, Display, Formatter},
+    os::unix::prelude::RawFd,
+};
 
 use nix::sys::stat::{fstat, major, minor, SFlag};
 

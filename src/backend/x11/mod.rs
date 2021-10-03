@@ -59,10 +59,7 @@ use super::{
     input::{Axis, ButtonState, KeyState, MouseButton},
 };
 use crate::{
-    backend::{
-        input::InputEvent,
-        x11::drm::get_drm_node_type_from_fd,
-    },
+    backend::{input::InputEvent, x11::drm::get_drm_node_type_from_fd},
     utils::{x11rb::X11Source, Logical, Size},
 };
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
