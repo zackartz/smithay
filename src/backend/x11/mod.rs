@@ -65,7 +65,7 @@ use crate::{
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use drm_fourcc::DrmFourcc;
 use gbm::BufferObjectFlags;
-use nix::fcntl;
+use nix::{fcntl, unistd};
 use slog::{error, info, o, Logger};
 use std::{
     io, mem,
@@ -284,24 +284,17 @@ impl X11Surface {
         // provider being NONE tells the X server to use the RandR provider.
         let dri3 = connection.dri3_open(screen.root, x11rb::NONE)?.reply()?;
 
-        let drm_device_fd = dri3.device_fd;
-
-        // Duplicate the drm_device_fd otherwise we will segfault.
-        let drm_device_fd: RawFd = fcntl::fcntl(
-            drm_device_fd.as_raw_fd(),
-            fcntl::FcntlArg::F_DUPFD_CLOEXEC(3), // Set to 3 so the fd cannot become stdin, stdout or stderr
-        )
-        .map_err(AllocateBuffersError::from)?;
+        // Take ownership of the container's inner value so we do not need to duplicate the fd.
+        let drm_device_fd = dri3.device_fd.into_raw_fd();
 
         let fd_flags =
-            nix::fcntl::fcntl(drm_device_fd.as_raw_fd(), nix::fcntl::F_GETFD).expect("Handle this error");
-        // No need to check if ret == 1 since nix handles that.
+            fcntl::fcntl(drm_device_fd.as_raw_fd(), fcntl::F_GETFD).map_err(AllocateBuffersError::from)?;
 
         // Enable the close-on-exec flag.
-        nix::fcntl::fcntl(
-            drm_device_fd.as_raw_fd(),
-            nix::fcntl::F_SETFD(
-                nix::fcntl::FdFlag::from_bits_truncate(fd_flags) | nix::fcntl::FdFlag::FD_CLOEXEC,
+        fcntl::fcntl(
+            drm_device_fd,
+            fcntl::F_SETFD(
+                fcntl::FdFlag::from_bits_truncate(fd_flags) | fcntl::FdFlag::FD_CLOEXEC,
             ),
         )
         .map_err(AllocateBuffersError::from)?;
@@ -323,9 +316,9 @@ impl X11Surface {
 
         // TODO: Does X11 return a render node always when available in dri3
         #[allow(clippy::branches_sharing_code)] // temporary
-        let drm_device_fd = if get_drm_node_type_from_fd(drm_device_fd.as_raw_fd())? != DrmNodeType::Render {
+        let drm_device_fd = if get_drm_node_type_from_fd(drm_device_fd)? != DrmNodeType::Render {
             // FIXME: Do proper lookup for render node before falling to primary
-            if get_drm_node_type_from_fd(drm_device_fd.as_raw_fd())? != DrmNodeType::Primary {
+            if get_drm_node_type_from_fd(drm_device_fd)? != DrmNodeType::Primary {
                 // For now fail if we do not have a primary node.
                 return Err(X11Error::Allocation(AllocateBuffersError::UnsupportedDrmNode));
             }
@@ -336,7 +329,7 @@ impl X11Surface {
         };
 
         // Finally create a GBMDevice to manage the buffers.
-        let device = gbm::Device::new(drm_device_fd.as_raw_fd()).expect("Failed to create gbm device");
+        let device = gbm::Device::new(drm_device_fd).expect("Failed to create gbm device");
 
         let size = backend.window().size();
         // TODO: Dont hardcode format.
@@ -847,5 +840,13 @@ impl EventSource for X11Backend {
 
     fn unregister(&mut self, poll: &mut Poll) -> io::Result<()> {
         self.source.unregister(poll)
+    }
+}
+
+impl Drop for X11Surface {
+    fn drop(&mut self) {
+        let fd = self.device.as_raw_fd();
+
+        let _ = unistd::close(fd);
     }
 }
