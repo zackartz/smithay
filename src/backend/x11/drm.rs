@@ -127,5 +127,6 @@ pub fn is_drm_node_drm(major: u64, minor: u64) -> bool {
 /// This function is a copy of `isDrmNodeDrm` from libdrm
 #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
 pub fn is_drm_node_drm(major: u64, _minor: u64) -> bool {
+    // TODO: For Freebsd, we shou
     major == DRM_MAJOR
 }
