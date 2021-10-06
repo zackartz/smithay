@@ -46,20 +46,16 @@ DRI3 protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto
 */
 
 mod buffer;
-mod drm;
 mod error;
 #[macro_use]
 mod extension;
 mod input;
 mod window_inner;
 
-use self::{buffer::PixmapWrapperExt, drm::DrmNodeType, window_inner::WindowInner};
-use super::{
-    allocator::dmabuf::{AsDmabuf, Dmabuf},
-    input::{Axis, ButtonState, KeyState, MouseButton},
-};
+use self::{buffer::PixmapWrapperExt, window_inner::WindowInner};
+use super::{allocator::dmabuf::{AsDmabuf, Dmabuf}, drm::{DrmNode, NodeType}, input::{Axis, ButtonState, KeyState, MouseButton}};
 use crate::{
-    backend::{input::InputEvent, x11::drm::get_drm_node_type_from_fd},
+    backend::input::InputEvent,
     utils::{x11rb::X11Source, Logical, Size},
 };
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
@@ -69,7 +65,7 @@ use nix::{fcntl, unistd};
 use slog::{error, info, o, Logger};
 use std::{
     io, mem,
-    os::unix::prelude::{AsRawFd, RawFd},
+    os::unix::prelude::AsRawFd,
     sync::{
         atomic::{AtomicU32, Ordering},
         mpsc::{self, Receiver, Sender},
@@ -262,7 +258,7 @@ pub struct X11Surface {
     connection: Weak<RustConnection>,
     window: Window,
     resize: Receiver<Size<u16, Logical>>,
-    device: gbm::Device<RawFd>,
+    device: gbm::Device<DrmNode>,
     format: DrmFourcc,
     width: u16,
     height: u16,
@@ -300,7 +296,7 @@ impl X11Surface {
         )
         .map_err(AllocateBuffersError::from)?;
 
-        // Kernel documentation explains why we require the node to be a render node:
+        // Kernel documentation explains why we should prefer the node to be a render node:
         // https://kernel.readthedocs.io/en/latest/gpu/drm-uapi.html
         //
         // > Render nodes solely serve render clients, that is, no modesetting or privileged ioctls
@@ -309,28 +305,32 @@ impl X11Surface {
         // > capability. If not supported, the primary node must be used for render clients together
         // > with the legacy drmAuth authentication procedure.
         //
-        // Since giving the X11 backend the ability to do modesetting is a big nono, we should only
+        // Since giving the X11 backend the ability to do modesetting is a big nono, we try to only
         // ever create a gbm device from a render node.
         //
         // Of course if the DRM device does not support render nodes, no DRIVER_RENDER capability, then
-        // get the primary node.
-
-        // TODO: Does X11 return a render node always when available in dri3
-        #[allow(clippy::branches_sharing_code)] // temporary
-        let drm_device_fd = if get_drm_node_type_from_fd(drm_device_fd)? != DrmNodeType::Render {
-            // FIXME: Do proper lookup for render node before falling to primary
-            if get_drm_node_type_from_fd(drm_device_fd)? != DrmNodeType::Primary {
-                // For now fail if we do not have a primary node.
-                return Err(X11Error::Allocation(AllocateBuffersError::UnsupportedDrmNode));
+        // fall back to the primary node.
+        let drm_node = crate::backend::drm::DrmNode::from_fd(drm_device_fd).expect("TODO: Error");
+        let drm_node = if drm_node.ty() != NodeType::Render {
+            if drm_node.has_render() {
+                // Try to get the render node.
+                match crate::backend::drm::DrmNode::from_node_with_type(drm_node, NodeType::Render) {
+                    Ok(node) => node,
+                    Err(err) => {
+                        slog::warn!(&backend.log, "Could not create render node from existing drm node, falling back to primary node");
+                        err.node()
+                    },
+                }
+            } else {
+                slog::warn!(&backend.log, "DRM Device does not have a render node, falling back to primary node");
+                drm_node
             }
-
-            drm_device_fd
         } else {
-            drm_device_fd
+            drm_node
         };
 
         // Finally create a GBMDevice to manage the buffers.
-        let device = gbm::Device::new(drm_device_fd).expect("Failed to create gbm device");
+        let device = gbm::Device::new(drm_node).expect("Failed to create gbm device");
 
         let size = backend.window().size();
         // TODO: Dont hardcode format.
@@ -360,7 +360,7 @@ impl X11Surface {
     }
 
     /// Returns a handle to the GBM device used to allocate buffers.
-    pub fn device(&self) -> &gbm::Device<RawFd> {
+    pub fn device(&self) -> &gbm::Device<DrmNode> {
         &self.device
     }
 
