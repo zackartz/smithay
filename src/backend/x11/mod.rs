@@ -285,6 +285,7 @@ impl X11Surface {
         let dri3 = connection.dri3_open(screen.root, x11rb::NONE)?.reply()?;
 
         // Take ownership of the container's inner value so we do not need to duplicate the fd.
+        // This is fine because the X server will always open a new file descriptor.
         let drm_device_fd = dri3.device_fd.into_raw_fd();
 
         let fd_flags =
