@@ -20,7 +20,7 @@
 //!    logger: slog::Logger
 //! ) -> Result<(), Box<dyn Error>> {
 //!     // Create the backend, also yielding a surface that may be used to render to the window.
-//!     let (backend, surface) = X11Backend::new(Default::default(), logger)?;
+//!     let (backend, surface) = X11Backend::new(logger)?;
 //!     // You can get a handle to the window the backend has created for later use.
 //!     let window = backend.window();
 //!
@@ -89,25 +89,8 @@ use x11rb::{
 };
 
 pub use self::error::*;
+use self::extension::Extensions;
 pub use self::input::*;
-use crate::backend::x11::extension::Extensions;
-
-/// Properties defining initial information about the window created by the X11 backend.
-#[derive(Debug, Clone, Copy)]
-#[allow(missing_docs)] // Self explanatory fields
-pub struct WindowProperties<'a> {
-    pub size: Size<u16, Logical>,
-    pub title: &'a str,
-}
-
-impl Default for WindowProperties<'_> {
-    fn default() -> Self {
-        WindowProperties {
-            size: (1280, 800).into(),
-            title: "Smithay",
-        }
-    }
-}
 
 /// An event emitted by the X11 backend.
 #[derive(Debug)]
@@ -155,8 +138,46 @@ atom_manager! {
 }
 
 impl X11Backend {
-    /// Initializes the X11 backend, connecting to the X server and creating the window the compositor may output to.
-    pub fn new<L>(properties: WindowProperties<'_>, logger: L) -> Result<(X11Backend, X11Surface), X11Error>
+    /// Initializes the X11 backend.
+    ///
+    /// This connects to the X server and configures the window using the default options.
+    pub fn new<L>(logger: L) -> Result<(X11Backend, X11Surface), X11Error>
+    where
+        L: Into<Option<::slog::Logger>>,
+    {
+        Self::with_size_and_title((1280, 800).into(), "Smithay", logger)
+    }
+
+    /// Initializes the X11 backend.
+    ///
+    /// This connects to the X server and configures the window using the default size and the
+    /// specified window title.
+    pub fn with_title<L>(title: &str, logger: L) -> Result<(X11Backend, X11Surface), X11Error>
+    where
+        L: Into<Option<::slog::Logger>>,
+    {
+        Self::with_size_and_title((1280, 800).into(), title, logger)
+    }
+
+    /// Initializes the X11 backend.
+    ///
+    /// This connects to the X server and configures the window using the default window title
+    /// and the specified window size.
+    pub fn with_size<L>(size: Size<u16, Logical>, logger: L) -> Result<(X11Backend, X11Surface), X11Error>
+    where
+        L: Into<Option<::slog::Logger>>,
+    {
+        Self::with_size_and_title(size, "Smithay", logger)
+    }
+
+    /// Initializes the X11 backend.
+    ///
+    /// This connects to the X server and configures the window using the specified window size and title.
+    pub fn with_size_and_title<L>(
+        size: Size<u16, Logical>,
+        title: &str,
+        logger: L,
+    ) -> Result<(X11Backend, X11Surface), X11Error>
     where
         L: Into<Option<slog::Logger>>,
     {
@@ -205,7 +226,8 @@ impl X11Backend {
         let window = Arc::new(WindowInner::new(
             Arc::downgrade(&connection),
             screen,
-            properties,
+            size,
+            title,
             atoms,
             depth.clone(),
             visual_id,
@@ -251,7 +273,7 @@ impl X11Backend {
         &*self.connection
     }
 
-    /// Returns a handle to the X11 window this input backend handles inputs for.
+    /// Returns a handle to the X11 window created by the backend.
     pub fn window(&self) -> Window {
         self.window.clone().into()
     }

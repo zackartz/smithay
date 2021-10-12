@@ -11,7 +11,7 @@ A link to the ICCCM Section 4: https://tronche.com/gui/x/icccm/sec-4.html
 */
 use crate::utils::{Logical, Size};
 
-use super::{extension::Extensions, Atoms, Window, WindowProperties, X11Error};
+use super::{extension::Extensions, Atoms, Window, X11Error};
 use std::sync::{
     atomic::{AtomicU32, AtomicU64},
     Arc, Mutex, Weak,
@@ -71,7 +71,8 @@ impl WindowInner {
     pub fn new(
         connection: Weak<RustConnection>,
         screen: &Screen,
-        properties: WindowProperties<'_>,
+        size: Size<u16, Logical>,
+        title: &str,
         atoms: Atoms,
         depth: Depth,
         visual_id: u32,
@@ -122,8 +123,8 @@ impl WindowInner {
             screen.root,
             0,
             0,
-            properties.size.w,
-            properties.size.h,
+            size.w,
+            size.h,
             0,
             WindowClass::INPUT_OUTPUT,
             visual_id,
@@ -146,7 +147,7 @@ impl WindowInner {
             present_event_id,
             atoms,
             cursor_state: Arc::new(Mutex::new(CursorState::default())),
-            size: Mutex::new((properties.size.w, properties.size.h).into()),
+            size: Mutex::new(size),
             next_serial: AtomicU32::new(0),
             last_msc: Arc::new(AtomicU64::new(0)),
             depth,
@@ -171,7 +172,7 @@ impl WindowInner {
             b"Smithay\0Wayland_Compositor\0",
         )?;
 
-        window.set_title(properties.title);
+        window.set_title(title);
         window.map();
 
         // Flush requests to server so window is displayed.

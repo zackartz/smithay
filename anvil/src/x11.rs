@@ -7,7 +7,7 @@ use smithay::{
     backend::{
         egl::{EGLContext, EGLDisplay},
         renderer::{gles2::Gles2Renderer, Bind, ImportEgl, Renderer, Transform, Unbind},
-        x11::{WindowProperties, X11Backend, X11Event, X11Surface},
+        x11::{X11Backend, X11Event, X11Surface},
         SwapBuffersError,
     },
     reexports::{
@@ -53,13 +53,8 @@ pub fn run_x11(log: Logger) {
     let mut event_loop = EventLoop::try_new().unwrap();
     let display = Rc::new(RefCell::new(Display::new()));
 
-    let window_properties = WindowProperties {
-        title: "Anvil",
-        ..WindowProperties::default()
-    };
-
     let (backend, surface) =
-        X11Backend::new(window_properties, log.clone()).expect("Failed to initialize X11 backend");
+        X11Backend::with_title("Anvil", log.clone()).expect("Failed to initialize X11 backend");
     let window = backend.window();
 
     // Initialize EGL using the GBM device setup earlier.

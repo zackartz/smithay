@@ -18,12 +18,12 @@ use super::{MissingExtensionError, X11Error};
 ///     },
 /// }
 ///
-/// // The extensions may be checked then using the generated `Extensions` struct using the `check_extensions` function/
+/// // The extensions may be checked then using the generated `Extensions` struct using the `check_extensions` function.
 /// ```
 macro_rules! extensions {
     (
         $(
-            $extension:ident {// Extension name for path lookup
+            $extension:ident { // Extension name for path lookup
                 $extension_fn:ident, // Function used to look up the version of the extension
                 minimum: ($min_major:expr, $min_minor:expr),
                 request: ($req_major:expr, $req_minor:expr),

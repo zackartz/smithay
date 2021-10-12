@@ -268,7 +268,7 @@ pub fn is_drm_node_drm(major: u64, _minor: u64) -> bool {
     // // Both names are available in different FreeBSD versions and architectures.
     // name.starts_with("/dev/drm/") || name.starts_with("/dev/dri/")
 
-    // TODO: Pending PR https://github.com/rust-lang/libc/pull/2435 for the above code.
+    // TODO: Pull in libc 0.2.103 to implement the logic above properly.
     major == DRM_MAJOR
 }
 
@@ -313,12 +313,12 @@ fn from_node_with_type(node: DrmNode, ty: NodeType) -> Result<DrmNode, ConvertNo
 
 #[cfg(target_os = "freebsd")]
 fn from_node_with_type(_node: DrmNode, _ty: NodeType) -> Result<DrmNode, ConvertNodeError> {
-    todo!()
+    compile_error!("Not implemented yet")
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
 fn from_node_with_type(_node: DrmNode, _ty: NodeType) -> Result<DrmNode, ConvertNodeError> {
-    todo!()
+    compile_error!("Not implemented yet")
 }
 
 /// Returns the path of a specific type of node from the same DRM device as an existing DrmNode.
