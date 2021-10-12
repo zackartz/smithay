@@ -336,7 +336,4 @@ pub fn run_x11(log: Logger) {
 
     // Cleanup stuff
     state.window_map.borrow_mut().clear();
-
-    // TODO: Figure out why the renderer is dropped later than everything else and therefore segfaults?
-    drop(renderer);
 }
