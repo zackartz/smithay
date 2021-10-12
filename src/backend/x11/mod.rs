@@ -845,11 +845,3 @@ impl EventSource for X11Backend {
         self.source.unregister(poll)
     }
 }
-
-impl Drop for X11Surface {
-    fn drop(&mut self) {
-        let fd = self.device.as_raw_fd();
-
-        let _ = unistd::close(fd);
-    }
-}
