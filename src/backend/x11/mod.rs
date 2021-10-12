@@ -66,11 +66,14 @@ use crate::{
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use drm_fourcc::DrmFourcc;
 use gbm::BufferObjectFlags;
-use nix::fcntl;
+use nix::sys::{
+    socket::{recvmsg, MsgFlags},
+    uio::IoVec,
+};
 use slog::{error, info, o, Logger};
 use std::{
     io, mem,
-    os::unix::prelude::AsRawFd,
+    os::unix::prelude::RawFd,
     sync::{
         atomic::{AtomicU32, Ordering},
         mpsc::{self, Receiver, Sender},
@@ -311,15 +314,25 @@ impl X11Surface {
         // This is fine because the X server will always open a new file descriptor.
         let drm_device_fd = dri3.device_fd.into_raw_fd();
 
-        let fd_flags =
-            fcntl::fcntl(drm_device_fd.as_raw_fd(), fcntl::F_GETFD).map_err(AllocateBuffersError::from)?;
+        {
+            let mut buffer = Vec::with_capacity(64); // Is this big enough?
+            let iov = [IoVec::from_mut_slice(&mut buffer[..])];
+            let mut cmsg = nix::cmsg_space!([RawFd; 1]); // Only need to set this on one fd.
 
-        // Enable the close-on-exec flag.
-        fcntl::fcntl(
-            drm_device_fd,
-            fcntl::F_SETFD(fcntl::FdFlag::from_bits_truncate(fd_flags) | fcntl::FdFlag::FD_CLOEXEC),
-        )
-        .map_err(AllocateBuffersError::from)?;
+            // Atomically set the CLOEXEC flag.
+            loop {
+                match recvmsg(
+                    drm_device_fd,
+                    &iov[..],
+                    Some(&mut cmsg),
+                    MsgFlags::MSG_CMSG_CLOEXEC,
+                ) {
+                    Ok(_) => break,
+                    Err(nix::Error::EINTR) => {} // Try again since the flags have not changed yet
+                    Err(err) => return Err(AllocateBuffersError::from(err).into()),
+                }
+            }
+        }
 
         // Kernel documentation explains why we should prefer the node to be a render node:
         // https://kernel.readthedocs.io/en/latest/gpu/drm-uapi.html
