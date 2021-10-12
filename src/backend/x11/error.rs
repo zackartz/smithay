@@ -3,7 +3,7 @@ use std::io;
 use nix::errno::Errno;
 use x11rb::rust_connection::{ConnectError, ConnectionError, ReplyError, ReplyOrIdError};
 
-use crate::backend::allocator::gbm::GbmConvertError;
+use crate::backend::{allocator::gbm::GbmConvertError, drm::CreateDrmNodeError};
 
 /// An error emitted by the X11 backend during setup.
 #[derive(Debug, thiserror::Error)]
@@ -137,6 +137,15 @@ impl From<io::Error> for AllocateBuffersError {
 impl From<GbmConvertError> for AllocateBuffersError {
     fn from(err: GbmConvertError) -> Self {
         Self::ExportDmabuf(err)
+    }
+}
+
+impl From<CreateDrmNodeError> for AllocateBuffersError {
+    fn from(err: CreateDrmNodeError) -> Self {
+        match err {
+            CreateDrmNodeError::Io(err) => AllocateBuffersError::OpenDevice(err),
+            CreateDrmNodeError::NotDrmNode => AllocateBuffersError::UnsupportedDrmNode,
+        }
     }
 }
 

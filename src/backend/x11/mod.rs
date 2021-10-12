@@ -53,9 +53,12 @@ mod input;
 mod window_inner;
 
 use self::{buffer::PixmapWrapperExt, window_inner::WindowInner};
-use super::{allocator::dmabuf::{AsDmabuf, Dmabuf}, drm::{DrmNode, NodeType}, input::{Axis, ButtonState, KeyState, MouseButton}};
 use crate::{
-    backend::input::InputEvent,
+    backend::{
+        allocator::dmabuf::{AsDmabuf, Dmabuf},
+        drm::{DrmNode, NodeType},
+        input::{Axis, ButtonState, InputEvent, KeyState, MouseButton},
+    },
     utils::{x11rb::X11Source, Logical, Size},
 };
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
@@ -290,9 +293,7 @@ impl X11Surface {
         // Enable the close-on-exec flag.
         fcntl::fcntl(
             drm_device_fd,
-            fcntl::F_SETFD(
-                fcntl::FdFlag::from_bits_truncate(fd_flags) | fcntl::FdFlag::FD_CLOEXEC,
-            ),
+            fcntl::F_SETFD(fcntl::FdFlag::from_bits_truncate(fd_flags) | fcntl::FdFlag::FD_CLOEXEC),
         )
         .map_err(AllocateBuffersError::from)?;
 
@@ -310,19 +311,22 @@ impl X11Surface {
         //
         // Of course if the DRM device does not support render nodes, no DRIVER_RENDER capability, then
         // fall back to the primary node.
-        let drm_node = crate::backend::drm::DrmNode::from_fd(drm_device_fd).expect("TODO: Error");
+        let drm_node = DrmNode::from_fd(drm_device_fd).map_err(Into::<AllocateBuffersError>::into)?;
         let drm_node = if drm_node.ty() != NodeType::Render {
             if drm_node.has_render() {
                 // Try to get the render node.
-                match crate::backend::drm::DrmNode::from_node_with_type(drm_node, NodeType::Render) {
+                match DrmNode::from_node_with_type(drm_node, NodeType::Render) {
                     Ok(node) => node,
                     Err(err) => {
-                        slog::warn!(&backend.log, "Could not create render node from existing drm node, falling back to primary node");
+                        slog::warn!(&backend.log, "Could not create render node from existing DRM node, falling back to primary node");
                         err.node()
-                    },
+                    }
                 }
             } else {
-                slog::warn!(&backend.log, "DRM Device does not have a render node, falling back to primary node");
+                slog::warn!(
+                    &backend.log,
+                    "DRM Device does not have a render node, falling back to primary node"
+                );
                 drm_node
             }
         } else {
@@ -330,10 +334,9 @@ impl X11Surface {
         };
 
         // Finally create a GBMDevice to manage the buffers.
-        let device = gbm::Device::new(drm_node).expect("Failed to create gbm device");
+        let device = gbm::Device::new(drm_node).map_err(Into::<AllocateBuffersError>::into)?;
 
         let size = backend.window().size();
-        // TODO: Dont hardcode format.
         let current = device
             .create_buffer_object::<()>(size.w as u32, size.h as u32, format, BufferObjectFlags::empty())
             .map_err(Into::<AllocateBuffersError>::into)?
@@ -805,7 +808,6 @@ impl EventSource for X11Backend {
 
                 x11::Event::PresentCompleteNotify(complete_notify) => {
                     if complete_notify.window == window.id {
-                        // TODO: Clean up pixmaps?
                         window.last_msc.store(complete_notify.msc, Ordering::SeqCst);
 
                         (callback)(X11Event::PresentCompleted, &mut event_window);
