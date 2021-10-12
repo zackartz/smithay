@@ -43,6 +43,8 @@ A note for future contributors and maintainers:
 Do take a look at some useful reading in order to understand this backend more deeply:
 
 DRI3 protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto/-/blob/master/dri3proto.txt
+
+Present protocol documentation: https://gitlab.freedesktop.org/xorg/proto/xorgproto/-/blob/master/presentproto.txt
 */
 
 mod buffer;
@@ -64,7 +66,7 @@ use crate::{
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
 use drm_fourcc::DrmFourcc;
 use gbm::BufferObjectFlags;
-use nix::{fcntl, unistd};
+use nix::fcntl;
 use slog::{error, info, o, Logger};
 use std::{
     io, mem,
@@ -822,7 +824,7 @@ impl EventSource for X11Backend {
                 }
 
                 x11::Event::Error(e) => {
-                    error!(log, "X11 error: {:?}", e);
+                    error!(log, "X11 protocol error: {:?}", e);
                 }
 
                 _ => (),

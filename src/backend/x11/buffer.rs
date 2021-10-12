@@ -1,8 +1,32 @@
 //! Utilities for importing buffers into X11.
 //!
 //! Buffers imported into X11 are represented as X pixmaps which are then presented to the window.
+//!
+//! At the moment only [`Dmabuf`] backed pixmaps are supported.
+//!
+//! ## Dmabuf pixmaps
+//!
+//! A [`Dmabuf`] backed pixmap is created using the [`DRI3`](x11rb::protocol::dri3) extension of
+//! the X server. One of two code paths is used here. For more modern DRI3 (>= 1.2) implementations
+//! multi-plane Dmabufs, may be used to create a pixmap. Otherwise the fallback code path
+//! (available in >= 1.0) is used to create the pixmap. Although the Dmabuf may only have one plane.
+//!
+//! If you do need to modify any of the logic pertaining to the Dmabuf presentation, do ensure you
+//! read the `dri3proto.txt` file (link in the non-public comments of the x11 mod.rs).
+//!
+//! ## Presentation to the window
+//!
+//! Presentation to the window is handled through the [`Present`](x11rb::protocol::present)
+//! extension of the X server. Because we use direct rendering to present to the window, using
+//! V-Sync from OpenGL or the equivalents in other rendering APIs will not work. This is where
+//! the utility of the present extension is useful. When using the `present_pixmap` function,
+//! the X server will notify when the frame has been presented to the window. The notification
+//! of presentation usually occurs on a V-blank.
+//!
+//! If you do need to modify any of the logic pertaining to the using the present extension, do
+//! ensure you read the `presentproto.txt` file (link in the non-public comments of the
+//! x11 mod.rs).
 
-use std::os::unix::prelude::RawFd;
 use std::sync::atomic::Ordering;
 
 use super::{Window, X11Error};
@@ -63,6 +87,13 @@ where
         dmabuf: &Dmabuf,
     ) -> Result<PixmapWrapper<'c, C>, CreatePixmapError>;
 
+    /// Presents the pixmap to the window.
+    ///
+    /// The wrapper is consumed when this function is called. The return value will contain the
+    /// id of the pixmap.
+    ///
+    /// The pixmap will be automatically dropped when it bubbles up in the X11 event loop after the
+    /// X server has finished presentation with the buffer behind the pixmap.
     fn present(self, connection: &C, window: &Window) -> Result<u32, X11Error>;
 }
 
@@ -83,7 +114,7 @@ where
 
         // XCB closes the file descriptor after sending, so duplicate the file descriptors.
         for handle in dmabuf.handles() {
-            let fd: RawFd = fcntl::fcntl(
+            let fd = fcntl::fcntl(
                 handle,
                 fcntl::FcntlArg::F_DUPFD_CLOEXEC(3), // Set to 3 so the fd cannot become stdin, stdout or stderr
             )
@@ -92,6 +123,7 @@ where
             fds.push(RawFdContainer::new(fd))
         }
 
+        // We need dri3 >= 1.2 in order to use the enhanced dri3_pixmap_from_buffers function.
         let xid = if window_inner.extensions.dri3 >= (1, 2) {
             if dmabuf.num_planes() > 4 {
                 return Err(CreatePixmapError::TooManyPlanes);
@@ -106,9 +138,9 @@ where
                 window.id(),
                 dmabuf.width() as u16,
                 dmabuf.height() as u16,
-                strides.next().unwrap(), // there must be at least one plane.
+                strides.next().unwrap(), // there must be at least one plane and stride.
                 offsets.next().unwrap(),
-                // The other planes are optional, so unwrap_or to NONE if those planes are not available.
+                // The other planes are optional, so unwrap_or to `NONE` if those planes are not available.
                 strides.next().unwrap_or(x11rb::NONE),
                 offsets.next().unwrap_or(x11rb::NONE),
                 strides.next().unwrap_or(x11rb::NONE),
@@ -123,6 +155,7 @@ where
 
             xid
         } else {
+            // Old codepath can only create a pixmap using one plane from a dmabuf.
             if dmabuf.num_planes() != 1 {
                 return Err(CreatePixmapError::TooManyPlanes); // TODO: Not correct name?
             }
@@ -152,8 +185,10 @@ where
     fn present(self, connection: &C, window: &Window) -> Result<u32, X11Error> {
         let window_inner = window.0.upgrade().unwrap(); // We have the connection and window alive.
         let next_serial = window_inner.next_serial.fetch_add(1, Ordering::SeqCst);
+        // We want to present as soon as possible, so wait 1ms so the X server will present when next convenient.
         let msc = window_inner.last_msc.load(Ordering::SeqCst) + 1;
 
+        // options parameter does not take the enum but a u32.
         const OPTIONS: present::Option = present::Option::NONE;
 
         connection.present_pixmap(
@@ -166,17 +201,17 @@ where
             0,
             x11rb::NONE,    // Let the X server pick the most suitable crtc
             x11rb::NONE,    // Do not wait to present
-            x11rb::NONE,    // We will wait for the X server to tell us when it is done with our pixmap.
+            x11rb::NONE,    // We will wait for the X server to tell us when it is done with the pixmap.
             OPTIONS.into(), // No special presentation options.
-            msc,            // TODO: Handle target msc
+            msc,
             0,
             0,
             &[], // We don't need to notify any other windows.
         )?;
 
-        // Take the wrapper away since the X server will give us the pixmap's xid back when we
-        // receive notification that presentation is completed. At that point we can reconstruct
-        // the wrapper and drop.
+        // Forget the wrapper since the X server will give us the pixmap's id back when we receive
+        // notification that presentation is completed. At that point we can reconstruct the
+        // wrapper and drop.
         Ok(self.into_pixmap())
     }
 }

@@ -130,6 +130,7 @@ impl WindowInner {
             &window_aux,
         )?;
 
+        // We only ever need one event id since we will only ever have one event context.
         let present_event_id = connection.generate_id()?;
         connection.present_select_input(
             present_event_id,
