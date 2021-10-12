@@ -6,14 +6,14 @@ static POSSIBLE_BACKENDS: &[&str] = &[
     #[cfg(feature = "udev")]
     "--tty-udev : Run anvil as a tty udev client (requires root if without logind).",
     #[cfg(feature = "x11")]
-    "--x11 : Run anvil directly as an X11 client.",
+    "--x11 : Run anvil as an X11 client.",
 ];
 
 fn main() {
     // A logger facility, here we use the terminal here
     let log = slog::Logger::root(
-        slog_async::Async::default(slog_term::term_full().fuse()).fuse(),
-        //std::sync::Mutex::new(slog_term::term_full().fuse()).fuse(),
+        std::sync::Mutex::new(slog_term::term_full().fuse()).fuse(),
+        //slog_async::Async::default(slog_term::term_full().fuse()).fuse(),
         o!(),
     );
     let _guard = slog_scope::set_global_logger(log.clone());
@@ -33,7 +33,7 @@ fn main() {
         }
         #[cfg(feature = "x11")]
         Some("--x11") => {
-            slog::info!(log, "Starting anvil with direct x11 backend");
+            slog::info!(log, "Starting anvil with x11 backend");
             anvil::x11::run_x11(log);
         }
         Some(other) => {
