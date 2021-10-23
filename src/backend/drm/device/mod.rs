@@ -8,7 +8,7 @@ use calloop::{EventSource, Interest, Poll, PostAction, Readiness, Token, TokenFa
 use drm::control::{connector, crtc, Device as ControlDevice, Event, Mode, ResourceHandles};
 use drm::{ClientCapability, Device as BasicDevice};
 use nix::libc::dev_t;
-use nix::sys::stat::fstat;
+use nix::sys::stat::{fstat, major, minor};
 
 pub(super) mod atomic;
 pub(super) mod legacy;
@@ -284,6 +284,16 @@ impl<A: AsRawFd + 'static> DrmDevice<A> {
     /// Returns the device_id of the underlying drm node
     pub fn device_id(&self) -> dev_t {
         self.dev_id
+    }
+
+    /// Returns the major device number of the DRM device.
+    pub fn major(&self) -> u64 {
+        major(self.device_id())
+    }
+
+    /// Returns the minor device number of the DRM device.
+    pub fn minor(&self) -> u64 {
+        minor(self.device_id())
     }
 }
 
