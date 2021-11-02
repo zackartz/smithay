@@ -83,6 +83,7 @@ use x11rb::{
     protocol::{
         self as x11,
         dri3::ConnectionExt as _,
+        randr::ConnectionExt as _,
         xproto::{ColormapAlloc, ConnectionExt, Depth, PixmapWrapper, VisualClass},
         ErrorKind,
     },
@@ -304,13 +305,19 @@ impl X11Surface {
         let connection = &backend.connection;
         let window = backend.window();
 
+        let get_providers = connection.randr_get_providers(window.id())?.reply()?;
+        // FIXME: This is not ideal.
+        let provider = *get_providers.providers.first().expect("No providers?");
+
         // Determine which drm-device the Display is using.
         let screen = &connection.setup().roots[backend.screen()];
         // provider being NONE tells the X server to use the RandR provider.
-        let dri3 = match connection.dri3_open(screen.root, x11rb::NONE)?.reply() {
+        let dri3 = match connection.dri3_open(screen.root, provider)?.reply() {
             Ok(reply) => reply,
             Err(err) => {
                 return Err(if let ReplyError::X11Error(ref protocol_error) = err {
+                    dbg!(protocol_error);
+
                     match protocol_error.error_kind {
                         // Implementation is risen when the renderer is not capable of X server is not capable
                         // of rendering at all.

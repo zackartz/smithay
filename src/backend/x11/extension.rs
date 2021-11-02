@@ -120,4 +120,10 @@ extensions! {
         minimum: (1, 0),
         request: (1, 2),
     },
+
+    randr {
+        randr_query_version,
+        minimum: (1, 4),
+        request: (1, 4),
+    },
 }
