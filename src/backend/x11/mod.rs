@@ -306,6 +306,10 @@ impl X11Surface {
         let window = backend.window();
 
         let get_providers = connection.randr_get_providers(window.id())?.reply()?;
+        
+        // Notes from testing:
+        // - XWayland supplies no xrandr provider. This means we cannot use this for xwayland.
+        // - Nvidia in X11 does supply this, however something at the driver level is prohibiting this from working.
         // FIXME: This is not ideal.
         let provider = *get_providers.providers.first().expect("No providers?");
 
