@@ -1,7 +1,11 @@
 use std::{ffi::CStr, mem::MaybeUninit, os::raw::c_void, path::PathBuf, ptr};
 
-use super::{ffi, wrap_egl_call, EGLDisplay, EGLError, Error};
+use super::{
+    ffi::{self, egl::types::EGLDeviceEXT},
+    wrap_egl_call, EGLDisplay, EGLError, Error,
+};
 
+/// safe EGLDevice wrapper
 #[derive(Debug)]
 pub struct EGLDevice {
     inner: *const c_void,
@@ -9,32 +13,25 @@ pub struct EGLDevice {
 }
 
 impl EGLDevice {
-    /// Returns an iterator which enumerates over the available [`EGLDevices`](EGLDevice) on the display.
+    /// Returns an iterator which enumerates over the available [`EGLDevices`](EGLDevice) on the system.
     ///
-    /// This function will return an error if the following extensions are not available on the display:
+    /// This function will return an error if the following extensions are not available:
     /// - [`EGL_EXT_device_base`](https://www.khronos.org/registry/EGL/extensions/EXT/EGL_EXT_device_base.txt)
     /// - [`EGL_EXT_device_enumeration`](https://www.khronos.org/registry/EGL/extensions/EXT/EGL_EXT_device_enumeration.txt)
     /// - [`EGL_EXT_device_query`](https://www.khronos.org/registry/EGL/extensions/EXT/EGL_EXT_device_query.txt)
-    ///
-    ///
-    pub fn enumerate(display: &EGLDisplay) -> Result<impl Iterator<Item = EGLDevice>, Error> {
+    pub fn enumerate() -> Result<impl Iterator<Item = EGLDevice>, Error> {
         // Check the required extensions are present:
-        let display_extensions = display.get_extensions();
+        let extensions = ffi::make_sure_egl_is_loaded()?;
 
-        dbg!(&display_extensions);
-
-        if !display_extensions.iter().any(|s| s == "EGL_EXT_device_base") {
+        if !extensions.iter().any(|s| s == "EGL_EXT_device_base") {
             return Err(Error::EglExtensionNotSupported(&["EGL_EXT_device_base"]));
         }
 
-        if !display_extensions
-            .iter()
-            .any(|s| s == "EGL_EXT_device_enumeration")
-        {
+        if !extensions.iter().any(|s| s == "EGL_EXT_device_enumeration") {
             return Err(Error::EglExtensionNotSupported(&["EGL_EXT_device_enumeration"]));
         }
 
-        if !display_extensions.iter().any(|s| s == "EGL_EXT_device_query") {
+        if !extensions.iter().any(|s| s == "EGL_EXT_device_query") {
             return Err(Error::EglExtensionNotSupported(&["EGL_EXT_device_query"]));
         }
 
@@ -54,7 +51,7 @@ impl EGLDevice {
             }
         }) {
             Ok(number) => number,
-            Err(err) => return Err(Error::EnumerateDevices(err)),
+            Err(err) => return Err(Error::QueryDevices(err)),
         };
 
         let mut devices = Vec::with_capacity(device_amount as usize);
@@ -70,44 +67,58 @@ impl EGLDevice {
             // 2) EGL will initialize every value in the pointer we give
             devices.set_len(device_amount as usize);
         }) {
-            return Err(Error::EnumerateDevices(err));
+            return Err(Error::QueryDevices(err));
         }
 
         Ok(devices
             .into_iter()
             .map(|device| {
-                let raw_extensions = wrap_egl_call(|| unsafe {
-                    ffi::egl::QueryDeviceStringEXT(device, ffi::egl::EXTENSIONS as ffi::egl::types::EGLint)
-                })?;
-
-                // This is safe because of the following:
-                // 1) The string returned by `eglQueryDeviceStringEXT` is string which will exist as long
-                //    as the EGLDisplay is valid. Since the pointer is only used in this function, the
-                //    lifetime of the pointer will fulfil Rust's CStr requirements on lifetime.
-                // 2) The string returned by EGL is null terminated.
-                // 3) Each extension is space separated (0x20) in the pointer, so strlen cannot return an
-                //    improper length.
-                let c_extensions = unsafe { CStr::from_ptr(raw_extensions) };
-
-                // FIXME: Ensure EGL_FALSE is not returned.
-
-                let device_extensions = c_extensions
-                    .to_str()
-                    // EGL ensures the string is valid UTF-8
-                    .expect("Non-UTF8 device extension name")
-                    .split_ascii_whitespace()
-                    // Take an owned copy so we do not point to garbage if EGL somehow vanishes.
-                    .map(ToOwned::to_owned)
-                    .collect::<Vec<_>>();
-
+                let device_extensions = device_extensions(device)?;
                 Ok(EGLDevice {
                     inner: device,
                     device_extensions,
                 })
             })
             .collect::<Result<Vec<_>, EGLError>>()
-            .map_err(Error::EnumerateDevices)?
+            .map_err(Error::QueryDevices)?
             .into_iter())
+    }
+
+    /// Returns the [`EGLDevices`](EGLDevice) related to the given `EGLDisplay`.
+    ///
+    /// This function will return an error if the following extensions are not available:
+    /// - [`EGL_EXT_device_base`](https://www.khronos.org/registry/EGL/extensions/EXT/EGL_EXT_device_base.txt)
+    /// - [`EGL_EXT_device_query`](https://www.khronos.org/registry/EGL/extensions/EXT/EGL_EXT_device_query.txt)
+    pub fn device_for_display(display: &EGLDisplay) -> Result<EGLDevice, Error> {
+        // Check the required extensions are present:
+        let extensions = ffi::make_sure_egl_is_loaded()?;
+
+        if !extensions.iter().any(|s| s == "EGL_EXT_device_base") {
+            return Err(Error::EglExtensionNotSupported(&["EGL_EXT_device_base"]));
+        }
+
+        if !extensions.iter().any(|s| s == "EGL_EXT_device_query") {
+            return Err(Error::EglExtensionNotSupported(&["EGL_EXT_device_query"]));
+        }
+
+        let mut device: ffi::egl::types::EGLAttrib = 0;
+        if unsafe {
+            ffi::egl::QueryDisplayAttribEXT(
+                display.get_display_handle().handle,
+                ffi::egl::DEVICE_EXT as i32,
+                &mut device as *mut _,
+            )
+        } != ffi::egl::TRUE
+        {
+            return Err(Error::DisplayNotSupported);
+        }
+
+        let device = device as EGLDeviceEXT;
+        let device_extensions = device_extensions(device).map_err(Error::QueryDevices)?;
+        Ok(EGLDevice {
+            inner: device,
+            device_extensions,
+        })
     }
 
     /// Returns a list of extensions the device supports.
@@ -115,6 +126,10 @@ impl EGLDevice {
         self.device_extensions.clone()
     }
 
+    /// Returns the path to the drm node of this EGLDevice.
+    ///
+    /// This function will return an error if the following extensions are not available:
+    /// - [`EGL_EXT_device_drm`](https://www.khronos.org/registry/EGL/extensions/EXT/EGL_EXT_device_drm.txt)
     pub fn drm_device_path(&self) -> Result<PathBuf, Error> {
         if !self.extensions().contains(&"EGL_EXT_device_drm".to_owned()) {
             Err(Error::EglExtensionNotSupported(&["EGL_EXT_device_drm"]))
@@ -147,4 +162,28 @@ impl EGLDevice {
     pub fn inner(&self) -> *const c_void {
         self.inner
     }
+}
+
+fn device_extensions(device: EGLDeviceEXT) -> Result<Vec<String>, EGLError> {
+    let raw_extensions = wrap_egl_call(|| unsafe {
+        ffi::egl::QueryDeviceStringEXT(device, ffi::egl::EXTENSIONS as ffi::egl::types::EGLint)
+    })?;
+
+    // This is safe because of the following:
+    // 1) The string returned by `eglQueryDeviceStringEXT` is string which will exist as long
+    //    as the EGLDisplay is valid. Since the pointer is only used in this function, the
+    //    lifetime of the pointer will fulfil Rust's CStr requirements on lifetime.
+    // 2) The string returned by EGL is null terminated.
+    // 3) Each extension is space separated (0x20) in the pointer, so strlen cannot return an
+    //    improper length.
+    let c_extensions = unsafe { CStr::from_ptr(raw_extensions) };
+
+    Ok(c_extensions
+        .to_str()
+        // EGL ensures the string is valid UTF-8
+        .expect("Non-UTF8 device extension name")
+        .split_ascii_whitespace()
+        // Take an owned copy so we do not point to garbage if EGL somehow vanishes.
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>())
 }

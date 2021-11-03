@@ -189,6 +189,21 @@ impl EGLNativeDisplay for X11Surface {
     }
 }
 
+/// Shallow type for EGL_PLATFORM_X11_EXT with the default X11 display
+#[derive(Debug)]
+pub struct X11DefaultDisplay;
+
+impl EGLNativeDisplay for X11DefaultDisplay {
+    fn supported_platforms(&self) -> Vec<EGLPlatform<'_>> {
+        vec![egl_platform!(
+            PLATFORM_X11_EXT,
+            // We pass DEFAULT_DISPLAY (null pointer) because the driver should open a connection to the X server.
+            ffi::egl::DEFAULT_DISPLAY,
+            &["EGL_EXT_platform_x11"]
+        )]
+    }
+}
+
 /// Trait for types returning valid surface pointers for initializing egl
 ///
 /// ## Unsafety
