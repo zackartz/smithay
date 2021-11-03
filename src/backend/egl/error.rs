@@ -45,6 +45,9 @@ pub enum Error {
     /// Failed to create `EGLBuffer` from the buffer
     #[error("Failed to create `EGLBuffer` from the buffer")]
     EGLImageCreationFailed,
+    /// Failed to enumerate the available `EGLDevice`s on the display
+    #[error("Failed to enumerate the available `EGLDevice`s on the display")]
+    EnumerateDevices(#[source] EGLError),
 }
 
 /// Raw EGL error

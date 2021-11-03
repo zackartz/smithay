@@ -80,3 +80,7 @@ test_all_features = ["default", "use_system_lib", "wayland-server/dlopen"]
 [[example]]
 name = "raw_drm"
 required-features = ["backend_drm"]
+
+[[example]]
+name = "egl_device"
+required-features = ["backend_egl"]
