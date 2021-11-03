@@ -8,9 +8,11 @@ use super::{
 /// safe EGLDevice wrapper
 #[derive(Debug)]
 pub struct EGLDevice {
-    inner: *const c_void,
+    pub(super) inner: EGLDeviceEXT,
     device_extensions: Vec<String>,
 }
+
+unsafe impl Send for EGLDevice {}
 
 impl EGLDevice {
     /// Returns an iterator which enumerates over the available [`EGLDevices`](EGLDevice) on the system.

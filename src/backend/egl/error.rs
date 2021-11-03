@@ -94,7 +94,6 @@ pub enum EGLError {
     /// A NativeWindowType argument does not refer to a valid native window.
     #[error("A NativeWindowType argument does not refer to a valid native window.")]
     BadNativeWindow,
-    #[cfg(feature = "backend_drm_eglstream")]
     /// The EGL operation failed due to temporary unavailability of a requested resource, but the arguments were otherwise valid, and a subsequent attempt may succeed.
     #[error("The EGL operation failed due to temporary unavailability of a requested resource, but the arguments were otherwise valid, and a subsequent attempt may succeed.")]
     ResourceBusy,
@@ -121,7 +120,6 @@ impl From<u32> for EGLError {
             ffi::egl::BAD_PARAMETER => EGLError::BadParameter,
             ffi::egl::BAD_NATIVE_PIXMAP => EGLError::BadNativePixmap,
             ffi::egl::BAD_NATIVE_WINDOW => EGLError::BadNativeWindow,
-            #[cfg(feature = "backend_drm_eglstream")]
             ffi::egl::RESOURCE_BUSY_EXT => EGLError::ResourceBusy,
             ffi::egl::CONTEXT_LOST => EGLError::ContextLost,
             x => EGLError::Unknown(x),
