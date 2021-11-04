@@ -82,7 +82,7 @@ use crate::{
     utils::{x11rb::X11Source, Logical, Size},
 };
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
-use drm_fourcc::DrmFourcc;
+use drm_fourcc::{DrmFourcc, DrmModifier};
 use gbm::{BufferObject, BufferObjectFlags};
 use nix::{
     fcntl::{self, OFlag},
@@ -444,22 +444,36 @@ impl X11Surface {
     pub fn new(
         backend: &mut X11Backend,
         device: gbm::Device<DrmNode>,
-        format: DrmFourcc,
+        modifiers: impl Iterator<Item = DrmModifier>,
     ) -> Result<X11Surface, X11Error> {
         if backend.resize.is_some() {
             return Err(X11Error::SurfaceExists);
         }
 
-        let size = backend.window().size();
+        let modifiers = modifiers.collect::<Vec<_>>();
+
+        let window = backend.window();
+        let format = window.format().unwrap();
+        let size = window.size();
         let mut current = device
-            .create_buffer_object(size.w as u32, size.h as u32, format, BufferObjectFlags::empty())
+            .create_buffer_object_with_modifiers(
+                size.w as u32,
+                size.h as u32,
+                format,
+                modifiers.iter().cloned(),
+            )
             .map_err(Into::<AllocateBuffersError>::into)?;
         current
             .set_userdata(current.export().map_err(Into::<AllocateBuffersError>::into)?)
             .map_err(Into::<AllocateBuffersError>::into)?;
 
         let mut next = device
-            .create_buffer_object(size.w as u32, size.h as u32, format, BufferObjectFlags::empty())
+            .create_buffer_object_with_modifiers(
+                size.w as u32,
+                size.h as u32,
+                format,
+                modifiers.iter().cloned(),
+            )
             .map_err(Into::<AllocateBuffersError>::into)?;
         next.set_userdata(next.export().map_err(Into::<AllocateBuffersError>::into)?)
             .map_err(Into::<AllocateBuffersError>::into)?;
@@ -470,7 +484,7 @@ impl X11Surface {
 
         Ok(X11Surface {
             connection: Arc::downgrade(&backend.connection),
-            window: backend.window(),
+            window,
             device,
             format,
             width: size.w,

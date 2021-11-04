@@ -168,6 +168,7 @@ impl EGLNativeDisplay for WinitWindow {
     }
 }
 
+// TODO: Remove this
 #[cfg(feature = "backend_x11")]
 impl EGLNativeDisplay for X11Surface {
     fn supported_platforms(&self) -> Vec<EGLPlatform<'_>> {
