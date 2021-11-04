@@ -64,16 +64,17 @@ use crate::{
     },
     utils::{x11rb::X11Source, Logical, Size},
 };
+use ::input::event::EventTrait;
 use calloop::{EventSource, Poll, PostAction, Readiness, Token, TokenFactory};
-use drm_fourcc::DrmFourcc;
-use gbm::BufferObjectFlags;
+use drm_fourcc::{DrmFourcc, DrmModifier};
+use gbm::{BufferObject, BufferObjectFlags};
 use nix::{
     fcntl::{self, OFlag},
     sys::stat::Mode,
 };
 use slog::{error, info, o, Logger};
 use std::{
-    io, mem,
+    io, iter, mem,
     os::unix::prelude::AsRawFd,
     sync::{
         atomic::{AtomicU32, Ordering},
@@ -295,8 +296,8 @@ pub struct X11Surface {
     format: DrmFourcc,
     width: u16,
     height: u16,
-    current: Dmabuf,
-    next: Dmabuf,
+    current: BufferObject<Dmabuf>,
+    next: BufferObject<Dmabuf>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -420,18 +421,35 @@ impl X11Surface {
         // Finally create a GBMDevice to manage the buffers.
         let device = gbm::Device::new(drm_node).map_err(Into::<AllocateBuffersError>::into)?;
 
-        let size = backend.window().size();
-        let current = device
-            .create_buffer_object::<()>(size.w as u32, size.h as u32, format, BufferObjectFlags::empty())
-            .map_err(Into::<AllocateBuffersError>::into)?
-            .export()
-            .map_err(Into::<AllocateBuffersError>::into)?;
+        // TODO: Better check if the format is supported.
+        assert!(
+            device.is_format_supported(format, BufferObjectFlags::RENDERING),
+            "Format not supported"
+        );
 
-        let next = device
-            .create_buffer_object::<()>(size.w as u32, size.h as u32, format, BufferObjectFlags::empty())
-            .map_err(Into::<AllocateBuffersError>::into)?
-            .export()
+        let size = backend.window().size();
+        let mut current = device
+            .create_buffer_object_with_modifiers(
+                size.w as u32,
+                size.h as u32,
+                format,
+                iter::once(DrmModifier::Invalid),
+            )
             .map_err(Into::<AllocateBuffersError>::into)?;
+        current
+            .set_userdata(current.export().map_err(Into::<AllocateBuffersError>::into)?)
+            .unwrap();
+
+        let mut next = device
+            .create_buffer_object_with_modifiers(
+                size.w as u32,
+                size.h as u32,
+                format,
+                iter::once(DrmModifier::Invalid),
+            )
+            .map_err(Into::<AllocateBuffersError>::into)?;
+        next.set_userdata(next.export().map_err(Into::<AllocateBuffersError>::into)?)
+            .unwrap();
 
         Ok(X11Surface {
             connection: Arc::downgrade(&backend.connection),
@@ -468,25 +486,27 @@ impl X11Surface {
     }
 
     fn resize(&mut self, size: Size<u16, Logical>) -> Result<(), AllocateBuffersError> {
-        let current = self
-            .device
-            .create_buffer_object::<()>(
+        let mut current = self
+            .device()
+            .create_buffer_object_with_modifiers(
                 size.w as u32,
                 size.h as u32,
                 self.format,
-                BufferObjectFlags::empty(),
-            )?
-            .export()?;
+                iter::once(DrmModifier::Invalid),
+            )
+            .map_err(Into::<AllocateBuffersError>::into)?;
+        current.set_userdata(current.export()?).unwrap();
 
-        let next = self
-            .device
-            .create_buffer_object::<()>(
+        let mut next = self
+            .device()
+            .create_buffer_object_with_modifiers(
                 size.w as u32,
                 size.h as u32,
                 self.format,
-                BufferObjectFlags::empty(),
-            )?
-            .export()?;
+                iter::once(DrmModifier::Invalid),
+            )
+            .map_err(Into::<AllocateBuffersError>::into)?;
+        next.set_userdata(next.export()?).unwrap();
 
         self.width = size.w;
         self.height = size.h;
@@ -527,7 +547,7 @@ impl Present<'_> {
     ///
     /// You may bind this buffer to a renderer to render.
     pub fn buffer(&self) -> Dmabuf {
-        self.surface.next.clone()
+        self.surface.next.userdata().unwrap().unwrap().clone()
     }
 }
 
@@ -539,7 +559,11 @@ impl Drop for Present<'_> {
             // Swap the buffers
             mem::swap(&mut surface.next, &mut surface.current);
 
-            if let Ok(pixmap) = PixmapWrapper::with_dmabuf(&*connection, &surface.window, &surface.current) {
+            if let Ok(pixmap) = PixmapWrapper::with_dmabuf(
+                &*connection,
+                &surface.window,
+                &surface.current.userdata().unwrap().unwrap(),
+            ) {
                 // Now present the current buffer
                 let _ = pixmap.present(&*connection, &surface.window);
             }
