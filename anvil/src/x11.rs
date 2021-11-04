@@ -5,7 +5,6 @@ use slog::Logger;
 use smithay::{backend::renderer::ImportDma, wayland::dmabuf::init_dmabuf_global};
 use smithay::{
     backend::{
-        allocator::Fourcc,
         egl::{EGLContext, EGLDisplay},
         renderer::{gles2::Gles2Renderer, Bind, ImportEgl, Renderer, Transform, Unbind},
         x11::{X11Backend, X11Event, X11Surface},
@@ -64,8 +63,7 @@ pub fn run_x11(log: Logger) {
     // Create the gbm device for buffer allocation and the X11 surface which presents to the window.
     let device = gbm::Device::new(drm_node).expect("Failed to create gbm device");
     let format = backend.format();
-    let surface =
-        X11Surface::new(&mut backend, device, format).expect("Failed to create X11 surface");
+    let surface = X11Surface::new(&mut backend, device, format).expect("Failed to create X11 surface");
 
     // Initialize EGL using the GBM device setup earlier.
     let egl = EGLDisplay::new(&surface, log.clone()).expect("Failed to create EGLDisplay");
@@ -214,7 +212,7 @@ pub fn run_x11(log: Logger) {
                     #[cfg(feature = "debug")]
                     let fps_texture = &backend_data.fps_texture;
 
-                    if let Err(err) = renderer.bind(present.buffer()) {
+                    if let Err(err) = renderer.bind(present.buffer().expect("gbm device was destroyed")) {
                         error!(log, "Error while binding buffer: {}", err);
                     }
 
