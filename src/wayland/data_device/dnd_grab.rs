@@ -1,19 +1,18 @@
 use std::{cell::RefCell, ops::Deref as _, rc::Rc};
 
 use wayland_server::{
-    protocol::{wl_data_device_manager::DndAction, wl_data_offer, wl_data_source, wl_pointer, wl_surface},
-    Main,
+    protocol::{wl_data_device_manager::DndAction, wl_data_offer, wl_data_source, wl_pointer, wl_surface}, DisplayHandle,
 };
 
 use crate::{
     utils::{Logical, Point},
     wayland::{
-        seat::{AxisFrame, PointerGrab, PointerGrabStartData, PointerInnerHandle, Seat},
+        seat::{AxisFrame, PointerGrab, PointerGrabStartData, PointerInnerHandle, MotionEvent, ButtonEvent},
         Serial,
     },
 };
 
-use super::{with_source_metadata, DataDeviceData, SeatData};
+use super::{with_source_metadata, DataDeviceData, SeatData, DataDeviceHandler};
 
 pub(crate) struct DnDGrab {
     start_data: PointerGrabStartData,
@@ -23,7 +22,6 @@ pub(crate) struct DnDGrab {
     offer_data: Option<Rc<RefCell<OfferData>>>,
     icon: Option<wl_surface::WlSurface>,
     origin: wl_surface::WlSurface,
-    callback: Rc<RefCell<dyn FnMut(super::DataDeviceEvent)>>,
     seat: Seat,
 }
 
@@ -34,7 +32,6 @@ impl DnDGrab {
         origin: wl_surface::WlSurface,
         seat: Seat,
         icon: Option<wl_surface::WlSurface>,
-        callback: Rc<RefCell<dyn FnMut(super::DataDeviceEvent)>>,
     ) -> DnDGrab {
         DnDGrab {
             start_data,
@@ -44,23 +41,24 @@ impl DnDGrab {
             offer_data: None,
             origin,
             icon,
-            callback,
             seat,
         }
     }
 }
 
-impl PointerGrab for DnDGrab {
+impl<T> PointerGrab<T> for DnDGrab
+where
+    T: DataDeviceHandler,
+{
     fn motion(
         &mut self,
-        handle: &mut PointerInnerHandle<'_>,
-        location: Point<f64, Logical>,
-        focus: Option<(wl_surface::WlSurface, Point<i32, Logical>)>,
-        serial: Serial,
-        time: u32,
+        data: &mut T,
+        dh: &mut DisplayHandle<'_>,
+        handle: &mut PointerInnerHandle<'_, T>,
+        event: &MotionEvent,
     ) {
         // While the grab is active, no client has pointer focus
-        handle.motion(location, None, serial, time);
+        handle.motion(dh, event.location, None, event.serial, event.time);
 
         let seat_data = self
             .seat
@@ -68,7 +66,10 @@ impl PointerGrab for DnDGrab {
             .get::<RefCell<SeatData>>()
             .unwrap()
             .borrow_mut();
-        if focus.as_ref().map(|&(ref s, _)| s) != self.current_focus.as_ref() {
+
+        let focus = handle.current_focus();
+
+        if focus.map(|&(ref s, _)| s) != self.current_focus.as_ref() {
             // focus changed, we need to make a leave if appropriate
             if let Some(surface) = self.current_focus.take() {
                 // only leave if there is a data source or we are on the original client
@@ -92,7 +93,7 @@ impl PointerGrab for DnDGrab {
                 Some(c) => c,
                 None => return,
             };
-            let (x, y) = (location - surface_location.to_f64()).into();
+            let (x, y) = (event.location - surface_location.to_f64()).into();
             if self.current_focus.is_none() {
                 // We entered a new surface, send the data offer if appropriate
                 if let Some(ref source) = self.data_source {
@@ -135,7 +136,7 @@ impl PointerGrab for DnDGrab {
                             offer.source_actions(meta.dnd_action);
                         })
                         .unwrap();
-                        device.enter(serial.into(), &surface, x, y, Some(&offer));
+                        device.enter(event.serial.into(), &surface, x, y, Some(&offer));
                         self.pending_offers.push(offer);
                     }
                     self.offer_data = Some(offer_data);
@@ -144,7 +145,7 @@ impl PointerGrab for DnDGrab {
                     if self.origin.as_ref().same_client_as(surface.as_ref()) {
                         for device in &seat_data.known_devices {
                             if device.as_ref().same_client_as(surface.as_ref()) {
-                                device.enter(serial.into(), &surface, x, y, None);
+                                device.enter(event.serial.into(), &surface, x, y, None);
                             }
                         }
                     }
@@ -155,7 +156,7 @@ impl PointerGrab for DnDGrab {
                 if self.data_source.is_some() || self.origin.as_ref().same_client_as(surface.as_ref()) {
                     for device in &seat_data.known_devices {
                         if device.as_ref().same_client_as(surface.as_ref()) {
-                            device.motion(time, x, y);
+                            device.motion(event.time, x, y);
                         }
                     }
                 }
@@ -165,11 +166,10 @@ impl PointerGrab for DnDGrab {
 
     fn button(
         &mut self,
-        handle: &mut PointerInnerHandle<'_>,
-        _button: u32,
-        _state: wl_pointer::ButtonState,
-        serial: Serial,
-        time: u32,
+        data: &mut T,
+        dh: &mut DisplayHandle<'_>,
+        handle: &mut PointerInnerHandle<'_, T>,
+        event: &ButtonEvent,
     ) {
         if handle.current_pressed().is_empty() {
             // the user dropped, proceed to the drop
@@ -207,24 +207,32 @@ impl PointerGrab for DnDGrab {
                 }
             }
             if let Some(ref source) = self.data_source {
-                source.dnd_drop_performed();
+                source.dnd_drop_performed(dh);
                 if !validated {
-                    source.cancelled();
+                    source.cancelled(dh);
                 }
             }
-            (&mut *self.callback.borrow_mut())(super::DataDeviceEvent::DnDDropped {
+
+            data.event(super::DataDeviceEvent::DnDDropped {
                 seat: self.seat.clone(),
             });
+
             self.icon = None;
             // in all cases abandon the drop
             // no more buttons are pressed, release the grab
-            handle.unset_grab(serial, time);
+            handle.unset_grab(dh, event.serial, event.time);
         }
     }
 
-    fn axis(&mut self, handle: &mut PointerInnerHandle<'_>, details: AxisFrame) {
+    fn axis(
+        &mut self,
+        data: &mut T,
+        dh: &mut DisplayHandle<'_>,
+        handle: &mut PointerInnerHandle<'_, T>,
+        details: AxisFrame,    
+    ) {
         // we just forward the axis events as is
-        handle.axis(details);
+        handle.axis(dh, details);
     }
 
     fn start_data(&self) -> &PointerGrabStartData {

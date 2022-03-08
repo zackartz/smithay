@@ -1,14 +1,13 @@
-use std::{cell::RefCell, ops::Deref as _, os::unix::io::RawFd, rc::Rc};
+use std::{cell::RefCell, ops::Deref as _, os::unix::io::RawFd, rc::Rc, sync::{Arc, Mutex}};
 
 use wayland_server::{
-    protocol::{wl_data_device_manager::DndAction, wl_data_offer, wl_pointer, wl_surface},
-    Main,
+    protocol::{wl_data_device_manager::DndAction, wl_data_offer, wl_pointer, wl_surface}, DisplayHandle,
 };
 
 use crate::{
     utils::{Logical, Point},
     wayland::{
-        seat::{AxisFrame, PointerGrab, PointerGrabStartData, PointerInnerHandle, Seat},
+        seat::{AxisFrame, PointerGrab, PointerGrabStartData, PointerInnerHandle, Seat, ButtonEvent, MotionEvent},
         Serial,
     },
 };
@@ -41,23 +40,21 @@ pub enum ServerDndEvent {
     Finished,
 }
 
-pub(crate) struct ServerDnDGrab<C: 'static> {
+pub(crate) struct ServerDnDGrab {
     start_data: PointerGrabStartData,
     metadata: super::SourceMetadata,
     current_focus: Option<wl_surface::WlSurface>,
     pending_offers: Vec<wl_data_offer::WlDataOffer>,
-    offer_data: Option<Rc<RefCell<OfferData>>>,
+    offer_data: Option<Arc<Mutex<OfferData>>>,
     seat: Seat,
-    callback: Rc<RefCell<C>>,
 }
 
-impl<C: 'static> ServerDnDGrab<C> {
+impl ServerDnDGrab {
     pub(crate) fn new(
         start_data: PointerGrabStartData,
         metadata: super::SourceMetadata,
         seat: Seat,
-        callback: Rc<RefCell<C>>,
-    ) -> ServerDnDGrab<C> {
+    ) -> ServerDnDGrab {
         ServerDnDGrab {
             start_data,
             metadata,
@@ -65,22 +62,17 @@ impl<C: 'static> ServerDnDGrab<C> {
             pending_offers: Vec::with_capacity(1),
             offer_data: None,
             seat,
-            callback,
         }
     }
 }
 
-impl<C> PointerGrab for ServerDnDGrab<C>
-where
-    C: FnMut(ServerDndEvent) + 'static,
-{
+impl<T> PointerGrab<T> for ServerDnDGrab {
     fn motion(
         &mut self,
-        _handle: &mut PointerInnerHandle<'_>,
-        location: Point<f64, Logical>,
-        focus: Option<(wl_surface::WlSurface, Point<i32, Logical>)>,
-        serial: Serial,
-        time: u32,
+        data: &mut T,
+        dh: &mut DisplayHandle<'_>,
+        handle: &mut PointerInnerHandle<'_, T>,
+        event: &MotionEvent,
     ) {
         let seat_data = self
             .seat
@@ -88,6 +80,9 @@ where
             .get::<RefCell<SeatData>>()
             .unwrap()
             .borrow_mut();
+
+        let focus = handle.current_focus();
+
         if focus.as_ref().map(|&(ref s, _)| s) != self.current_focus.as_ref() {
             // focus changed, we need to make a leave if appropriate
             if let Some(surface) = self.current_focus.take() {
@@ -96,8 +91,10 @@ where
                         device.leave();
                     }
                 }
+
                 // disable the offers
                 self.pending_offers.clear();
+
                 if let Some(offer_data) = self.offer_data.take() {
                     offer_data.borrow_mut().active = false;
                 }
@@ -109,15 +106,18 @@ where
                 Some(c) => c,
                 None => return,
             };
-            let (x, y) = (location - surface_location.to_f64()).into();
+
+            let (x, y) = (event.location - surface_location.to_f64()).into();
+
             if self.current_focus.is_none() {
                 // We entered a new surface, send the data offer
-                let offer_data = Rc::new(RefCell::new(OfferData {
+                let offer_data = Arc::new(Mutex::new(OfferData {
                     active: true,
                     dropped: false,
                     accepted: true,
                     chosen_action: DndAction::empty(),
                 }));
+
                 for device in seat_data
                     .known_devices
                     .iter()
@@ -130,6 +130,7 @@ where
                         .unwrap()
                         .action_choice
                         .clone();
+
                     // create a data offer
                     let offer = client
                         .create_resource::<wl_data_offer::WlDataOffer>(device.as_ref().version())
@@ -143,22 +144,26 @@ where
                             )
                         })
                         .unwrap();
+
                     // advertize the offer to the client
                     device.data_offer(&offer);
+
                     for mime_type in self.metadata.mime_types.iter().cloned() {
                         offer.offer(mime_type);
                     }
+
                     offer.source_actions(self.metadata.dnd_action);
-                    device.enter(serial.into(), &surface, x, y, Some(&offer));
+                    device.enter(event.serial.into(), &surface, x, y, Some(&offer));
                     self.pending_offers.push(offer);
                 }
+
                 self.offer_data = Some(offer_data);
                 self.current_focus = Some(surface);
             } else {
                 // make a move
                 for device in &seat_data.known_devices {
                     if device.as_ref().same_client_as(surface.as_ref()) {
-                        device.motion(time, x, y);
+                        device.motion(data, dh, handle, event.time, x, y);
                     }
                 }
             }
@@ -167,11 +172,10 @@ where
 
     fn button(
         &mut self,
-        handle: &mut PointerInnerHandle<'_>,
-        _button: u32,
-        _state: wl_pointer::ButtonState,
-        serial: Serial,
-        time: u32,
+        data: &mut T,
+        dh: &mut DisplayHandle<'_>,
+        handle: &mut PointerInnerHandle<'_, T>,
+        event: &ButtonEvent,
     ) {
         if handle.current_pressed().is_empty() {
             // the user dropped, proceed to the drop
@@ -199,27 +203,37 @@ where
                 }
             }
             if let Some(ref offer_data) = self.offer_data {
-                let mut data = offer_data.borrow_mut();
+                let mut data = offer_data.lock().unwrap();
+
                 if validated {
                     data.dropped = true;
                 } else {
                     data.active = false;
                 }
             }
+
             let mut callback = self.callback.borrow_mut();
             (&mut *callback)(ServerDndEvent::Dropped);
+
             if !validated {
                 (&mut *callback)(ServerDndEvent::Cancelled);
             }
+
             // in all cases abandon the drop
             // no more buttons are pressed, release the grab
-            handle.unset_grab(serial, time);
+            handle.unset_grab(dh, event.serial, event.time);
         }
     }
 
-    fn axis(&mut self, handle: &mut PointerInnerHandle<'_>, details: AxisFrame) {
+    fn axis(
+        &mut self,
+        data: &mut T,
+        dh: &mut DisplayHandle<'_>,
+        handle: &mut PointerInnerHandle<'_, T>,
+        details: AxisFrame,
+    ) {
         // we just forward the axis events as is
-        handle.axis(details);
+        handle.axis(dh, details);
     }
 
     fn start_data(&self) -> &PointerGrabStartData {

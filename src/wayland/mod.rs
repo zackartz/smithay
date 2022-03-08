@@ -55,7 +55,7 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 pub mod compositor;
-// pub mod data_device;
+pub mod data_device;
 // pub mod dmabuf;
 // pub mod explicit_synchronization;
 pub mod output;
