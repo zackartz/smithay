@@ -155,6 +155,12 @@ pub struct Instance(Arc<InstanceInner>);
 
 impl Instance {
     /// Creates a new [`Instance`].
+    ///
+    /// The `version` specifies the maximum version of the Vulkan API the instance should support.
+    ///
+    /// # Panics
+    ///
+    /// - The `max_version` must be at least version 1.1
     pub fn new<L>(
         max_version: Version,
         app_info: Option<AppInfo>,
@@ -167,6 +173,10 @@ impl Instance {
     }
 
     /// Creates a new [`Instance`] with some additionally specified extensions.
+    ///
+    /// # Panics
+    ///
+    /// - The `max_version` must be at least version 1.1
     ///
     /// # Safety
     ///
@@ -211,7 +221,7 @@ impl Instance {
         }
 
         // Pick the lower of the requested max version and max possible version
-        let api_version = Version::from_raw(u32::min(max_version.to_raw(), requested_max_version.to_raw()));
+        let api_version = max_version.min(requested_max_version);
 
         let available_layers = Self::enumerate_layers()?.collect::<Vec<_>>();
         let available_extensions = Self::enumerate_extensions()?.collect::<Vec<_>>();

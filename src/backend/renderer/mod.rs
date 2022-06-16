@@ -20,6 +20,8 @@ use wayland_server::protocol::{wl_buffer, wl_shm};
 
 #[cfg(feature = "renderer_gl")]
 pub mod gles2;
+#[cfg(feature = "renderer_vulkan")]
+pub mod vulkan;
 
 use crate::backend::allocator::{dmabuf::Dmabuf, Format};
 #[cfg(all(
