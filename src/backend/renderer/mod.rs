@@ -11,6 +11,7 @@ use std::collections::HashSet;
 use std::error::Error;
 
 use crate::utils::{Buffer as BufferCoord, Physical, Point, Rectangle, Scale, Size, Transform};
+use bitflags::bitflags;
 use cgmath::Matrix3;
 
 #[cfg(feature = "wayland_frontend")]
@@ -36,6 +37,17 @@ pub mod multigpu;
 
 #[cfg(feature = "wayland_frontend")]
 pub mod utils;
+
+bitflags! {
+    /// Renderer capabilities 
+    pub struct RendererCapabilities: u32 {
+        /// The renderer is capable of importing a dmabuf.
+        const DMABUF_IMPORT = 0b0000_0001;
+
+        /// The renderer is capable of exporting a texture as a dmabuf.
+        const DMABUF_EXPORT = 0b0000_0010;
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 /// Texture filtering methods
