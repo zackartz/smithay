@@ -64,6 +64,15 @@ xkbcommon = { version = "0.5.0", features = ["wayland"]}
 scan_fmt = { version = "0.2.3", default-features = false }
 encoding = { version = "0.2.33", optional = true }
 
+[patch.crates-io]
+wayland-egl = { git = "https://github.com/i509VCB/wayland-rs", branch = "wl_shm2" }
+wayland-protocols = { git = "https://github.com/i509VCB/wayland-rs", branch = "wl_shm2" }
+wayland-protocols-wlr = { git = "https://github.com/i509VCB/wayland-rs", branch = "wl_shm2" }
+wayland-protocols-misc = { git = "https://github.com/i509VCB/wayland-rs", branch = "wl_shm2" }
+wayland-server = { git = "https://github.com/i509VCB/wayland-rs", branch = "wl_shm2" }
+wayland-sys = { git = "https://github.com/i509VCB/wayland-rs", branch = "wl_shm2" }
+wayland-backend = { git = "https://github.com/i509VCB/wayland-rs", branch = "wl_shm2" }
+
 [dev-dependencies]
 slog-term = "2.3"
 

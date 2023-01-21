@@ -38,14 +38,14 @@ pub enum ResizeError {
 }
 
 impl Pool {
-    pub fn new(fd: OwnedFd, size: NonZeroUsize, log: ::slog::Logger) -> Result<Pool, OwnedFd> {
-        let memmap = match MemMap::new(fd.as_raw_fd(), size) {
+    pub fn new(fd: OwnedFd, size: NonZeroUsize, offset: isize, log: ::slog::Logger) -> Result<Pool, OwnedFd> {
+        let memmap = match MemMap::new(fd.as_raw_fd(), size, offset) {
             Ok(memmap) => memmap,
             Err(_) => {
                 return Err(fd);
             }
         };
-        trace!(log, "Creating new shm pool"; "fd" => fd.as_raw_fd() as i32, "size" => usize::from(size));
+        trace!(log, "Creating new shm pool"; "fd" => fd.as_raw_fd() as i32, "size" => usize::from(size), "offset" => offset);
         Ok(Pool {
             map: RwLock::new(memmap),
             fd,
@@ -154,9 +154,9 @@ struct MemMap {
 }
 
 impl MemMap {
-    fn new(fd: RawFd, size: NonZeroUsize) -> Result<MemMap, ()> {
+    fn new(fd: RawFd, size: NonZeroUsize, offset: isize) -> Result<MemMap, ()> {
         Ok(MemMap {
-            ptr: unsafe { map(fd, size) }?,
+            ptr: unsafe { map(fd, size, offset) }?,
             fd,
             size: size.into(),
         })
@@ -169,7 +169,9 @@ impl MemMap {
         // memunmap cannot fail, as we are unmapping a pre-existing map
         let _ = unsafe { unmap(self.ptr, self.size) };
         // remap the fd with the new size
-        match unsafe { map(self.fd, newsize) } {
+        //
+        // This will never be remapped if an offset is accepted.
+        match unsafe { map(self.fd, newsize, 0) } {
             Ok(ptr) => {
                 // update the parameters
                 self.ptr = ptr;
@@ -225,14 +227,14 @@ impl Drop for MemMap {
     }
 }
 
-unsafe fn map(fd: RawFd, size: NonZeroUsize) -> Result<*mut u8, ()> {
+unsafe fn map(fd: RawFd, size: NonZeroUsize, offset: isize) -> Result<*mut u8, ()> {
     let ret = mman::mmap(
         None,
         size,
         mman::ProtFlags::PROT_READ | mman::ProtFlags::PROT_WRITE,
         mman::MapFlags::MAP_SHARED,
         fd,
-        0,
+        offset as libc::off_t,
     );
     ret.map(|p| p as *mut u8).map_err(|_| ())
 }

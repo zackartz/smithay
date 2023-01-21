@@ -146,11 +146,14 @@ impl ShmState {
     {
         let log = crate::slog_or_fallback(logger);
 
+        let shm = display.create_global::<D, WlShm, _>(2, ());
+
         // Mandatory formats
         formats.push(wl_shm::Format::Argb8888);
         formats.push(wl_shm::Format::Xrgb8888);
-
-        let shm = display.create_global::<D, WlShm, _>(1, ());
+        // Mandatory v2 formats
+        formats.push(wl_shm::Format::Argb8888New);
+        formats.push(wl_shm::Format::Xrgb8888New);
 
         ShmState {
             formats,
@@ -268,6 +271,7 @@ pub fn has_alpha(format: wl_shm::Format) -> bool {
     !matches!(
         format,
         wl_shm::Format::Xrgb8888
+            | wl_shm::Format::Xrgb8888New
             | wl_shm::Format::C8
             | wl_shm::Format::Rgb332
             | wl_shm::Format::Bgr233

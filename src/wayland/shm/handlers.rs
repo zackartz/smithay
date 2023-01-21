@@ -34,8 +34,21 @@ where
         let shm = data_init.init(resource, ());
 
         // send the formats
-        for &f in &state.shm_state().formats[..] {
-            shm.format(f);
+        for &f in state.shm_state().formats[..].iter().filter(|format| {
+            // version 2 compositors must advertise the "new" formats.
+            //
+            // Protocol TODO: Are v2 compositors allowed to advertise these formats to v1 clients?
+            !matches!(format, wl_shm::Format::Argb8888New | wl_shm::Format::Xrgb8888New) || shm.version() >= 2
+        }) {
+            // We cannot create a wl_shm::Format from a DRM format without an unsafe transmute for
+            // WlShm::format()
+            //
+            // Instead we use a lower level part of wayland-rs to create a WEnum<wl_shm::Format> which can represent
+            // unknown enum values.
+            //
+            // shm.format(f);
+            let _ = shm.send_event(wl_shm::Event::Format{ format: WEnum::from(f as u32) });
+            
         }
     }
 }
@@ -55,19 +68,34 @@ where
     ) {
         use wl_shm::{Error, Request};
 
-        let (pool, fd, size) = match request {
-            Request::CreatePool { id: pool, fd, size } => (pool, fd, size),
+        let (pool, fd, size, offset) = match request {
+            Request::CreatePool { id: pool, fd, size } => {
+                if size <= 0 {
+                    shm.post_error(Error::InvalidStride, "wl_shm_pool size is zero");
+                    return;
+                }
+
+                (pool, fd, size as u32, 0isize)
+            }
+            Request::CreatePool2 {
+                id: pool,
+                fd,
+                size,
+                offset_lo,
+                offset_hi,
+            } => {
+                // In case we run on a 32-bit system we do a checked shift.
+                let offset_hi = (offset_hi as isize).checked_shl(32).unwrap_or(0isize);
+                let offset = offset_hi + offset_lo as isize;
+                (pool, fd, size, offset)
+            }
             _ => unreachable!(),
         };
-
-        if size <= 0 {
-            shm.post_error(Error::InvalidStride, "invalid wl_shm_pool size");
-            return;
-        }
 
         let mmap_pool = match Pool::new(
             fd,
             NonZeroUsize::try_from(size as usize).unwrap(),
+            offset,
             state.shm_state().log.clone(),
         ) {
             Ok(p) => p,
@@ -184,8 +212,17 @@ where
             }
 
             Request::Resize { size } => {
+                if pool.version() >= 2 {
+                    pool.post_error(
+                        wl_shm::Error::AlreadyMapped,
+                        "tried to resize version 2 pool after the pool has been mapped",
+                    );
+                    return;
+                }
+
                 if size <= 0 {
                     pool.post_error(wl_shm::Error::InvalidFd, "invalid wl_shm_pool size");
+                    return;
                 }
 
                 if let Err(err) = arc_pool.resize(NonZeroUsize::try_from(size as usize).unwrap()) {
