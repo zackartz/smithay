@@ -55,6 +55,7 @@ wayland-egl = { version = "0.30.0", optional = true }
 wayland-protocols = { version = "0.30.0", features = ["unstable", "staging", "server"], optional = true }
 wayland-protocols-wlr = { version = "0.1.0", features = ["server"]}
 wayland-protocols-misc = { version = "0.1.0", features = ["server"]}
+wayland-scanner = { version = "0.30.0", optional = true }
 wayland-server = { version = "0.30.0", optional = true }
 wayland-sys = { version = "0.30.1", optional = true }
 wayland-backend = { version = "0.1.0", optional = true }
@@ -90,7 +91,7 @@ renderer_gl = ["gl_generator", "backend_egl"]
 renderer_glow = ["renderer_gl", "glow"]
 renderer_multi = ["backend_drm"]
 use_system_lib = ["wayland_frontend", "wayland-backend/server_system", "wayland-sys"]
-wayland_frontend = ["wayland-server", "wayland-protocols", "tempfile"]
+wayland_frontend = ["wayland-backend", "wayland-server", "wayland-protocols", "tempfile", "wayland-scanner"]
 x11rb_event_source = ["x11rb"]
 xwayland = ["encoding", "wayland_frontend", "x11rb/composite", "x11rb_event_source", "scopeguard"]
 test_all_features = ["default", "use_system_lib", "renderer_glow"]

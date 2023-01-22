@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="ext_foreign_toplevel_info_v1">
+  <copyright>
+    Copyright © 2018 Ilia Bozhinov
+    Copyright © 2020 Isaac Freund
+    Copyright © 2022 wb9688
+    Copyright © 2023 i509VCB
+
+    Permission to use, copy, modify, distribute, and sell this
+    software and its documentation for any purpose is hereby granted
+    without fee, provided that the above copyright notice appear in
+    all copies and that both that copyright notice and this permission
+    notice appear in supporting documentation, and that the name of
+    the copyright holders not be used in advertising or publicity
+    pertaining to distribution of the software without specific,
+    written prior permission.  The copyright holders make no
+    representations about the suitability of this software for any
+    purpose.  It is provided "as is" without express or implied
+    warranty.
+
+    THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+    SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+    FITNESS, IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
+    AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+    ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+    THIS SOFTWARE.
+  </copyright>
+
+  <description summary="list toplevels and properties thereof">
+    The purpose of this protocol is to enable clients such as taskbars
+    or docks to access a list of opened application windows and basic
+    properties thereof.
+
+    The secondary purpose of this protocol is to provide protocol object
+    handles for toplevels which may be used to address said toplevels in
+    other protocols (e.g. to target a toplevel for screencopy).
+
+    The compositor may choose to restrict this protocol to a special client
+    launched by the compositor itself or expose it to all clients,
+    this is compositor policy.
+
+    The key words "must", "must not", "required", "shall", "shall not",
+    "should", "should not", "recommended",  "may", and "optional" in this
+    document are to be interpreted as described in IETF RFC 2119.
+
+    Warning! The protocol described in this file is currently in the testing
+    phase. Backward compatible changes may be added together with the
+    corresponding interface version bump. Backward incompatible changes can
+    only be done by creating a new major version of the extension.
+  </description>
+
+  <interface name="ext_foreign_toplevel_info_v1" version="1">
+    <description summary="list toplevels and properties thereof">
+      A toplevel is defined as a surface with a role similar to xdg_toplevel.
+      XWayland surfaces may be treated like toplevels in this protocol.
+
+      After a client binds the ext_foreign_toplevel_info_v1, each opened
+      toplevel window will be sent using the toplevel event.
+
+      If a compositor implementation sends the ext_foreign_toplevel_info_v1.finished
+      event after the global is bound, the compositor must not send any
+      ext_foreign_toplevel_info_v1.toplevel events.
+    </description>
+
+    <enum name="error">
+      <description summary="ext_foreign_toplevel_info_v1 errors">
+        These errors are sent in response to ext_foreign_toplevel_info_v1 requests.
+      </description>
+
+      <entry name="already_constructed" value="0"
+          summary="the ext_foreign_toplevel_info_v1 global has already been constructed"/>
+
+      <entry name="defunct_toplevels" value="1"
+          summary="the ext_foreign_toplevel_info_v1 was destroyed before children"/>
+    </enum>
+
+    <event name="toplevel">
+      <description summary="a toplevel has been created">
+        This event is emitted whenever a new toplevel window is created. It is
+        emitted for all toplevels, regardless of the app that has created them.
+
+        All initial properties of the toplevel (title, app_id, states, etc.)
+        will be sent immediately after this event via the corresponding
+        events in ext_foreign_toplevel_handle_v1.
+      </description>
+      <arg name="toplevel" type="new_id" interface="ext_foreign_toplevel_handle_v1"/>
+    </event>
+
+    <event name="finished">
+      <description summary="the compositor has finished with the toplevel manager">
+        This event indicates that the compositor is done sending events
+        to the ext_foreign_toplevel_info_v1. The client should should destroy the
+        object after this event is recived. See ext_foreign_toplevel_info_v1.destroy
+        for more information.
+
+        The compositor must not send any more toplevel events after this event.
+      </description>
+    </event>
+
+    <request name="stop">
+      <description summary="stop sending events">
+        This request indicates that the client no longer wishes to receive
+        events for new toplevels.
+        
+        The Wayland protocol is asynchronous, meaning the compositor may send
+        further toplevel events until the stop request is processed.
+        The wl_display.sync request may be used to garuntee the compositor
+        has finished sending toplevel events.
+
+        The client should destroy the ext_foreign_toplevel_info_v1 object
+        after all pending toplevel events are received and all toplevel
+        handles are destroyed.
+      </description>
+    </request>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the ext_foreign_toplevel_info_v1 object">
+        This request should be called either when the client will no longer
+        use the ext_foreign_toplevel_info_v1 or after the finished event
+        has been received to allow destruction of the object.
+
+        Destroying a ext_foreign_toplevel_info_v1 while there are toplevels still
+        alive created by this ext_foreign_toplevel_info_v1 object is illegal and
+        must result in a defunct_toplevels error.
+      </description>
+    </request>
+  </interface>
+
+  <interface name="ext_foreign_toplevel_handle_v1" version="1">
+    <description summary="a mapped toplevel">
+      A ext_foreign_toplevel_handle_v1 object represents a mapped toplevel
+      window. A single app may have multiple mapped toplevels.
+
+      A toplevel handle provides information about the toplevel. This includes
+      which outputs the toplevel is visible on, the title, app id and etc.
+
+      Each toplevel has a list of outputs it is visible on, exposed to the
+      client via the output_enter and output_leave events.
+    </description>
+
+    <enum name="state">
+      <description summary="types of states on the toplevel">
+        The different states that a toplevel may have. These have the same
+        meaning as the states with the same names defined in xdg-toplevel
+        states.
+      </description>
+      <entry name="maximized"  value="0" summary="the toplevel is maximized"/>
+      <entry name="minimized"  value="1" summary="the toplevel is minimized"/>
+      <entry name="activated"  value="2" summary="the toplevel is active"/>
+      <entry name="fullscreen" value="3" summary="the toplevel is fullscreen"/>
+    </enum>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the ext_foreign_toplevel_handle_v1 object">
+        This request should be called either when the client will no longer
+        use the ext_foreign_toplevel_handle_v1 or after the closed event
+        has been received to allow destruction of the object.
+
+        When a handle is destroyed, the handle may not reappear until the
+        toplevel is unmapped and then remapped. Destroying a toplevel handle
+        is not recommended unless the client is cleaning up child objects
+        before destroying the ext_foreign_toplevel_info_v1 object, the toplevel
+        was closed or the toplevel will not be used in the future.
+
+        Other protocols which extend the ext_foreign_toplevel_handle_v1
+        interface should require destructors are called before allowing the
+        toplevel handle to be destroyed.
+      </description>
+    </request>
+
+    <event name="closed">
+      <description summary="the toplevel has been closed">
+        The server will emit no further events on the ext_foreign_toplevel_handle_v1
+        after this event. Any requests received aside from the destroy request must
+        be ignored. Upon receiving this event, the client should destroy the handle.
+
+        Other protocols which extend the ext_foreign_toplevel_handle_v1
+        interface must also ignore requests other than destructors.
+      </description>
+    </event>
+
+    <event name="done">
+      <description summary="all information about the toplevel has been sent">
+        This event is sent after all changes in the toplevel state have
+        been sent.
+
+        This allows changes to the ext_foreign_toplevel_handle_v1 properties
+        to be atomically applied. Other protocols which extend the
+        ext_foreign_toplevel_handle_v1 interface may use this event to also
+        atomically apply any pending state.
+
+        This event must not be sent after the closed event.
+      </description>
+    </event>
+
+    <event name="title">
+      <description summary="title change">
+        The title of the toplevel has changed.
+
+        The configured state must not be applied immediately. See
+        ext_foreign_toplevel_handle_v1.done for details.
+      </description>
+      <arg name="title" type="string"/>
+    </event>
+
+    <event name="app_id">
+      <description summary="app_id change">
+        The app id of the toplevel has changed.
+
+        The configured state must not be applied immediately. See
+        ext_foreign_toplevel_handle_v1.done for details.
+      </description>
+      <arg name="app_id" type="string"/>
+    </event>
+
+    <event name="output_enter">
+      <description summary="toplevel entered an output">
+        The toplevel has entered the output. Like wl_surface.enter, the toplevel
+        may overlap with zero or more outputs.
+
+        The configured state must not be applied immediately. See
+        ext_foreign_toplevel_handle_v1.done for details.
+      </description>
+      <arg name="output" type="object" interface="wl_output"/>
+    </event>
+
+    <event name="output_leave">
+      <description summary="toplevel left an output">
+        The toplevel has left the output. Like wl_surface.leave, the toplevel
+        may leave the output due to movement, resizing or destruction.
+
+        The configured state must not be applied immediately. See
+        ext_foreign_toplevel_handle_v1.done for details.
+      </description>
+      <arg name="output" type="object" interface="wl_output"/>
+    </event>
+
+    <event name="state">
+      <description summary="the toplevel state changed">
+        This event is emitted once on creation of the
+        ext_foreign_toplevel_handle_v1 and again whenever the state of the
+        toplevel changes.
+
+        The array contains 32-bit unsigned integers of host endianness that
+        must interpreted as ext_foreign_toplevel_handle_v1.state values.
+
+        The configured state must not be applied immediately. See
+        ext_foreign_toplevel_handle_v1.done for details.
+      </description>
+      <arg name="states" type="array" summary="array of ext_foreign_toplevel_handle_v1.state"/>
+    </event>
+
+    <event name="parent">
+      <description summary="parent change">
+        This event is emitted whenever the parent of the toplevel changes. A
+        value of NULL means that there is no parent.
+
+        No event is emitted when the parent handle is destroyed by the client.
+
+        The configured state must not be applied immediately. See
+        ext_foreign_toplevel_handle_v1.done for details.
+      </description>
+      <arg name="parent" type="object" interface="ext_foreign_toplevel_handle_v1" allow-null="true"/>
+    </event>
+  </interface>
+</protocol>

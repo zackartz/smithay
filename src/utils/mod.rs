@@ -28,6 +28,9 @@ pub use serial::*;
 mod clock;
 pub use clock::*;
 
+mod double_buffer;
+pub use double_buffer::*;
+
 /// This resource is not managed by Smithay
 #[derive(Debug)]
 pub struct UnmanagedResource;
