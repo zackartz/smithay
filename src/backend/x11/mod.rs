@@ -113,7 +113,10 @@ use x11rb::{
     protocol::{
         self as x11,
         dri3::ConnectionExt as _,
-        xproto::{ColormapAlloc, ConnectionExt, CreateWindowAux, VisualClass, WindowClass, WindowWrapper},
+        xproto::{
+            ColormapAlloc, ConnectionExt, CreateWindowAux, VisualClass, Visualtype, WindowClass,
+            WindowWrapper,
+        },
         ErrorKind,
     },
     rust_connection::{ReplyError, RustConnection},
@@ -1008,4 +1011,159 @@ fn dri3_init(x11: &X11Inner) -> Result<(DrmNode, OwnedFd), X11Error> {
     .map_err(AllocateBuffersError::from)?;
 
     Ok((dri_node, unsafe { OwnedFd::from_raw_fd(fd) }))
+}
+
+/// Get a DRM format code from a depth, bpp and X11 visual type.
+///
+/// The X11, the `depth` describes how much of a pixel's memory is meaningful. The `bpp` in the visual type
+/// describes how large the pixel is in memory.
+///
+/// The visual is also needed to do the conversion since the visual describes the pixel format layout.
+///
+/// # Descending into madness
+///
+/// How the depth, bpp and visual are supposed to be interpreted is not to clear from the X11 specification.
+/// In particular, X11's base protocol does not track any alpha channel. As such there are several
+/// interpretations of the values across several projects:
+///
+/// Starting with the [DRI3 implementation] (as we use DRI3 to import buffers on the X server),
+/// drm_format_for_depth uses the bpp to select the DRM format. However that is at odds with the initial
+/// definitions of `bpp` and `depth`.
+///
+/// [XWayland] simply uses the depth to determine the format. However this is only ever reached if the bpp of
+/// the depth matches when creating a Pixmap on the server: https://gitlab.freedesktop.org/xorg/xserver/-/blob/d67383a695f40ca5470ae2392233e1f5fc012b0c/hw/xwayland/xwayland-glamor-gbm.c#L584
+///
+/// The regular GBM Glamor allocator does something similar with format selection, but when setting the backing
+/// store of a pixmap to a GBM BO, the bpp must be 32 or one of the specified depths: 24, 30, 32: https://gitlab.freedesktop.org/xorg/xserver/-/blob/d67383a695f40ca5470ae2392233e1f5fc012b0c/glamor/glamor_egl.c#L537
+/// The same function also knows to select between ARGB2101010 and ARGB8888 depending on the depth being 30
+/// or 32 respectively.
+///
+/// [Mesa's EGL X11 platform] uses depth to get the equivalent DRM format. Mesa differs from everything else so
+/// far by using the red mask to differentiate between `XBGR2101010` and `XRGB2101010`.
+///
+/// Why is Mesa using `XRGB` formats while XWayland the X server use `ARGB`? X11 does not provide alpha. Well
+/// [Mesa's X11 Vulkan WSI] does guess if a visual has alpha. This is done to determine what composite info
+/// the driver should provide, as format allocation in Vulkan does not have variants for formats with alpha
+/// (like ARGB8888) and those that do not (XRGB8888). Essentially if the bpp and depth sizes match, but the
+/// masks do not cover the entire buffer, then
+///
+/// [wlroots] does match the assumption made at the start, that `bpp` is the size in memory and `depth` is what
+/// is used. wlroots matches the Vulkan WSI by guessing if the alpha channel is there.
+///
+/// [DRI3 implementation]: https://gitlab.freedesktop.org/xorg/xserver/-/blob/d67383a695f40ca5470ae2392233e1f5fc012b0c/dri3/dri3.c#L102
+/// [XWayland]: https://gitlab.freedesktop.org/xorg/xserver/-/blob/d67383a695f40ca5470ae2392233e1f5fc012b0c/hw/xwayland/xwayland-glamor.c#L172
+/// [Mesa's EGL X11 platform]: https://gitlab.freedesktop.org/mesa/mesa/-/blob/9ca5a81a6eab703c64bce66baef2e880339d6680/src/egl/drivers/dri2/platform_x11.c#L1058
+/// [Mesa's X11 Vulkan WSI]: https://gitlab.freedesktop.org/mesa/mesa/-/blob/5bbeb8f5075983da9ed102ff8b665e1907949ddd/src/vulkan/wsi/wsi_common_x11.c#L524
+/// [wlroots]: https://gitlab.freedesktop.org/wlroots/wlroots/-/blob/5007e713b4c0d0f0cd8e97503294b81a250d3459/backend/x11/backend.c#L35
+fn get_drm_format(depth: u8, bpp: u8, vis: &Visualtype) -> Option<DrmFourcc> {
+    // Yes, we should also be testing the blue and green masks, but if those overlap with red or each other
+    // then we have much larger problems than our conversions.
+    match (bpp, depth) {
+        // XWayland is unique and has this conversion only.
+        (16, 15) if vis.red_mask == 0x7C00 => Some(DrmFourcc::Xrgb1555),
+        (16, 16) if vis.red_mask == 0xF800 => Some(DrmFourcc::Rgb565),
+        (32, 24) if vis.red_mask == 0xFF => Some(DrmFourcc::Xbgr8888),
+        (32, 24) if vis.red_mask == 0xFF0000 => Some(DrmFourcc::Xrgb8888),
+        (32, 30) if vis.red_mask == 0x3FF => Some(DrmFourcc::Abgr2101010),
+        (32, 30) if vis.red_mask == 0x3FF00000 => Some(DrmFourcc::Argb2101010),
+        (32, 32) if vis.red_mask == 0xFF => Some(DrmFourcc::Abgr8888),
+        (32, 32) if vis.red_mask == 0xFF0000 => Some(DrmFourcc::Argb8888),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use drm_fourcc::{DrmFormat, DrmModifier};
+    use x11rb::{
+        connection::Connection,
+        protocol::{dri3::ConnectionExt as _, xproto::Visualid},
+        rust_connection::RustConnection,
+    };
+
+    #[test]
+    fn format_info() {
+        let (connection, screen_number) = RustConnection::connect(None).unwrap();
+        let setup = connection.setup();
+        let screen = &setup.roots[screen_number];
+        let _ = connection.dri3_query_version(1, 2).unwrap().reply().unwrap();
+
+        let mut format_info = HashMap::<DrmFormat, FormatInfo>::new();
+
+        /// Information about the format.
+        #[derive(Debug)]
+        struct FormatInfo {
+            depth: u8,
+            bpp: u8,
+            visuals: Vec<Visualid>,
+        }
+
+        for depth in screen.allowed_depths.iter() {
+            for bpp in 0..=32 {
+                for vis in depth.visuals.iter() {
+                    if let Some(format) = super::get_drm_format(depth.depth, bpp, vis) {
+                        if let Ok(reply) = connection
+                            .dri3_get_supported_modifiers(screen.root, depth.depth, bpp)
+                            .unwrap()
+                            .reply()
+                        {
+                            // Initially we just want the screen modifiers. The screen modifiers are best used
+                            // to determine the initial format of the window. Once a window is mapped, the
+                            // window modifiers should be used as more optimal modifiers may be usable.
+                            //
+                            // DRI3GetSupportedModifiers states that the `screen_modifiers` are valid for the
+                            // lifetime of the client but could result in a less optimal display pipeline.
+                            let formats = reply
+                                .screen_modifiers
+                                .iter()
+                                .copied()
+                                .map(DrmModifier::from)
+                                .map(|modifier| DrmFormat {
+                                    code: format,
+                                    modifier,
+                                })
+                                .collect::<Vec<_>>();
+
+                            if !formats.is_empty() {
+                                for format in formats {
+                                    let info = format_info.entry(format).or_insert_with(|| FormatInfo {
+                                        depth: depth.depth,
+                                        bpp,
+                                        visuals: Vec::new(),
+                                    });
+
+                                    info.visuals.push(vis.visual_id);
+                                }
+
+                                // DRI3PixmapFromBuffers allows DRM_FORMAT_INVALID, so we add the invalid
+                                // modifier as allowed assuming at least one other modifier is supported by
+                                // the server.
+                                //
+                                // Using the invalid modifier however means that the server may be unable to
+                                // use the imported buffer, so callers need to be beware that the invalid
+                                // modifier could backfire.
+                                let info = format_info
+                                    .entry(DrmFormat {
+                                        code: format,
+                                        modifier: DrmModifier::Invalid,
+                                    })
+                                    .or_insert_with(|| FormatInfo {
+                                        depth: depth.depth,
+                                        bpp,
+                                        visuals: Vec::new(),
+                                    });
+
+                                info.visuals.push(vis.visual_id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        dbg!(&format_info);
+        println!("Allowed formats: {:#?}", format_info.keys());
+    }
 }
