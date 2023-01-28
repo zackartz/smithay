@@ -1085,6 +1085,9 @@ mod tests {
 
     #[test]
     fn format_info() {
+        // Notes:
+        // - Running under X11 (not XWayland) no modifiers are listed?
+
         let (connection, screen_number) = RustConnection::connect(None).unwrap();
         let setup = connection.setup();
         let screen = &setup.roots[screen_number];
