@@ -30,7 +30,7 @@ impl ForeignToplevelInfo {
     pub fn new<D, F, L>(display: &DisplayHandle, filter: F, _logger: L) -> Self
     where
         D: GlobalDispatch<ext_foreign_toplevel_info_v1::ExtForeignToplevelInfoV1, GlobalData>
-            + Dispatch<ext_foreign_toplevel_info_v1::ExtForeignToplevelInfoV1, ()>
+            + Dispatch<ext_foreign_toplevel_info_v1::ExtForeignToplevelInfoV1, ForeignToplevelInfoData>
             + Dispatch<ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1, ToplevelHandleData>
             + ForeignToplevelInfoHandler
             + 'static,
@@ -312,6 +312,23 @@ impl DoubleBufferable for ToplevelState {
 #[derive(Debug)]
 pub struct ToplevelHandleData {
     inner: Arc<ToplevelHandleInner>,
+}
+
+#[allow(missing_docs)] // TODO
+#[macro_export]
+macro_rules! delegate_foreign_toplevel_info {
+    ($(@<$( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+>)? $ty: ty) => {
+        $crate::reexports::wayland_server::delegate_global_dispatch!($(@< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $ty: [
+            $crate::wayland::foreign_toplevel::protocol::ext_foreign_toplevel_info_v1::ExtForeignToplevelInfoV1: $crate::wayland::foreign_toplevel::GlobalData
+        ] => $crate::wayland::foreign_toplevel::ForeignToplevelInfo);
+
+        $crate::reexports::wayland_server::delegate_dispatch!($(@< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $ty: [
+            $crate::wayland::foreign_toplevel::protocol::ext_foreign_toplevel_info_v1::ExtForeignToplevelInfoV1: $crate::wayland::foreign_toplevel::ForeignToplevelInfoData
+        ] => $crate::wayland::foreign_toplevel::ForeignToplevelInfo);
+        $crate::reexports::wayland_server::delegate_dispatch!($(@< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $ty: [
+            $crate::wayland::foreign_toplevel::protocol::ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1: $crate::wayland::foreign_toplevel::ToplevelHandleData
+        ] => $crate::wayland::foreign_toplevel::ForeignToplevelInfo);
+    };
 }
 
 #[derive(Debug)]
