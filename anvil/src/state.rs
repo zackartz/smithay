@@ -62,8 +62,8 @@ use smithay::{
         virtual_keyboard::VirtualKeyboardManagerState,
         xdg_activation::{
             XdgActivationHandler, XdgActivationState, XdgActivationToken, XdgActivationTokenData,
-        },
-    },
+        }, foreign_toplevel::{ForeignToplevelInfo, ForeignToplevelInfoHandler, ForeignToplevelClient},
+    }, delegate_foreign_toplevel_info,
 };
 
 #[cfg(feature = "xwayland")]
@@ -116,6 +116,7 @@ pub struct AnvilState<BackendData: Backend + 'static> {
     pub xdg_shell_state: XdgShellState,
     pub presentation_state: PresentationState,
     pub fractional_scale_manager_state: FractionalScaleManagerState,
+    pub foreign_toplevel_info: ForeignToplevelInfo,
 
     pub dnd_icon: Option<WlSurface>,
     pub log: slog::Logger,
@@ -386,6 +387,17 @@ impl<BackendData: Backend> FractionScaleHandler for AnvilState<BackendData> {
 }
 delegate_fractional_scale!(@<BackendData: Backend + 'static> AnvilState<BackendData>);
 
+impl<BackendData: Backend> ForeignToplevelInfoHandler for AnvilState<BackendData> {
+    fn foreign_toplevel(&mut self) -> &mut ForeignToplevelInfo {
+        &mut self.foreign_toplevel_info
+    }
+
+    fn new_client(&mut self, _client: ForeignToplevelClient) {}
+
+    fn client_destroyed(&mut self, _client: &ForeignToplevelClient) {}
+}
+delegate_foreign_toplevel_info!(@<BackendData: Backend + 'static> AnvilState<BackendData>);
+
 impl<BackendData: Backend + 'static> AnvilState<BackendData> {
     pub fn init(
         display: &mut Display<AnvilState<BackendData>>,
@@ -449,6 +461,12 @@ impl<BackendData: Backend + 'static> AnvilState<BackendData> {
         TextInputManagerState::new::<Self>(&dh);
         InputMethodManagerState::new::<Self>(&dh);
         VirtualKeyboardManagerState::new::<Self, _>(&dh, |_client| true);
+        let foreign_toplevel_info = ForeignToplevelInfo::new::<Self, _, _>(
+            &dh,
+            // in a production compositor there would be some actual filtering done here.
+            |_| true,
+            log.clone(),
+        );
 
         // init input
         let seat_name = backend_data.seat_name();
@@ -534,6 +552,7 @@ impl<BackendData: Backend + 'static> AnvilState<BackendData> {
             xdg_shell_state,
             presentation_state,
             fractional_scale_manager_state,
+            foreign_toplevel_info,
             dnd_icon: None,
             log,
             suppressed_keys: Vec::new(),
