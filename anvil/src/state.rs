@@ -392,8 +392,12 @@ impl<BackendData: Backend> ForeignToplevelInfoHandler for AnvilState<BackendData
         &mut self.foreign_toplevel_info
     }
 
+    // Here we are notified that a new toplevel client was created.
+    // A toplevel client represents an instantiation of the ext-foreign-toplevel-info global.
     fn new_client(&mut self, _client: ForeignToplevelClient) {}
 
+    // For compositors which may want to perform some kind of cleanup, this function notifies when a global
+    // instantiation is destroyed.
     fn client_destroyed(&mut self, _client: &ForeignToplevelClient) {}
 }
 delegate_foreign_toplevel_info!(@<BackendData: Backend + 'static> AnvilState<BackendData>);
