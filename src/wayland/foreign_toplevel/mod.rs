@@ -11,9 +11,9 @@ use std::{
 };
 
 use wayland_backend::server::GlobalId;
-use wayland_server::{protocol::wl_output, Client, Dispatch, DisplayHandle, GlobalDispatch, Resource};
+use wayland_server::{Client, Dispatch, DisplayHandle, GlobalDispatch, Resource};
 
-use crate::utils::{DeadResource, DoubleBufferable, DoubleBuffered, UnmanagedResource};
+use crate::{utils::{DeadResource, DoubleBufferable, DoubleBuffered, UnmanagedResource}, output::Output};
 
 use self::{generated::ext_foreign_toplevel_handle_v1, protocol::ext_foreign_toplevel_info_v1};
 
@@ -70,7 +70,6 @@ impl ForeignToplevelInfo {
             inner: Arc::new(ToplevelHandleInner {
                 handles: Mutex::new(Vec::new()),
                 state: Mutex::new(DoubleBuffered::new()),
-                initialized: AtomicBool::new(false),
             }),
         };
         self.toplevels.push(handle.clone());
@@ -202,11 +201,22 @@ impl ToplevelHandle {
         self.inner.send_state();
     }
 
+    /// Get the underlying [`ExtForeignToplevelHandleV1`] protocol object for a handle created by the
+    /// specified `client`.
+    ///
+    /// [`ExtForeignToplevelHandleV1`]: ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1
     pub fn handle_for_client(
         &self,
-        client: &Client,
+        client: &ForeignToplevelClient,
     ) -> Result<ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1, DeadResource> {
-        self.inner.handle_for_client(client)
+        let handles = client.data().info.handles.lock().unwrap();
+        let handle = handles
+            .iter()
+            .find(|handle| handle.toplevel_client().ok() == Some(client))
+            .cloned()
+            .ok_or(DeadResource)?;
+
+        Ok(handle)
     }
 
     fn create_for_client<State>(
@@ -309,7 +319,7 @@ impl Eq for ToplevelStateSet {}
 pub struct ToplevelState {
     pub title: String,
     pub app_id: String,
-    pub outputs: Vec<wl_output::WlOutput>,
+    pub outputs: Vec<Output>,
     pub states: ToplevelStateSet,
     pub parent: Option<ToplevelHandle>,
 }
@@ -329,11 +339,11 @@ pub struct ToplevelHandleData {
 
 pub trait ExtForeignToplevelHandleV1Ext: Sized {
     /// Get the foreign toplevel client which owns this toplevel handle instance.
-    fn get_client(&self) -> Result<&ForeignToplevelClient, UnmanagedResource>;
+    fn toplevel_client(&self) -> Result<&ForeignToplevelClient, UnmanagedResource>;
 }
 
 impl ExtForeignToplevelHandleV1Ext for ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1 {
-    fn get_client(&self) -> Result<&ForeignToplevelClient, UnmanagedResource> {
+    fn toplevel_client(&self) -> Result<&ForeignToplevelClient, UnmanagedResource> {
         Ok(&self.data::<ToplevelHandleData>().ok_or(UnmanagedResource)?.client)
     }
 }
@@ -359,101 +369,123 @@ macro_rules! delegate_foreign_toplevel_info {
 struct ToplevelHandleInner {
     handles: Mutex<Vec<ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1>>,
     state: Mutex<DoubleBuffered<ToplevelState>>,
-    initialized: AtomicBool,
 }
 
 impl ToplevelHandleInner {
-    fn handle_for_client(
-        &self,
-        client: &Client,
-    ) -> Result<ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1, DeadResource> {
-        let guard = self.handles.lock().unwrap();
-        let handles = guard.clone();
-        drop(guard); // drop guard otherwise looking up the parent handle will deadlock.
-        handles
-            .iter()
-            .find(|handle| handle.client().as_ref() == Some(client))
-            .cloned()
-            .ok_or(DeadResource)
-    }
-
     fn send_state(&self) {
-        // mark the state as initialized for future new clients
-        self.initialized.store(true, Ordering::Relaxed);
         let handles = self.handles.lock().unwrap();
 
         for handle in handles.iter() {
-            self.update_state(handle);
+            // TODO
+            // self.update_state(handle);
         }
 
         // Finally commit the current state after updating each client's current state.
         self.state.lock().unwrap().apply_pending();
     }
 
-    fn update_state(&self, handle: &ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1) {
-        let state = self.state.lock().unwrap();
-        let pending = state.pending();
-        let current = state.current();
+    // // FIXME: An existing handle gets no info right now.
+    // fn update_state(&self, handle: &ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1) {
+    //     let state = self.state.lock().unwrap();
+    //     let pending = state.pending();
+    //     let current = state.current();
 
-        if Some(&pending.title) != current.map(|state| &state.title) {
-            handle.title(pending.title.clone());
-        }
+    //     match current {
+    //         Some(current) => {
+    //             if &pending.title != &current.title {
+    //                 handle.title(pending.title.clone());
+    //             }
+        
+    //             if &pending.app_id != &current.app_id {
+    //                 handle.app_id(pending.app_id.clone());
+    //             }
+        
+    //             // TODO: This won't work for new
+    //             let mut new_outputs = Vec::new();
+    //             let mut old_outputs = Vec::new();
 
-        if Some(&pending.app_id) != current.map(|state| &state.app_id) {
-            handle.app_id(pending.app_id.clone());
-        }
+    //             match current {
+    //                 Some(current) => {
+    //                     // Find all outputs that were added in the pending state
+    //                     let new = pending
+    //                         .outputs
+    //                         .iter()
+    //                         .filter(|&output| !current.outputs.contains(output));
+    //                     // Find all outputs removed from the current state.
+    //                     let old = current
+    //                         .outputs
+    //                         .iter()
+    //                         .filter(|&output| !pending.outputs.contains(output));
+    //                     new_outputs.extend(new);
+    //                     old_outputs.extend(old);
+    //                 }
+        
+    //                 // If there is no current state, just apply all the pending outputs
+    //                 None => new_outputs.extend(pending.outputs.iter()),
+    //             }
+        
+    //             for output in old_outputs {
+    //                 handle.output_leave(output);
+    //             }
+        
+    //             for output in new_outputs {
+    //                 handle.output_enter(output);
+    //             }
+        
+    //             // TODO: States
+        
+    //             if pending.parent.as_ref() != current.and_then(|h| h.parent.as_ref()) || new {
+    //                 if let Ok(client) = handle.toplevel_client() {
+    //                     let parent = pending
+    //                         .parent
+    //                         .as_ref()
+    //                         .and_then(|p| p.handle_for_client(&client).ok());
+    //                     handle.parent(parent.as_ref());
+    //                 } else {
+    //                     // if looking up the client for the child failed, break the parent child relationship.
+    //                     handle.parent(None);
+    //                 }
+    //             }
+    //         },
 
-        let mut new_outputs = Vec::new();
-        let mut old_outputs = Vec::new();
+    //         // No current state, defer creation to later.
+    //         None => {},
+    //     }
 
-        match current {
-            Some(current) => {
-                // Find all outputs that were added in the pending state
-                let new = pending
-                    .outputs
-                    .iter()
-                    .filter(|&output| !current.outputs.contains(output));
-                // Find all outputs removed from the current state.
-                let old = current
-                    .outputs
-                    .iter()
-                    .filter(|&output| !pending.outputs.contains(output));
-                new_outputs.extend(new);
-                old_outputs.extend(old);
+    //     handle.done();
+    // }
+
+    fn init_state(
+        &self,
+        handle: &ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1,
+        state: &ToplevelState
+    ) {
+        handle.title(state.title.clone());
+        handle.app_id(state.app_id.clone());
+
+        if let Some(client) = handle.client() {
+            for output in state.outputs.iter() {
+                for wl_output in output.client_outputs(&client) {
+                    handle.output_enter(&wl_output);
+                }
             }
-
-            // If there is no current state, just apply all the pending outputs
-            None => new_outputs.extend(pending.outputs.iter()),
         }
 
-        for output in old_outputs {
-            handle.output_leave(output);
-        }
+        handle.state(state.states.raw());
 
-        for output in new_outputs {
-            handle.output_enter(output);
-        }
-
-        if pending.parent.as_ref() != current.and_then(|h| h.parent.as_ref()) {
-            if let Some(client) = handle.client() {
-                let parent = pending
-                    .parent
-                    .as_ref()
-                    .and_then(|p| p.handle_for_client(&client).ok());
-                handle.parent(parent.as_ref());
-            } else {
-                // if looking up the client for the child failed, break the parent child relationship.
-                handle.parent(None);
+        if let Some(ref parent) = state.parent {
+            if let Some(parent) = handle
+                .toplevel_client()
+                .ok()
+                .and_then(|client| parent.handle_for_client(client).ok())
+            {
+                handle.parent(Some(&parent));
             }
         }
 
+        // TODO: Do we have an xdg-output situation here where the done is sent with wl_output data when
+        // created and requires waiting with roundtrip for the xdg-output extensions?
         handle.done();
-    }
-
-    fn init_state(&self, handle: &ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1) {
-        if self.initialized.load(Ordering::Relaxed) {
-            self.update_state(handle);
-        }
     }
 }
 

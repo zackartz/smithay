@@ -68,7 +68,11 @@ where
         // 2nd loop, send the current state of each toplevel to the new client.
         for handle in new_handles {
             let toplevel = ToplevelHandle::from_handle(&handle).unwrap();
-            toplevel.inner.init_state(&handle);
+            let state = toplevel.inner.state.lock().unwrap();
+
+            if let Some(current) = state.current() {
+                toplevel.inner.init_state(&handle, current);
+            }
         }
     }
 
