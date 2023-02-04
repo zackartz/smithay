@@ -1,6 +1,6 @@
 use std::sync::{
-    atomic::{AtomicBool, AtomicU32, Ordering},
-    Arc,
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
 };
 
 use wayland_backend::server::{ClientId, ObjectId};
@@ -29,19 +29,9 @@ where
         _: &GlobalData,
         data_init: &mut DataInit<'_, State>,
     ) {
-        // Clients are only allowed to bind one global at a time.
-        if state.foreign_toplevel().clients.contains_key(&client.id()) {
-            // TODO: wayland-rs has no way to make a New post an error without a panic.
-            // data_init.init(new, todo!()).post_error(
-            //     ext_foreign_toplevel_info_v1::Error::AlreadyConstructed,
-            //     "The ext_foreign_toplevel_info_v1 global has already been instantiated",
-            // );
-            return;
-        }
-
         let info = Arc::new(ClientData {
             client: client.clone(),
-            toplevel_count: AtomicU32::new(0),
+            handles: Mutex::new(Vec::new()),
             stop: AtomicBool::new(false),
         });
 
@@ -49,10 +39,7 @@ where
         let global = data_init.init(new, data);
         let toplevel_client = ForeignToplevelClient { object: global };
 
-        state
-            .foreign_toplevel()
-            .clients
-            .insert(client.id(), toplevel_client.clone());
+        state.foreign_toplevel().clients.push(toplevel_client.clone());
         state.new_client(toplevel_client.clone());
 
         // Quoting from the protocol:
@@ -71,7 +58,7 @@ where
         // 1st loop, create all handles for the client. Is is necessary to avoid sending a child handle before
         // it's parent.
         for toplevel in state.toplevels.iter() {
-            for client in state.clients.values() {
+            for client in state.clients.iter() {
                 if let Some(handle) = toplevel.create_for_client::<State>(display, client) {
                     new_handles.push(handle);
                 }
@@ -117,34 +104,55 @@ where
                 // > Destroying a ext_foreign_toplevel_info_v1 while there are toplevels still
                 // > alive created by this ext_foreign_toplevel_info_v1 object is illegal and
                 // > must result in a defunct_toplevels error.
-                if data.info.toplevel_count.load(Ordering::Acquire) > 0 {
+                let handles = data.info.handles.lock().unwrap();
+
+                if !handles.is_empty() {
                     resource.post_error(
                         ext_foreign_toplevel_info_v1::Error::DefunctToplevels,
                         "ext_foreign_toplevel_info_v1 was destroyed with defunct handles",
                     );
                 }
 
-                // client_destroyed will be called by the `destroyed` implementation.
+                // Would be nice to use the more explicit Mutex::unlock, but that is not ready:
+                // https://github.com/rust-lang/rust/issues/81872
+                drop(handles);
+
+                // client_destroyed will be called by the `destroyed` implementation, as that handles both
+                // the global being destroyed and clients disconnecting.
             }
 
-            #[allow(unreachable_patterns)] // in tree protocols cause non_exhaustive is ignored
+            #[allow(unreachable_patterns)] // in crate protocols cause non_exhaustive is ignored
             _ => unreachable!(),
         }
     }
 
     fn destroyed(
         state: &mut State,
-        client_id: ClientId,
+        _client_id: ClientId,
         resource: ObjectId,
         _data: &ForeignToplevelInfoData,
     ) {
-        let display = state.foreign_toplevel().display.clone();
-        let client = ForeignToplevelClient {
-            object: ext_foreign_toplevel_info_v1::ExtForeignToplevelInfoV1::from_id(&display, resource)
-                .unwrap(),
-        };
-        state.client_destroyed(&client);
-        state.foreign_toplevel().clients.remove(&client_id);
+        // We can't get a ExtForeignToplevelInfoV1 using from_id here, but the existing
+        // ExtForeignToplevelInfoV1 instances still share the same object id destroyed
+        // gives us.
+
+        // TODO: Replace this with drain_filter when stabilized.
+        let mut destroyed_clients = Vec::new();
+        state.foreign_toplevel().clients.retain(|client| {
+            let destroy = client.info().id() != resource;
+
+            if destroy {
+                destroyed_clients.push(ForeignToplevelClient {
+                    object: client.info().clone(),
+                });
+            }
+
+            destroy
+        });
+
+        for destroyed in destroyed_clients {
+            state.client_destroyed(&destroyed);
+        }
     }
 }
 
@@ -155,28 +163,26 @@ where
         + ForeignToplevelInfoHandler,
 {
     fn request(
-        state: &mut State,
-        client: &Client,
-        _resource: &ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1,
+        _state: &mut State,
+        _client: &Client,
+        resource: &ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1,
         request: ext_foreign_toplevel_handle_v1::Request,
-        _data: &ToplevelHandleData,
+        data: &ToplevelHandleData,
         _dhandle: &DisplayHandle,
         _data_init: &mut DataInit<'_, State>,
     ) {
         match request {
             ext_foreign_toplevel_handle_v1::Request::Destroy => {
-                if let Some(data) = state.foreign_toplevel().clients.get(&client.id()) {
-                    data.data().info.toplevel_count.fetch_sub(1, Ordering::Relaxed);
-                }
-                // destroyed handles all cleanup
+                let client_data = data.client.data();
+                // We do not use Dispatch::destroyed here because that could be called when the client
+                // has disconnected. Plus our error checking for defunct handles only matters for live
+                // clients.
+                let mut handles = client_data.info.handles.lock().unwrap();
+                handles.retain(|entry| entry != resource);
             }
-            #[allow(unreachable_patterns)] // in tree protocols cause non_exhaustive is ignored
+
+            #[allow(unreachable_patterns)] // in crate non_exhaustive is ignored
             _ => unreachable!(),
         }
-    }
-
-    fn destroyed(_state: &mut State, _client: ClientId, resource: ObjectId, data: &ToplevelHandleData) {
-        let mut handles = data.inner.handles.lock().unwrap();
-        handles.retain(|handle| handle.id() != resource);
     }
 }

@@ -3,25 +3,24 @@
 mod dispatch;
 
 use std::{
-    collections::HashMap,
     fmt, hash,
     sync::{
-        atomic::{AtomicBool, AtomicU32, Ordering},
+        atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
 };
 
-use wayland_backend::server::{ClientId, GlobalId};
+use wayland_backend::server::GlobalId;
 use wayland_server::{protocol::wl_output, Client, Dispatch, DisplayHandle, GlobalDispatch, Resource};
 
-use crate::utils::{DeadResource, DoubleBufferable, DoubleBuffered};
+use crate::utils::{DeadResource, DoubleBufferable, DoubleBuffered, UnmanagedResource};
 
 use self::{generated::ext_foreign_toplevel_handle_v1, protocol::ext_foreign_toplevel_info_v1};
 
 #[derive(Debug)]
 pub struct ForeignToplevelInfo {
     global: GlobalId,
-    clients: HashMap<ClientId, ForeignToplevelClient>,
+    clients: Vec<ForeignToplevelClient>,
     toplevels: Vec<ToplevelHandle>,
     display: DisplayHandle,
 }
@@ -46,15 +45,16 @@ impl ForeignToplevelInfo {
 
         Self {
             global,
-            clients: HashMap::default(),
+            clients: Vec::new(),
             toplevels: Vec::new(),
             display: display.clone(),
         }
     }
 
-    pub fn get_client(&self, client: &Client) -> Option<ForeignToplevelClient> {
-        self.clients.get(&client.id()).cloned()
-    }
+    // TODO: get_clients()?
+    // pub fn get_client(&self, client: &Client) -> Option<ForeignToplevelClient> {
+    //     self.clients.get(&client.id()).cloned()
+    // }
 
     /// Creates a toplevel handle and advertises the toplevel to all clients.
     ///
@@ -75,7 +75,7 @@ impl ForeignToplevelInfo {
         };
         self.toplevels.push(handle.clone());
 
-        for client in self.clients.values() {
+        for client in self.clients.iter() {
             handle.create_for_client::<State>(&self.display, client);
         }
 
@@ -104,6 +104,12 @@ pub trait ForeignToplevelInfoHandler {
 
     fn new_client(&mut self, client: ForeignToplevelClient);
 
+    /// This event indicates that a client has told the compositor it no longer wants to receive toplevel
+    /// events.
+    ///
+    /// This may be useful for extension protocols that might continue to send messages to the client.
+    fn client_finished(&mut self, _client: &ForeignToplevelClient) {}
+
     fn client_destroyed(&mut self, client: &ForeignToplevelClient);
 }
 
@@ -128,8 +134,13 @@ pub struct ForeignToplevelClient {
 }
 
 impl ForeignToplevelClient {
-    pub fn info(&self) -> ext_foreign_toplevel_info_v1::ExtForeignToplevelInfoV1 {
-        self.object.clone()
+    /// Returns the client which created the object.
+    pub fn client(&self) -> &Client {
+        &self.data().info.client
+    }
+
+    pub fn info(&self) -> &ext_foreign_toplevel_info_v1::ExtForeignToplevelInfoV1 {
+        &self.object
     }
 
     /// Tell the client that the compositor will no longer send events.
@@ -220,17 +231,18 @@ impl ToplevelHandle {
                 display,
                 VERSION,
                 ToplevelHandleData {
+                    client: toplevel_client.clone(),
                     inner: self.inner.clone(),
                 },
             )
             .unwrap();
         toplevel_client.object.toplevel(&handle);
+        // Track the handle with the client.
+        {
+            let mut handles = toplevel_client.data().info.handles.lock().unwrap();
+            handles.push(handle.clone());
+        }
 
-        toplevel_client
-            .data()
-            .info
-            .toplevel_count
-            .fetch_add(1, Ordering::Relaxed);
         let mut handles = self.inner.handles.lock().unwrap();
         handles.push(handle.clone());
 
@@ -311,7 +323,19 @@ impl DoubleBufferable for ToplevelState {
 
 #[derive(Debug)]
 pub struct ToplevelHandleData {
+    client: ForeignToplevelClient,
     inner: Arc<ToplevelHandleInner>,
+}
+
+pub trait ExtForeignToplevelHandleV1Ext: Sized {
+    /// Get the foreign toplevel client which owns this toplevel handle instance.
+    fn get_client(&self) -> Result<&ForeignToplevelClient, UnmanagedResource>;
+}
+
+impl ExtForeignToplevelHandleV1Ext for ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1 {
+    fn get_client(&self) -> Result<&ForeignToplevelClient, UnmanagedResource> {
+        Ok(&self.data::<ToplevelHandleData>().ok_or(UnmanagedResource)?.client)
+    }
 }
 
 #[allow(missing_docs)] // TODO
@@ -438,8 +462,7 @@ const VERSION: u32 = 1;
 #[derive(Debug)]
 struct ClientData {
     client: Client,
-    // AtomicU32 is okay since the Wayland protocol forbids more than u32::MAX protocol objects to exist at once.
-    toplevel_count: AtomicU32,
+    handles: Mutex<Vec<ext_foreign_toplevel_handle_v1::ExtForeignToplevelHandleV1>>,
     stop: AtomicBool,
 }
 

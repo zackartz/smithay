@@ -6,11 +6,11 @@ use std::{
 
 use smithay::{
     backend::renderer::element::{default_primary_scanout_output_compare, RenderElementStates},
-    delegate_compositor, delegate_data_device, delegate_fractional_scale, delegate_input_method_manager,
-    delegate_keyboard_shortcuts_inhibit, delegate_layer_shell, delegate_output, delegate_presentation,
-    delegate_primary_selection, delegate_seat, delegate_shm, delegate_tablet_manager,
-    delegate_text_input_manager, delegate_viewporter, delegate_virtual_keyboard_manager,
-    delegate_xdg_activation, delegate_xdg_decoration, delegate_xdg_shell,
+    delegate_compositor, delegate_data_device, delegate_foreign_toplevel_info, delegate_fractional_scale,
+    delegate_input_method_manager, delegate_keyboard_shortcuts_inhibit, delegate_layer_shell,
+    delegate_output, delegate_presentation, delegate_primary_selection, delegate_seat, delegate_shm,
+    delegate_tablet_manager, delegate_text_input_manager, delegate_viewporter,
+    delegate_virtual_keyboard_manager, delegate_xdg_activation, delegate_xdg_decoration, delegate_xdg_shell,
     desktop::{
         utils::{
             surface_presentation_feedback_flags_from_states, surface_primary_scanout_output,
@@ -38,6 +38,7 @@ use smithay::{
             set_data_device_focus, ClientDndGrabHandler, DataDeviceHandler, DataDeviceState,
             ServerDndGrabHandler,
         },
+        foreign_toplevel::{ForeignToplevelClient, ForeignToplevelInfo, ForeignToplevelInfoHandler},
         fractional_scale::{with_fractional_scale, FractionScaleHandler, FractionalScaleManagerState},
         input_method::{InputMethodManagerState, InputMethodSeat},
         keyboard_shortcuts_inhibit::{
@@ -62,8 +63,8 @@ use smithay::{
         virtual_keyboard::VirtualKeyboardManagerState,
         xdg_activation::{
             XdgActivationHandler, XdgActivationState, XdgActivationToken, XdgActivationTokenData,
-        }, foreign_toplevel::{ForeignToplevelInfo, ForeignToplevelInfoHandler, ForeignToplevelClient},
-    }, delegate_foreign_toplevel_info,
+        },
+    },
 };
 
 #[cfg(feature = "xwayland")]
